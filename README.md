@@ -12,8 +12,9 @@ OLED monitors use self-emitting pixels. When displaying pure black (#000000), no
 - Per-monitor blackout toggle via context menu
 - Friendly monitor names (e.g., "ASUS VG32UQ1B" instead of "\\\\.\\DISPLAY1")
 - Multiple monitors can be blacked out simultaneously
-- Double-click on black window to dismiss
+- Double-click or right-click on black window to dismiss
 - Single-instance enforcement
+- File-based logging with automatic rotation and retention
 - Zero external dependencies
 
 ## Requirements
@@ -29,6 +30,8 @@ Download `ScreenNap.exe` from [Releases](https://github.com/luxon-45/ScreenNap/r
 ### Installer
 
 Download `ScreenNap-Setup-x.x.x.exe` from [Releases](https://github.com/luxon-45/ScreenNap/releases) and follow the setup wizard. Optionally register for Windows startup.
+
+Default install path: `%LocalAppData%\Programs\ScreenNap`
 
 ## Building from Source
 
@@ -49,6 +52,27 @@ Or directly:
 ```
 dotnet publish ScreenNap/ScreenNap.csproj -c Release -f net10.0-windows -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
+
+## Usage
+
+### Dismiss a Blackout
+
+- **Double-click** anywhere on the black window
+- **Right-click** anywhere on the black window (safety fallback for when the main monitor is blacked out)
+
+### Logs
+
+Log files are written to `%LocalAppData%\ScreenNap\Logs\` with daily rotation and 7-day retention.
+
+| Level | Description |
+|-------|-------------|
+| INFO | Application lifecycle, blackout events, monitor enumeration |
+| WARN | Non-critical failures (tooltip, menu) |
+| ERROR | Critical P/Invoke failures with Win32 error codes |
+
+### Adding a Language
+
+Create `ScreenNap/Resources/Strings.xx.resx` (where `xx` is the language code, e.g., `fr`, `de`, `ko`) with translated strings. No code changes required — .NET picks the resource file automatically based on the OS language setting.
 
 ## Technology
 

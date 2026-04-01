@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using ScreenNap.App;
+using ScreenNap.Blackout;
+using ScreenNap.Logging;
 using ScreenNap.Native;
 using ScreenNap.Resources;
 
@@ -33,6 +35,9 @@ internal static class Program
             return;
         }
 
+        Logger.Initialize();
+        Logger.Info("Application started");
+
         // Initialize common controls (required for tooltip)
         var icc = new INITCOMMONCONTROLSEX
         {
@@ -56,7 +61,10 @@ internal static class Program
         Marshal.FreeHGlobal(wc.lpszClassName);
 
         if (atom == 0)
+        {
+            Logger.Error($"RegisterClassExW failed for message window (Win32 error: {Marshal.GetLastWin32Error()})");
             return;
+        }
 
         // Create hidden message-only window
         s_messageWindow = User32.CreateWindowExW(
@@ -65,7 +73,10 @@ internal static class Program
             WindowStyles.HWND_MESSAGE, IntPtr.Zero, hInstance, IntPtr.Zero);
 
         if (s_messageWindow == IntPtr.Zero)
+        {
+            Logger.Error($"CreateWindowExW failed for message window (Win32 error: {Marshal.GetLastWin32Error()})");
             return;
+        }
 
         // Initialize components
         s_blackoutManager = new BlackoutManager();
@@ -87,8 +98,11 @@ internal static class Program
         }
 
         // Cleanup
+        Logger.Info("Application exiting");
         s_trayIcon.Remove();
         s_blackoutManager.ReleaseAll();
+        User32.DestroyWindow(s_messageWindow);
+        BlackoutWindow.UnregisterClass(hInstance);
         User32.UnregisterClassW(MessageWindowClassName, hInstance);
     }
 

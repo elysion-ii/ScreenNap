@@ -1,4 +1,5 @@
 using ScreenNap.Blackout;
+using ScreenNap.Logging;
 
 namespace ScreenNap.App;
 
@@ -18,11 +19,13 @@ internal sealed class BlackoutManager
     {
         if (_windows.TryGetValue(monitor.DevicePath, out BlackoutWindow? existing))
         {
+            Logger.Info($"Blackout toggled off: {monitor.FriendlyName} ({monitor.DevicePath})");
             existing.Destroy();
             // Removal from dictionary happens in OnBlackoutDestroyed callback
         }
         else
         {
+            Logger.Info($"Blackout toggled on: {monitor.FriendlyName} ({monitor.DevicePath})");
             var window = new BlackoutWindow(monitor.DevicePath, monitor.Bounds);
             if (window.Handle == IntPtr.Zero)
                 return;
@@ -35,6 +38,9 @@ internal sealed class BlackoutManager
 
     internal void ReleaseAll()
     {
+        if (_windows.Count > 0)
+            Logger.Info($"Releasing all blackout windows ({_windows.Count})");
+
         // Snapshot keys to avoid modification during enumeration
         var paths = _windows.Keys.ToList();
         foreach (string path in paths)

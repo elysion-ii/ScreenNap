@@ -1,3 +1,4 @@
+using ScreenNap.Logging;
 using ScreenNap.Native;
 using ScreenNap.Resources;
 
@@ -19,7 +20,10 @@ internal sealed class ContextMenu
 
         IntPtr hMenu = User32.CreatePopupMenu();
         if (hMenu == IntPtr.Zero)
+        {
+            Logger.Warn("CreatePopupMenu failed");
             return;
+        }
 
         // Monitor items
         for (int i = 0; i < _lastMonitors.Count; i++)
@@ -61,7 +65,6 @@ internal sealed class ContextMenu
     {
         if (commandId == WindowStyles.MENU_ID_EXIT)
         {
-            _manager.ReleaseAll();
             User32.PostQuitMessage(0);
             return;
         }

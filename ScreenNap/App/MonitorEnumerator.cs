@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ScreenNap.Logging;
 using ScreenNap.Native;
 
 namespace ScreenNap.App;
@@ -28,6 +29,14 @@ internal static class MonitorEnumerator
             monitors.Add(new MonitorInfo(devicePath, friendlyName, info.rcMonitor, isPrimary));
             return true;
         }, 0);
+
+        Logger.Info($"Monitors enumerated: {monitors.Count} found");
+        for (int i = 0; i < monitors.Count; i++)
+        {
+            MonitorInfo m = monitors[i];
+            string primary = m.IsPrimary ? " Primary" : "";
+            Logger.Info($"  #{i + 1} \"{m.FriendlyName}\" ({m.Bounds.Left},{m.Bounds.Top} {m.Bounds.Width}x{m.Bounds.Height}){primary} {m.DevicePath}");
+        }
 
         return monitors;
     }

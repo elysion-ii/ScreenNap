@@ -99,7 +99,7 @@ Program.cs → App/ → Native/
 | Taskbar visibility | Hidden (`WS_EX_TOOLWINDOW`) |
 | Alt+Tab visibility | Hidden (`WS_EX_TOOLWINDOW`) |
 | Focus stealing | Prevented (`WS_EX_NOACTIVATE`) |
-| Dismiss method | Double-click (`WM_LBUTTONDBLCLK`, requires `CS_DBLCLKS` class style) |
+| Dismiss method | Double-click (`WM_LBUTTONDBLCLK`, requires `CS_DBLCLKS` class style) or right-click (`WM_RBUTTONUP`) |
 | Hover tooltip | "Double-click to dismiss" via `TOOLTIPS_CLASS` common control |
 
 
@@ -139,6 +139,25 @@ None. All operations are performed through the tray context menu to prevent acci
 | TooltipActive | ScreenNap ({0} active) | ScreenNap ({0}台 暗転中) |
 | NotifyAlreadyRunning | ScreenNap is already running. | ScreenNap は既に起動しています。 |
 | BlackoutDismissHint | Double-click to dismiss | ダブルクリックで解除 |
+
+
+## Logging
+
+| Item | Detail |
+|------|--------|
+| Output | `%LocalAppData%\ScreenNap\Logs\` |
+| File format | `ScreenNap_yyyyMMdd.log` (daily rotation) |
+| Retention | 7 days (purged on startup) |
+| Log levels | INFO, WARN, ERROR |
+| Line format | `yyyy-MM-dd HH:mm:ss.fff [LEVEL] message` |
+
+### Logged Events
+
+| Level | Events |
+|-------|--------|
+| INFO | Application start/exit, tray icon lifecycle, blackout create/destroy, monitor enumeration results |
+| WARN | Non-critical failures (tooltip creation, popup menu) |
+| ERROR | Critical P/Invoke failures (RegisterClassExW, CreateWindowExW, Shell_NotifyIcon) with `GetLastWin32Error()` |
 
 
 ## Non-Functional Requirements
@@ -193,4 +212,8 @@ dotnet publish ScreenNap/ScreenNap.csproj ^
 
 The Inno Setup installer (`Build/Setup_ScreenNap.iss`) creates a per-user installation with optional desktop shortcut and Windows startup registration.
 
-**AppId:** `{E4A72F8B-3D19-4C5A-9F61-B8D2E5C7A043}`
+| Item | Detail |
+|------|--------|
+| AppId | `{E4A72F8B-3D19-4C5A-9F61-B8D2E5C7A043}` |
+| Default install path | `%LocalAppData%\Programs\ScreenNap` |
+| Privileges | User-level (`PrivilegesRequired=lowest`) |

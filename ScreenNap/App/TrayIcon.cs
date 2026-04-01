@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ScreenNap.Logging;
 using ScreenNap.Native;
 using ScreenNap.Resources;
 
@@ -28,8 +29,13 @@ internal sealed class TrayIcon
         nid.hIcon = _iconNormal;
         SetTipText(ref nid, Strings.TooltipNormal);
 
-        Shell32.Shell_NotifyIconW(WindowStyles.NIM_ADD, ref nid);
-        _created = true;
+        _created = Shell32.Shell_NotifyIconW(WindowStyles.NIM_ADD, ref nid);
+        if (!_created)
+        {
+            Logger.Error("Shell_NotifyIconW(NIM_ADD) failed");
+            return;
+        }
+        Logger.Info("Tray icon created");
 
         // Set version for modern notification behavior
         var versionData = CreateBaseData();
@@ -45,6 +51,7 @@ internal sealed class TrayIcon
         var nid = CreateBaseData();
         Shell32.Shell_NotifyIconW(WindowStyles.NIM_DELETE, ref nid);
         _created = false;
+        Logger.Info("Tray icon removed");
 
         if (_iconNormal != IntPtr.Zero)
             User32.DestroyIcon(_iconNormal);

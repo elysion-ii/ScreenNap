@@ -161,7 +161,7 @@ Rules:
 - Commit messages entirely in English.
 - Clear, concise descriptions.
 - Conventional commit format (e.g., feat:, fix:, refactor:, docs:, build:).
-- Before committing, ensure plans/ folder is clean. Move plan files to Archive/plan/.
+- Before committing, ensure plans/ folder is clean. Move plan files to Archive/plans/.
 
 ### 3.4 screennap.md
 

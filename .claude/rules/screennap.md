@@ -20,7 +20,7 @@ Project-specific rules for Win32/P/Invoke development in ScreenNap.
 - **Default handling:** Always call `DefWindowProc` for messages not explicitly handled.
 - **No async:** Do NOT use `async`/`await` inside WndProc. Win32 message handling is synchronous.
 - **Message routing:**
-  - Hidden message window: `WM_TRAYICON` (custom), `WM_COMMAND`
+  - Hidden message window: `WM_TRAYICON` (custom), `WM_COMMAND`, `WM_HOTKEY`
   - Blackout window: `WM_PAINT`, `WM_LBUTTONDBLCLK`, `WM_TIMER`, `WM_ERASEBKGND`, `WM_DESTROY`
 
 ---

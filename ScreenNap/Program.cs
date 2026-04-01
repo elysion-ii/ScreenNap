@@ -18,6 +18,7 @@ internal static class Program
     private static TrayIcon? s_trayIcon;
     private static BlackoutManager? s_blackoutManager;
     private static ContextMenu? s_contextMenu;
+    private static HotkeyManager? s_hotkeyManager;
     private static IntPtr s_messageWindow;
 
     [STAThread]
@@ -77,6 +78,7 @@ internal static class Program
         s_blackoutManager = new BlackoutManager();
         s_trayIcon = new TrayIcon(s_messageWindow);
         s_contextMenu = new ContextMenu(s_blackoutManager);
+        s_hotkeyManager = new HotkeyManager(s_blackoutManager);
 
         s_blackoutManager.ActiveCountChanged += () =>
         {
@@ -84,6 +86,7 @@ internal static class Program
         };
 
         s_trayIcon.Create();
+        s_hotkeyManager.Register(s_messageWindow);
 
         // Message loop
         while (User32.GetMessageW(out MSG msg, IntPtr.Zero, 0, 0))
@@ -94,6 +97,7 @@ internal static class Program
 
         // Cleanup
         Logger.Info("Application exiting");
+        s_hotkeyManager.Unregister(s_messageWindow);
         s_trayIcon.Remove();
         s_blackoutManager.ReleaseAll();
         User32.DestroyWindow(s_messageWindow);
@@ -116,6 +120,10 @@ internal static class Program
             case WindowStyles.WM_COMMAND:
                 int commandId = (int)(wParam & 0xFFFF);
                 s_contextMenu?.HandleCommand(commandId);
+                return 0;
+
+            case WindowStyles.WM_HOTKEY:
+                s_hotkeyManager?.HandleHotkey((int)wParam);
                 return 0;
 
             case WindowStyles.WM_DESTROY:

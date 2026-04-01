@@ -111,6 +111,15 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool EnumDisplayDevicesW(string? lpDevice, uint iDevNum, ref DISPLAY_DEVICEW lpDisplayDevice, uint dwFlags);
 
+    // Hotkey
+    [LibraryImport("user32.dll", EntryPoint = "RegisterHotKey", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [LibraryImport("user32.dll", EntryPoint = "UnregisterHotKey", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UnregisterHotKey(IntPtr hWnd, int id);
+
     // Icon
     [LibraryImport("user32.dll", EntryPoint = "CreateIconFromResourceEx", SetLastError = true)]
     internal static partial IntPtr CreateIconFromResourceEx(IntPtr presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);

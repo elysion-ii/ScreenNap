@@ -1,6 +1,6 @@
 ; ScreenNap Installer Script
 #define MyAppName "ScreenNap"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "luxon-45"
 #define MyAppURL "https://github.com/luxon-45/ScreenNap"
 #define MyAppExeName "ScreenNap.exe"

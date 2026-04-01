@@ -30,7 +30,7 @@ internal sealed class ContextMenu
         {
             MonitorInfo monitor = _lastMonitors[i];
             bool isActive = _manager.IsActive(monitor.DevicePath);
-            string label = monitor.BuildMenuLabel(isActive);
+            string label = monitor.BuildMenuLabel(i + 1, isActive);
             uint flags = WindowStyles.MF_STRING;
             if (isActive)
                 flags |= WindowStyles.MF_CHECKED;

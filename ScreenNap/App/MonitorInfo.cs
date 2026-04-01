@@ -5,9 +5,9 @@ namespace ScreenNap.App;
 
 internal sealed record MonitorInfo(string DevicePath, string FriendlyName, RECT Bounds, bool IsPrimary)
 {
-    internal string BuildMenuLabel(bool isActive)
+    internal string BuildMenuLabel(int index, bool isActive)
     {
-        var label = $"{FriendlyName}  {Bounds.Width}x{Bounds.Height}";
+        var label = $"&{index}  {FriendlyName}  {Bounds.Width}x{Bounds.Height}";
 
         if (IsPrimary)
             label += $"  {Strings.MenuPrimary}";

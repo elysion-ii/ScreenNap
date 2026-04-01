@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-01
+
+### Added
+- Global hotkey support: Ctrl+Alt+Shift+1~9 to toggle blackout per monitor
+- Monitor number display in context menu
+
 ## [1.0.0] - 2026-04-01
 
 ### Changed

@@ -32,6 +32,7 @@ internal static class WindowStyles
     internal const uint WM_SETCURSOR = 0x0020;
     internal const uint WM_MOUSEMOVE = 0x0200;
     internal const uint WM_NULL = 0x0000;
+    internal const uint WM_HOTKEY = 0x0312;
     internal const uint WM_USER = 0x0400;
     internal const uint WM_TRAYICON = WM_USER + 1;
 
@@ -87,8 +88,15 @@ internal static class WindowStyles
     internal const int CURSOR_HIDE_TIMEOUT_MS = 10000;
     internal const int HTCLIENT = 1;
 
+    // Hotkey modifiers
+    internal const uint MOD_ALT = 0x0001;
+    internal const uint MOD_CONTROL = 0x0002;
+    internal const uint MOD_SHIFT = 0x0004;
+    internal const uint MOD_NOREPEAT = 0x4000;
+
     // Menu item IDs
     internal const int MENU_ID_MONITOR_BASE = 1000;
     internal const int MENU_ID_RELEASE_ALL = 2000;
     internal const int MENU_ID_EXIT = 9999;
+    internal const int HOTKEY_ID_BASE = 3000;
 }

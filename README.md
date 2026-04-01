@@ -13,6 +13,7 @@ OLED monitors use self-emitting pixels. When displaying pure black (#000000), no
 - Friendly monitor names (e.g., "ASUS VG32UQ1B" instead of "\\\\.\\DISPLAY1")
 - Multiple monitors can be blacked out simultaneously
 - Double-click or right-click on black window to dismiss
+- Auto-hide cursor on blackout window after 10 seconds of inactivity
 - Single-instance enforcement
 - File-based logging with automatic rotation and retention
 - Zero external dependencies

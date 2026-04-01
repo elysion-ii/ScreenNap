@@ -99,6 +99,9 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "LoadCursorW", SetLastError = true)]
     internal static partial IntPtr LoadCursorW(IntPtr hInstance, int lpCursorName);
 
+    [LibraryImport("user32.dll", EntryPoint = "SetCursor")]
+    internal static partial IntPtr SetCursor(IntPtr hCursor);
+
     // MessageBox
     [LibraryImport("user32.dll", EntryPoint = "MessageBoxW", StringMarshalling = StringMarshalling.Utf16)]
     internal static partial int MessageBoxW(IntPtr hWnd, string lpText, string lpCaption, uint uType);

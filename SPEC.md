@@ -100,6 +100,7 @@ Program.cs → App/ → Native/
 | Alt+Tab visibility | Hidden (`WS_EX_TOOLWINDOW`) |
 | Focus stealing | Prevented (`WS_EX_NOACTIVATE`) |
 | Dismiss method | Double-click (`WM_LBUTTONDBLCLK`, requires `CS_DBLCLKS` class style) or right-click (`WM_RBUTTONUP`) |
+| Cursor auto-hide | Hidden after 10 seconds of no mouse movement; restored on movement. Uses existing TopMost timer (1s) for idle check. `SetCursor(NULL)` to hide, `WM_SETCURSOR` handled to maintain hidden state. |
 | Hover tooltip | "Double-click to dismiss" via `TOOLTIPS_CLASS` common control |
 
 

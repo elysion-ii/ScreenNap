@@ -19,6 +19,10 @@ internal sealed class BlackoutWindow
     internal Action<BlackoutWindow>? OnDestroyed { get; set; }
 
     private IntPtr _tooltipHandle;
+    private long _lastMouseMoveTick;
+    private int _lastMouseX;
+    private int _lastMouseY;
+    private bool _cursorHidden;
 
     internal BlackoutWindow(string devicePath, RECT bounds)
     {
@@ -43,6 +47,7 @@ internal sealed class BlackoutWindow
         Logger.Info($"Blackout window created: {devicePath} ({bounds.Left},{bounds.Top} {bounds.Width}x{bounds.Height})");
 
         s_instances[Handle] = this;
+        _lastMouseMoveTick = Environment.TickCount64;
 
         // TopMost maintenance timer (non-critical: window still works without it)
         _ = User32.SetTimer(Handle, WindowStyles.TOPMOST_TIMER_ID, WindowStyles.TOPMOST_TIMER_INTERVAL_MS, IntPtr.Zero);
@@ -133,7 +138,48 @@ internal sealed class BlackoutWindow
                 User32.SetWindowPos(hWnd, WindowStyles.HWND_TOPMOST,
                     0, 0, 0, 0,
                     WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE);
+
+                // Auto-hide cursor after idle timeout
+                if (s_instances.TryGetValue(hWnd, out BlackoutWindow? timerInstance) &&
+                    !timerInstance._cursorHidden &&
+                    Environment.TickCount64 - timerInstance._lastMouseMoveTick >= WindowStyles.CURSOR_HIDE_TIMEOUT_MS)
+                {
+                    User32.SetCursor(IntPtr.Zero);
+                    timerInstance._cursorHidden = true;
+                }
                 return 0;
+
+            case WindowStyles.WM_MOUSEMOVE:
+                if (s_instances.TryGetValue(hWnd, out BlackoutWindow? moveInstance))
+                {
+                    int x = (short)(lParam & 0xFFFF);
+                    int y = (short)((lParam >> 16) & 0xFFFF);
+
+                    // Only react to actual position changes (ignore synthetic messages)
+                    if (x != moveInstance._lastMouseX || y != moveInstance._lastMouseY)
+                    {
+                        moveInstance._lastMouseX = x;
+                        moveInstance._lastMouseY = y;
+                        moveInstance._lastMouseMoveTick = Environment.TickCount64;
+
+                        if (moveInstance._cursorHidden)
+                        {
+                            User32.SetCursor(User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW));
+                            moveInstance._cursorHidden = false;
+                        }
+                    }
+                }
+                return 0;
+
+            case WindowStyles.WM_SETCURSOR:
+                if ((lParam & 0xFFFF) == WindowStyles.HTCLIENT &&
+                    s_instances.TryGetValue(hWnd, out BlackoutWindow? cursorInstance) &&
+                    cursorInstance._cursorHidden)
+                {
+                    User32.SetCursor(IntPtr.Zero);
+                    return 1;
+                }
+                break;
 
             case WindowStyles.WM_LBUTTONDBLCLK:
                 User32.DestroyWindow(hWnd);

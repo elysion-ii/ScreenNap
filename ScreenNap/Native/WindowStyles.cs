@@ -29,6 +29,8 @@ internal static class WindowStyles
     internal const uint WM_LBUTTONUP = 0x0202;
     internal const uint WM_LBUTTONDBLCLK = 0x0203;
     internal const uint WM_RBUTTONUP = 0x0205;
+    internal const uint WM_SETCURSOR = 0x0020;
+    internal const uint WM_MOUSEMOVE = 0x0200;
     internal const uint WM_NULL = 0x0000;
     internal const uint WM_USER = 0x0400;
     internal const uint WM_TRAYICON = WM_USER + 1;
@@ -92,6 +94,10 @@ internal static class WindowStyles
     // Timer ID for TopMost maintenance
     internal const nuint TOPMOST_TIMER_ID = 1;
     internal const uint TOPMOST_TIMER_INTERVAL_MS = 1000;
+
+    // Cursor auto-hide on blackout window
+    internal const int CURSOR_HIDE_TIMEOUT_MS = 10000;
+    internal const int HTCLIENT = 1;
 
     // Menu item IDs
     internal const int MENU_ID_MONITOR_BASE = 1000;

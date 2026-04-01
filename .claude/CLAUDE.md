@@ -22,7 +22,7 @@ The main (and only) project. Contains all application source code.
 
 - **`Program.cs`**: Application entry point. Named Mutex for single-instance enforcement. Win32 message loop.
 - **`Native/`**: P/Invoke declarations, Win32 constants, native struct definitions. Purely declarative — no business logic.
-- **`App/`**: Application-level components (tray icon, context menu, monitor enumeration, blackout lifecycle management, global hotkey management).
+- **`App/`**: Application-level components (tray icon, context menu, monitor enumeration, blackout lifecycle management, global hotkey management, monitor identify overlay).
 - **`Blackout/`**: The blackout window implementation (window class registration, creation, WndProc message handling).
 - **`Resources/`**: String resources (.resx) for i18n, and icon files (.ico).
 - **Rules:** Developers MUST read and strictly adhere to `.claude/rules/coding-standards.md` (shared) and `.claude/rules/screennap.md` (project-specific) during development.

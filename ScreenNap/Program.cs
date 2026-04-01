@@ -40,8 +40,6 @@ internal static class Program
         string version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
         Logger.Info($"Application started (v{version})");
 
-
-
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
 
         // Register hidden message window class
@@ -100,8 +98,10 @@ internal static class Program
         s_hotkeyManager.Unregister(s_messageWindow);
         s_trayIcon.Remove();
         s_blackoutManager.ReleaseAll();
+        IdentifyOverlay.DismissAll();
         User32.DestroyWindow(s_messageWindow);
         BlackoutWindow.UnregisterClass(hInstance);
+        IdentifyOverlay.UnregisterClass(hInstance);
         User32.UnregisterClassW(MessageWindowClassName, hInstance);
     }
 

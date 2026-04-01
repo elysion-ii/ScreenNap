@@ -7,7 +7,7 @@ Project-specific rules for Win32/P/Invoke development in ScreenNap.
 ## WIN32: P/Invoke Conventions
 
 - **Prefer `[LibraryImport]`** (source-generated) over `[DllImport]` for all new declarations.
-- **Group by DLL:** `User32.cs`, `Shell32.cs`, `DisplayConfig.cs`. One file per DLL.
+- **Group by DLL:** `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `DisplayConfig.cs`. One file per DLL.
 - **Handle types:** Use `IntPtr` for window handles (HWND), menu handles (HMENU), icon handles (HICON), and other Win32 handles.
 - **Struct layout:** All native structs MUST have `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`.
 - **Return value checking:** Always check return values after P/Invoke calls. Use `Marshal.GetLastWin32Error()` for functions that document `SetLastError = true`.
@@ -22,6 +22,7 @@ Project-specific rules for Win32/P/Invoke development in ScreenNap.
 - **Message routing:**
   - Hidden message window: `WM_TRAYICON` (custom), `WM_COMMAND`, `WM_HOTKEY`
   - Blackout window: `WM_PAINT`, `WM_LBUTTONDBLCLK`, `WM_TIMER`, `WM_ERASEBKGND`, `WM_DESTROY`
+  - Identify overlay: `WM_PAINT`, `WM_TIMER`, `WM_DESTROY`
 
 ---
 

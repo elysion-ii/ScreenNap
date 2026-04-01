@@ -29,6 +29,13 @@ internal sealed class HotkeyManager
                 Logger.Warn($"Failed to register hotkey Ctrl+Alt+Shift+{i + 1} (Win32 error: {error})");
             }
         }
+
+        // Ctrl+Alt+Shift+0: identify monitors
+        if (!User32.RegisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY, Modifiers, 0x30))
+        {
+            int error = Marshal.GetLastWin32Error();
+            Logger.Warn($"Failed to register hotkey Ctrl+Alt+Shift+0 (Win32 error: {error})");
+        }
     }
 
     internal void Unregister(IntPtr hwnd)
@@ -37,10 +44,17 @@ internal sealed class HotkeyManager
         {
             User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_BASE + i);
         }
+        User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY);
     }
 
     internal void HandleHotkey(int hotkeyId)
     {
+        if (hotkeyId == WindowStyles.HOTKEY_ID_IDENTIFY)
+        {
+            IdentifyOverlay.Toggle();
+            return;
+        }
+
         int index = hotkeyId - WindowStyles.HOTKEY_ID_BASE;
         if (index < 0 || index >= MaxHotkeys)
             return;

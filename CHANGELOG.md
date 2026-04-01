@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-02
+
+### Added
+- Monitor identify overlay: Ctrl+Alt+Shift+0 shows monitor numbers on screen (auto-dismisses after 3 seconds)
+
 ## [1.1.0] - 2026-04-01
 
 ### Added

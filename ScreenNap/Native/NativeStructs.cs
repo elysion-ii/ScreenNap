@@ -93,6 +93,17 @@ internal unsafe struct DISPLAY_DEVICEW
 }
 
 [StructLayout(LayoutKind.Sequential)]
+internal struct PAINTSTRUCT
+{
+    public IntPtr hdc;
+    public int fErase;
+    public RECT rcPaint;
+    public int fRestore;
+    public int fIncUpdate;
+    private unsafe fixed byte rgbReserved[32];
+}
+
+[StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_PATH_INFO
 {
     public DISPLAYCONFIG_PATH_SOURCE_INFO sourceInfo;

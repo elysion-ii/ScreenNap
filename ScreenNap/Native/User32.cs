@@ -120,6 +120,17 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    // Paint
+    [LibraryImport("user32.dll", EntryPoint = "BeginPaint")]
+    internal static partial IntPtr BeginPaint(IntPtr hWnd, out PAINTSTRUCT lpPaint);
+
+    [LibraryImport("user32.dll", EntryPoint = "EndPaint")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
+
+    [LibraryImport("user32.dll", EntryPoint = "DrawTextW", StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int DrawTextW(IntPtr hdc, string lpchText, int cchText, ref RECT lprc, uint format);
+
     // Icon
     [LibraryImport("user32.dll", EntryPoint = "CreateIconFromResourceEx", SetLastError = true)]
     internal static partial IntPtr CreateIconFromResourceEx(IntPtr presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);
@@ -133,10 +144,4 @@ internal static partial class Kernel32
 {
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     internal static partial IntPtr GetModuleHandleW(string? lpModuleName);
-}
-
-internal static partial class Gdi32
-{
-    [LibraryImport("gdi32.dll", EntryPoint = "GetStockObject")]
-    internal static partial IntPtr GetStockObject(int i);
 }

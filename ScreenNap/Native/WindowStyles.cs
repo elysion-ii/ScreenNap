@@ -1,8 +1,6 @@
 namespace ScreenNap.Native;
 
-/// <summary>
-/// Win32 constants grouped by category.
-/// </summary>
+// Win32 constants grouped by category
 internal static class WindowStyles
 {
     // Window styles
@@ -94,9 +92,24 @@ internal static class WindowStyles
     internal const uint MOD_SHIFT = 0x0004;
     internal const uint MOD_NOREPEAT = 0x4000;
 
+    // DrawText flags
+    internal const uint DT_CENTER = 0x01;
+    internal const uint DT_VCENTER = 0x04;
+    internal const uint DT_SINGLELINE = 0x20;
+
+    // GDI background mode
+    internal const int TRANSPARENT_BK = 1;
+
+    // Identify overlay timers
+    internal const nuint IDENTIFY_DISMISS_TIMER_ID = 2;
+    internal const nuint IDENTIFY_TOPMOST_TIMER_ID = 3;
+    internal const uint IDENTIFY_DISMISS_MS = 3000;
+    internal const uint IDENTIFY_TOPMOST_MS = 250;
+
     // Menu item IDs
     internal const int MENU_ID_MONITOR_BASE = 1000;
     internal const int MENU_ID_RELEASE_ALL = 2000;
     internal const int MENU_ID_EXIT = 9999;
     internal const int HOTKEY_ID_BASE = 3000;
+    internal const int HOTKEY_ID_IDENTIFY = 3009;
 }

@@ -60,9 +60,6 @@
   <data name="NotifyAlreadyRunning" xml:space="preserve">
     <value>ScreenNap は既に起動しています。</value>
   </data>
-  <data name="BlackoutDismissHint" xml:space="preserve">
-    <value>ダブルクリックで解除</value>
-  </data>
   <data name="NotifyTitle" xml:space="preserve">
     <value>ScreenNap</value>
   </data>

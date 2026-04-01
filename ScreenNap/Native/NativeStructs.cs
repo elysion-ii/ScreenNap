@@ -177,24 +177,3 @@ internal unsafe struct DISPLAYCONFIG_SOURCE_DEVICE_NAME
     public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
     public fixed char viewGdiDeviceName[32];
 }
-
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-internal unsafe struct TOOLINFOW
-{
-    public uint cbSize;
-    public uint uFlags;
-    public IntPtr hwnd;
-    public nuint uId;
-    public RECT rect;
-    public IntPtr hinst;
-    public IntPtr lpszText;
-    public IntPtr lParam;
-    public IntPtr lpReserved;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct INITCOMMONCONTROLSEX
-{
-    public uint dwSize;
-    public uint dwICC;
-}

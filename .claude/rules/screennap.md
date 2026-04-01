@@ -60,7 +60,7 @@ Re-enumerate monitors on every context menu open. Handle disconnected monitors g
 ## I18N: Internationalization
 
 - **Resource files:** `Resources/Strings.resx` (English default), `Resources/Strings.ja.resx` (Japanese).
-- **String keys:** PascalCase with category prefix (e.g., `MenuExit`, `TooltipActive`, `BlackoutDismissHint`).
+- **String keys:** PascalCase with category prefix (e.g., `MenuExit`, `TooltipActive`, `NotifyAlreadyRunning`).
 - **Access:** Via the generated `Strings` class (e.g., `Strings.MenuExit`). Parameterized strings use `string.Format`.
 - **Not localized:** Code comments, log messages, build script output, git commit messages.
 - **Adding a language:** Create `Resources/Strings.xx.resx` with translated strings. No code changes required.

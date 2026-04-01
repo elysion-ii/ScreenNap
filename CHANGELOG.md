@@ -19,7 +19,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Multiple simultaneous blackouts
 - Blackout dismiss via double-click or right-click
 - Auto-hide cursor on blackout window after 10 seconds of inactivity
-- Hover tooltip on blackout windows
 - TopMost maintenance timer (1-second interval)
 - Single-instance enforcement via named Mutex
 - File-based logging (`%LocalAppData%\ScreenNap\Logs\`, daily rotation, 7-day retention)

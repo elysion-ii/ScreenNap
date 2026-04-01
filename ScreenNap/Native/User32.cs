@@ -111,10 +111,6 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool EnumDisplayDevicesW(string? lpDevice, uint iDevNum, ref DISPLAY_DEVICEW lpDisplayDevice, uint dwFlags);
 
-    // SendMessage (for tooltip)
-    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
-    internal static partial nint SendMessageW(IntPtr hWnd, uint msg, nuint wParam, ref TOOLINFOW lParam);
-
     // Icon
     [LibraryImport("user32.dll", EntryPoint = "CreateIconFromResourceEx", SetLastError = true)]
     internal static partial IntPtr CreateIconFromResourceEx(IntPtr presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);
@@ -134,12 +130,4 @@ internal static partial class Gdi32
 {
     [LibraryImport("gdi32.dll", EntryPoint = "GetStockObject")]
     internal static partial IntPtr GetStockObject(int i);
-}
-
-// Common controls
-internal static partial class Comctl32
-{
-    [LibraryImport("comctl32.dll", EntryPoint = "InitCommonControlsEx")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool InitCommonControlsEx(ref INITCOMMONCONTROLSEX lpInitCtrls);
 }

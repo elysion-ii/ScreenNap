@@ -36,15 +36,10 @@ internal static class Program
         }
 
         Logger.Initialize();
-        Logger.Info("Application started");
+        string version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+        Logger.Info($"Application started (v{version})");
 
-        // Initialize common controls (required for tooltip)
-        var icc = new INITCOMMONCONTROLSEX
-        {
-            dwSize = (uint)Marshal.SizeOf<INITCOMMONCONTROLSEX>(),
-            dwICC = WindowStyles.ICC_WIN95_CLASSES
-        };
-        Comctl32.InitCommonControlsEx(ref icc);
+
 
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
 

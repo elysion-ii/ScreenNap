@@ -79,18 +79,6 @@ internal static class WindowStyles
     internal const uint MB_OK = 0x00000000;
     internal const uint MB_ICONINFORMATION = 0x00000040;
 
-    // Tooltip styles
-    internal const uint TTS_ALWAYSTIP = 0x01;
-    internal const uint TTS_NOPREFIX = 0x02;
-    internal const uint TTF_SUBCLASS = 0x0010;
-    internal const uint TTF_IDISHWND = 0x0001;
-    internal const uint TTM_ADDTOOLW = 0x0432;
-    internal const uint TTM_DELTOOLW = 0x0433;
-    internal const string TOOLTIPS_CLASSW = "tooltips_class32";
-
-    // Common controls
-    internal const uint ICC_WIN95_CLASSES = 0x000000FF;
-
     // Timer ID for TopMost maintenance
     internal const nuint TOPMOST_TIMER_ID = 1;
     internal const uint TOPMOST_TIMER_INTERVAL_MS = 1000;

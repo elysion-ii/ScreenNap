@@ -43,9 +43,6 @@ internal static class Strings
     internal static string NotifyAlreadyRunning =>
         ResourceManager.GetString("NotifyAlreadyRunning", CultureInfo.CurrentUICulture) ?? "ScreenNap is already running.";
 
-    internal static string BlackoutDismissHint =>
-        ResourceManager.GetString("BlackoutDismissHint", CultureInfo.CurrentUICulture) ?? "Double-click to dismiss";
-
     internal static string NotifyTitle =>
         ResourceManager.GetString("NotifyTitle", CultureInfo.CurrentUICulture) ?? "ScreenNap";
 }

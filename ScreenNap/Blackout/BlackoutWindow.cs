@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using ScreenNap.Logging;
 using ScreenNap.Native;
-using ScreenNap.Resources;
 
 namespace ScreenNap.Blackout;
 
@@ -18,7 +17,6 @@ internal sealed class BlackoutWindow
     internal string DevicePath { get; }
     internal Action<BlackoutWindow>? OnDestroyed { get; set; }
 
-    private IntPtr _tooltipHandle;
     private long _lastMouseMoveTick;
     private int _lastMouseX;
     private int _lastMouseY;
@@ -51,9 +49,6 @@ internal sealed class BlackoutWindow
 
         // TopMost maintenance timer (non-critical: window still works without it)
         _ = User32.SetTimer(Handle, WindowStyles.TOPMOST_TIMER_ID, WindowStyles.TOPMOST_TIMER_INTERVAL_MS, IntPtr.Zero);
-
-        // Tooltip
-        CreateTooltip(hInstance);
     }
 
     internal void Destroy()
@@ -94,38 +89,6 @@ internal sealed class BlackoutWindow
             s_classRegistered = true;
         else
             Logger.Error($"RegisterClassExW failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
-    }
-
-    private void CreateTooltip(IntPtr hInstance)
-    {
-        _tooltipHandle = User32.CreateWindowExW(
-            0,
-            WindowStyles.TOOLTIPS_CLASSW,
-            string.Empty,
-            WindowStyles.TTS_ALWAYSTIP | WindowStyles.TTS_NOPREFIX,
-            0, 0, 0, 0,
-            Handle, IntPtr.Zero, hInstance, IntPtr.Zero);
-
-        if (_tooltipHandle == IntPtr.Zero)
-        {
-            Logger.Warn($"Tooltip creation failed for {DevicePath}");
-            return;
-        }
-
-        string tipText = Strings.BlackoutDismissHint;
-        IntPtr pText = Marshal.StringToHGlobalUni(tipText);
-
-        var toolInfo = new TOOLINFOW
-        {
-            cbSize = (uint)Marshal.SizeOf<TOOLINFOW>(),
-            uFlags = WindowStyles.TTF_SUBCLASS | WindowStyles.TTF_IDISHWND,
-            hwnd = Handle,
-            uId = (nuint)Handle,
-            lpszText = pText
-        };
-
-        User32.SendMessageW(_tooltipHandle, WindowStyles.TTM_ADDTOOLW, 0, ref toolInfo);
-        Marshal.FreeHGlobal(pText);
     }
 
     private static nint WndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
@@ -195,10 +158,6 @@ internal sealed class BlackoutWindow
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? instance))
                 {
                     Logger.Info($"Blackout window destroyed: {instance.DevicePath}");
-
-                    if (instance._tooltipHandle != IntPtr.Zero)
-                        User32.DestroyWindow(instance._tooltipHandle);
-
                     s_instances.Remove(hWnd);
                     instance.Handle = IntPtr.Zero;
                     instance.OnDestroyed?.Invoke(instance);

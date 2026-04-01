@@ -101,7 +101,6 @@ Program.cs → App/ → Native/
 | Focus stealing | Prevented (`WS_EX_NOACTIVATE`) |
 | Dismiss method | Double-click (`WM_LBUTTONDBLCLK`, requires `CS_DBLCLKS` class style) or right-click (`WM_RBUTTONUP`) |
 | Cursor auto-hide | Hidden after 10 seconds of no mouse movement; restored on movement. Uses existing TopMost timer (1s) for idle check. `SetCursor(NULL)` to hide, `WM_SETCURSOR` handled to maintain hidden state. |
-| Hover tooltip | "Double-click to dismiss" via `TOOLTIPS_CLASS` common control |
 
 
 ## Monitor Name Resolution
@@ -139,7 +138,6 @@ None. All operations are performed through the tray context menu to prevent acci
 | TooltipNormal | ScreenNap | ScreenNap |
 | TooltipActive | ScreenNap ({0} active) | ScreenNap ({0}台 暗転中) |
 | NotifyAlreadyRunning | ScreenNap is already running. | ScreenNap は既に起動しています。 |
-| BlackoutDismissHint | Double-click to dismiss | ダブルクリックで解除 |
 
 
 ## Logging
@@ -157,7 +155,7 @@ None. All operations are performed through the tray context menu to prevent acci
 | Level | Events |
 |-------|--------|
 | INFO | Application start/exit, tray icon lifecycle, blackout create/destroy, monitor enumeration results |
-| WARN | Non-critical failures (tooltip creation, popup menu) |
+| WARN | Non-critical failures (popup menu) |
 | ERROR | Critical P/Invoke failures (RegisterClassExW, CreateWindowExW, Shell_NotifyIcon) with `GetLastWin32Error()` |
 
 

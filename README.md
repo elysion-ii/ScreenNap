@@ -68,7 +68,7 @@ Log files are written to `%LocalAppData%\ScreenNap\Logs\` with daily rotation an
 | Level | Description |
 |-------|-------------|
 | INFO | Application lifecycle, blackout events, monitor enumeration |
-| WARN | Non-critical failures (tooltip, menu) |
+| WARN | Non-critical failures (menu) |
 | ERROR | Critical P/Invoke failures with Win32 error codes |
 
 ### Adding a Language

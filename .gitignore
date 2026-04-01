@@ -21,6 +21,9 @@ Build/publish_temp*/
 ## VS Code
 .vscode/
 
+## Project internal
+Archive/
+
 ## OS
 Thumbs.db
 Desktop.ini

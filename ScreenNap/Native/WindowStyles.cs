@@ -87,9 +87,9 @@ internal static class WindowStyles
     internal const int HTCLIENT = 1;
 
     // Hotkey modifiers
-    internal const uint MOD_ALT = 0x0001;
     internal const uint MOD_CONTROL = 0x0002;
     internal const uint MOD_SHIFT = 0x0004;
+    internal const uint MOD_ALT = 0x0001;
     internal const uint MOD_NOREPEAT = 0x4000;
 
     // DrawText flags

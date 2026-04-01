@@ -6,15 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-04-02
+
+### Fixed
+- Standardize hotkey notation to Ctrl+Shift+Alt (conventional modifier order)
+
 ## [1.2.0] - 2026-04-02
 
 ### Added
-- Monitor identify overlay: Ctrl+Alt+Shift+0 shows monitor numbers on screen (auto-dismisses after 3 seconds)
+- Monitor identify overlay: Ctrl+Shift+Alt+0 shows monitor numbers on screen (auto-dismisses after 3 seconds)
 
 ## [1.1.0] - 2026-04-01
 
 ### Added
-- Global hotkey support: Ctrl+Alt+Shift+1~9 to toggle blackout per monitor
+- Global hotkey support: Ctrl+Shift+Alt+1~9 to toggle blackout per monitor
 - Monitor number display in context menu
 
 ## [1.0.0] - 2026-04-01

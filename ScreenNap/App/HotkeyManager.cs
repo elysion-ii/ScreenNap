@@ -7,7 +7,7 @@ namespace ScreenNap.App;
 internal sealed class HotkeyManager
 {
     private const int MaxHotkeys = 9;
-    private const uint Modifiers = WindowStyles.MOD_CONTROL | WindowStyles.MOD_ALT | WindowStyles.MOD_SHIFT | WindowStyles.MOD_NOREPEAT;
+    private const uint Modifiers = WindowStyles.MOD_CONTROL | WindowStyles.MOD_SHIFT | WindowStyles.MOD_ALT | WindowStyles.MOD_NOREPEAT;
 
     private readonly BlackoutManager _manager;
 
@@ -26,15 +26,15 @@ internal sealed class HotkeyManager
             if (!User32.RegisterHotKey(hwnd, id, Modifiers, vk))
             {
                 int error = Marshal.GetLastWin32Error();
-                Logger.Warn($"Failed to register hotkey Ctrl+Alt+Shift+{i + 1} (Win32 error: {error})");
+                Logger.Warn($"Failed to register hotkey Ctrl+Shift+Alt+{i + 1} (Win32 error: {error})");
             }
         }
 
-        // Ctrl+Alt+Shift+0: identify monitors
+        // Ctrl+Shift+Alt+0: identify monitors
         if (!User32.RegisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY, Modifiers, 0x30))
         {
             int error = Marshal.GetLastWin32Error();
-            Logger.Warn($"Failed to register hotkey Ctrl+Alt+Shift+0 (Win32 error: {error})");
+            Logger.Warn($"Failed to register hotkey Ctrl+Shift+Alt+0 (Win32 error: {error})");
         }
     }
 

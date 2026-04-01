@@ -43,7 +43,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "   [OK] Installer created successfully" -ForegroundColor Green
     Write-Host "`n=== Installer Build Completed ===" -ForegroundColor Green
     Write-Host "`nOutput location: Build\Installer\" -ForegroundColor Cyan
-    Write-Host "   - ScreenNap-Setup-0.1.0.exe" -ForegroundColor White
+    Write-Host "   - ScreenNap-Setup-1.0.0.exe" -ForegroundColor White
     exit 0
 } else {
     Write-Host "   [ERROR] Installer build failed" -ForegroundColor Red

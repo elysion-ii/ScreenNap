@@ -6,9 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-01
+
+### Changed
+- Removed tooltip from blackout window
+
 ### Added
-- Initial project structure and build system
-- Repository rules and coding standards
+- Version display in startup log
+- CI/release GitHub Actions workflows
+- CONTRIBUTING.md
 
 ## [0.1.0] - 2026-04-01
 

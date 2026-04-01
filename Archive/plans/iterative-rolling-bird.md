@@ -1,244 +1,178 @@
-# ScreenNap Repository Structure Plan
+# ScreenNap Source Code Implementation Plan
 
 ## Context
 
-ScreenNap is a public Windows tray app that displays fullscreen black windows to protect OLED monitors from burn-in. The current spec exists as `ScreenNap_仕様書.md` but lacks repo structure, rules, and build system. This plan defines the complete repository layout, coding rules, build infrastructure, and i18n strategy -- reverse-engineered from the deliverables (portable EXE + installer) and modeled after the RioOnline reference repo's organizational patterns.
+The repository structure, rules, build system, and spec (SPEC.md) are committed. Now we implement all source code to make ScreenNap a functional application. The app uses Raw Win32 API via P/Invoke on .NET 10.0 LTS with zero NuGet dependencies.
 
-## Key Decisions
+## Icon Strategy
 
-| Decision | Choice |
-|----------|--------|
-| Framework | Raw Win32 API via P/Invoke (no WinForms/WPF/WinUI) |
-| .NET | 10.0 LTS (net10.0-windows) |
-| Distribution | Portable single EXE + Inno Setup installer |
-| License | MIT |
-| Language | English-only (comments, docs, commits) |
-| i18n | .resx resource files (English default, Japanese included) |
-| External NuGet | None (zero dependencies) |
+The user will create SVG icons and convert them to .ico files manually. For now:
+- Generate placeholder .ico files (simple colored squares) via PowerShell so the build works
+- Place at: `ScreenNap/Resources/icon-normal.ico` and `ScreenNap/Resources/icon-active.ico`
+- Load icons at runtime from embedded resources using a helper method
+- User replaces placeholder .ico files with proper designs later
 
----
+## Implementation Order
 
-## 1. Repository Directory Structure
+Build up from the foundation layer (Native/) to the application layer (App/) to the entry point (Program.cs). Each phase produces compilable code.
 
-```
-ScreenNap/                         (repo root)
-├── .claude/
-│   ├── CLAUDE.md                  # Project overview, directory layout, architecture rules
-│   └── rules/
-│       ├── coding-standards.md    # Shared C# coding standards
-│       ├── build.md               # Build system rules
-│       ├── git-commits.md         # Git commit conventions
-│       └── screennap.md           # Win32/P/Invoke project-specific rules
-├── .github/
-│   └── copilot-instructions.md    # Points to .claude/ (for GitHub Copilot)
-├── AGENTS.md                      # Points to .claude/ (for Codex/other agents)
-├── GEMINI.md                      # Points to .claude/ (for Gemini)
-├── .gitignore
-├── .gitattributes
-├── LICENSE                        # MIT License
-├── README.md
-├── CHANGELOG.md
-├── ScreenNap.slnx                 # Solution file (XML format, at root)
-├── ScreenNap/                     # Project folder (1 level, not 2 like RioOnline)
-│   ├── ScreenNap.csproj
-│   ├── Program.cs                 # Entry point: Mutex, message loop
-│   ├── Native/                    # P/Invoke declarations only (no business logic)
-│   │   ├── User32.cs
-│   │   ├── Shell32.cs
-│   │   ├── DisplayConfig.cs
-│   │   ├── WindowStyles.cs        # Win32 constants (WS_POPUP, WS_EX_TOOLWINDOW, etc.)
-│   │   └── NativeStructs.cs       # WNDCLASSEX, MSG, RECT, NOTIFYICONDATA, etc.
-│   ├── App/                       # Application logic
-│   │   ├── TrayIcon.cs            # Shell_NotifyIcon wrapper, icon state toggle
-│   │   ├── ContextMenu.cs         # Win32 popup menu, monitor list, commands
-│   │   ├── MonitorEnumerator.cs   # EnumDisplayMonitors + DisplayConfig friendly names
-│   │   ├── MonitorInfo.cs         # Immutable record: name, bounds, isPrimary
-│   │   └── BlackoutManager.cs     # Active blackout tracking, toggle, release all
-│   ├── Blackout/                  # Blackout window implementation
-│   │   └── BlackoutWindow.cs      # WS_POPUP window, #000000, TopMost timer, dismiss
-│   └── Resources/                 # i18n string resources + icons
-│       ├── Strings.resx           # English (default)
-│       ├── Strings.ja.resx        # Japanese
-│       ├── icon-normal.ico
-│       └── icon-active.ico
-└── Build/
-    ├── Menu.bat                   # Interactive build menu (3 options)
-    ├── Build.ps1                  # dotnet publish orchestrator
-    ├── Installer.ps1              # Inno Setup invoker
-    └── Setup_ScreenNap.iss        # Inno Setup script (AppId GUID included)
-```
+### Phase 1: Resource Files + Placeholder Icons
+**Files:**
+- `ScreenNap/Resources/Strings.resx` — English strings (XML format)
+- `ScreenNap/Resources/Strings.ja.resx` — Japanese strings (XML format)
+- `ScreenNap/Resources/icon-normal.ico` — Placeholder (gray square, 16x16)
+- `ScreenNap/Resources/icon-active.ico` — Placeholder (yellow square, 16x16)
 
-### Comparison with RioOnline
+### Phase 2: Native/ Layer (P/Invoke declarations)
+**Files:**
+- `ScreenNap/Native/WindowStyles.cs` — All Win32 constants
+  - Window styles: WS_POPUP, WS_VISIBLE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_NOACTIVATE
+  - Class styles: CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW
+  - Messages: WM_DESTROY, WM_PAINT, WM_TIMER, WM_COMMAND, WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_RBUTTONUP, WM_ERASEBKGND, WM_NULL, WM_CLOSE
+  - Tray: NIM_ADD, NIM_MODIFY, NIM_DELETE, NIF_MESSAGE, NIF_ICON, NIF_TIP, NOTIFYICON_VERSION_4
+  - Menu: MF_STRING, MF_SEPARATOR, MF_CHECKED, TPM_RIGHTBUTTON, TPM_BOTTOMALIGN
+  - SetWindowPos: HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE, SWP_SHOWWINDOW
+  - Icon/Image: IMAGE_ICON, LR_DEFAULTSIZE
+  - Cursor: IDC_ARROW
+  - Brush: GetStockObject constants (BLACK_BRUSH)
+  - Custom: WM_TRAYICON (WM_USER + 1)
+  - Tooltip: TTS_ALWAYSTIP, TTS_NOPREFIX, TTF_SUBCLASS, TTF_IDISHWND, TTM_ADDTOOL, TTM_DELTOOL, TOOLTIPS_CLASS
+  - Common controls: ICC_WIN95_CLASSES
 
-| Aspect | RioOnline | ScreenNap |
-|--------|-----------|-----------|
-| Solutions | 3 (.sln, .slnx) | 1 (.slnx) |
-| Project depth | `AppName/AppName/AppName.csproj` | `ScreenNap/ScreenNap.csproj` |
-| Build menu | 6 options (3 projects + merge + installer + full) | 3 options (build + installer + full) |
-| Merge step | Required (3 projects → 1 folder) | Not needed (single project) |
-| Database | SQL Server + SQLite | None |
-| NuGet packages | Multiple | Zero |
+- `ScreenNap/Native/NativeStructs.cs` — All native structs
+  - WNDCLASSEXW, MSG, RECT, POINT
+  - NOTIFYICONDATAW (Shell_NotifyIcon data)
+  - MONITORINFOEXW (with szDevice char[32])
+  - MENUITEMINFOW
+  - DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_MODE_INFO
+  - DISPLAYCONFIG_TARGET_DEVICE_NAME (with header)
+  - DISPLAYCONFIG_DEVICE_INFO_HEADER
+  - DISPLAY_DEVICEW (for EnumDisplayDevices fallback)
+  - TOOLINFOW (for tooltip)
+  - INITCOMMONCONTROLSEX
 
----
+- `ScreenNap/Native/User32.cs` — user32.dll P/Invoke
+  - Window: RegisterClassExW, UnregisterClassW, CreateWindowExW, DestroyWindow, DefWindowProcW, ShowWindow, SetWindowPos, SetForegroundWindow, PostMessageW, GetModuleHandleW
+  - Message loop: GetMessageW, TranslateMessage, DispatchMessageW
+  - Menu: CreatePopupMenu, AppendMenuW, TrackPopupMenuEx, DestroyMenu
+  - Monitor: EnumDisplayMonitors, GetMonitorInfoW
+  - Timer: SetTimer, KillTimer
+  - GDI: GetStockObject, LoadImageW, GetCursorPos
+  - MessageBox: MessageBoxW
+  - Cursor: LoadCursorW
+  - Device: EnumDisplayDevicesW
+  - SendMessageW (for tooltip)
+  - Delegates: WNDPROC, MonitorEnumProc
 
-## 2. .claude/CLAUDE.md Outline
+- `ScreenNap/Native/Shell32.cs` — shell32.dll P/Invoke
+  - Shell_NotifyIconW
 
-Following RioOnline's structure:
+- `ScreenNap/Native/DisplayConfig.cs` — user32.dll DisplayConfig P/Invoke
+  - GetDisplayConfigBufferSizes, QueryDisplayConfig, DisplayConfigGetDeviceInfo
+  - Enums: DISPLAYCONFIG_DEVICE_INFO_TYPE, QDC_* flags
 
-1. **Project overview** -- What ScreenNap is, OLED burn-in prevention mechanism
-2. **Technology stack** -- .NET 10 LTS, Raw Win32, no UI frameworks
-3. **Directory layout** -- Each folder's purpose and contents
-4. **Architecture rules**:
-   - Dependency direction: `Program.cs → App/ → Native/`, `Blackout/ → Native/`
-   - No UI frameworks, no NuGet packages
-   - Single-instance via named Mutex in Program.cs only
-5. **Rule file authoring** -- English only, concise, declarative
+### Phase 3: Data Model
+**Files:**
+- `ScreenNap/App/MonitorInfo.cs` — Immutable record
+  - Properties: DevicePath (string), FriendlyName (string), Bounds (RECT), IsPrimary (bool)
+  - MenuLabel computed property: "{FriendlyName} {Width}x{Height} [Primary] (Active)"
 
----
+### Phase 4: Monitor Enumeration
+**Files:**
+- `ScreenNap/App/MonitorEnumerator.cs` — Static class
+  - `EnumerateMonitors()` → `List<MonitorInfo>`
+  - Uses EnumDisplayMonitors + GetMonitorInfoW for bounds + device path
+  - Uses QueryDisplayConfig + DisplayConfigGetDeviceInfo for friendly names
+  - Falls back to EnumDisplayDevices, then szDevice
 
-## 3. .claude/rules/ Files
+### Phase 5: Blackout Window
+**Files:**
+- `ScreenNap/Blackout/BlackoutWindow.cs` — Manages one blackout window
+  - Static WNDPROC delegate (prevent GC)
+  - RegisterClassExW with CS_DBLCLKS, BLACK_BRUSH
+  - CreateWindowExW with WS_POPUP | WS_VISIBLE + WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE
+  - SetTimer for TopMost maintenance (1s interval)
+  - WM_TIMER → SetWindowPos(HWND_TOPMOST)
+  - WM_LBUTTONDBLCLK → DestroyWindow
+  - WM_DESTROY → KillTimer + notify BlackoutManager via callback
+  - WM_ERASEBKGND → return 1
+  - Tooltip: create TOOLTIPS_CLASS child, TTM_ADDTOOL with dismiss hint text
+  - Properties: Handle (IntPtr), DevicePath (string)
 
-### coding-standards.md
-Adapted from RioOnline (removed: DB/SQL/ORM/WPF/DTO/Customer sections):
-- **COMMENTS**: English, inline `//`, explain "why" for complex Win32 logic
-- **NAMESPACE**: File-scoped only
-- **VAR**: `var` for obvious types, explicit for P/Invoke returns (IntPtr, int, bool)
-- **STRING**: Always specify `StringComparison`
-- **ERROR**: No empty catch blocks. Check Win32 return values. `Marshal.GetLastWin32Error()` when needed
-- **FILEPATH**: `AppContext.BaseDirectory` only
-- **CONSTANTS**: No magic numbers. Win32 constants in `Native/WindowStyles.cs`
-- **DISPOSE**: DestroyWindow, Shell_NotifyIcon(NIM_DELETE), DestroyMenu, KillTimer
+### Phase 6: Blackout Manager
+**Files:**
+- `ScreenNap/App/BlackoutManager.cs` — Lifecycle manager
+  - Dictionary<string, BlackoutWindow> keyed by device path
+  - Toggle(MonitorInfo) — create or destroy blackout for a monitor
+  - ReleaseAll() — destroy all blackouts
+  - ActiveCount property
+  - OnBlackoutDestroyed callback (for WM_DESTROY cleanup)
+  - ActiveCountChanged event (for tray icon state update)
 
-### build.md
-- **SCRIPTS**: Menu.bat (3 options), Build.ps1, Installer.ps1
-- **OUTPUT**: `Build/ScreenNap/` (EXE), `Build/Installer/` (setup). Do not commit
-- **VERSION**: Single source in .csproj `<Version>`. Sync to Setup_ScreenNap.iss + Installer.ps1
-- **VERIFY**: `dotnet build ScreenNap/ScreenNap.csproj -c Release`
+### Phase 7: Icon Helper
+**Files:**
+- `ScreenNap/App/IconHelper.cs` — Load HICON from embedded .ico resources
+  - LoadIconFromResource(string resourceName) → IntPtr (HICON)
+  - Reads embedded resource stream, parses .ico header, calls CreateIconFromResourceEx
 
-### git-commits.md
-- English only, conventional commits (feat:, fix:, docs:, build:, etc.)
+### Phase 8: Tray Icon + Context Menu
+**Files:**
+- `ScreenNap/App/TrayIcon.cs` — Manages tray icon
+  - Create/remove via Shell_NotifyIcon
+  - Normal/active icon switching
+  - Tooltip update
+  - Handles WM_TRAYICON messages (WM_LBUTTONUP / WM_RBUTTONUP → show menu)
 
-### screennap.md
-Project-specific Win32/P/Invoke rules:
-- **WIN32**: Prefer `[LibraryImport]` over `[DllImport]`. Group by DLL. `[StructLayout]` on all structs
-- **WNDPROC**: Store delegates in static fields (prevent GC). Always call DefWindowProc for unhandled messages
-- **TRAY**: SetForegroundWindow before TrackPopupMenuEx. Post WM_NULL after (KB Q135788)
-- **BLACKOUT**: WS_POPUP + WS_EX_TOOLWINDOW + WS_EX_TOPMOST + WS_EX_NOACTIVATE. CS_DBLCLKS for dismiss. TopMost re-apply via SetTimer
-- **MONITOR**: Friendly name chain: QueryDisplayConfig → EnumDisplayDevices → szDevice fallback
-- **I18N**: PascalCase keys with category prefix. Access via generated `Strings` class
+- `ScreenNap/App/ContextMenu.cs` — Builds and shows Win32 popup menu
+  - ShowMenu(IntPtr hwnd, BlackoutManager manager)
+  - Enumerates monitors, builds menu items with labels
+  - Adds "Release All" separator + item when ActiveCount > 0
+  - Adds separator + "Exit"
+  - Handles WM_COMMAND routing:
+    - Monitor items: toggle blackout
+    - Release All: manager.ReleaseAll()
+    - Exit: PostQuitMessage(0)
+  - Menu item IDs: monitors = 1000+index, Release All = 2000, Exit = 9999
 
----
+### Phase 9: Entry Point
+**Files:**
+- `ScreenNap/Program.cs` — Application entry point
+  - Named Mutex ("ScreenNap_SingleInstance") for single-instance check
+  - If already running: MessageBoxW with Strings.NotifyAlreadyRunning, then exit
+  - Register hidden message window class (WndProc routes WM_TRAYICON and WM_COMMAND)
+  - Create hidden HWND_MESSAGE window
+  - Initialize TrayIcon, BlackoutManager
+  - Wire BlackoutManager.ActiveCountChanged → TrayIcon icon/tooltip update
+  - Win32 message loop: GetMessageW / TranslateMessage / DispatchMessageW
+  - On WM_DESTROY: cleanup TrayIcon, BlackoutManager.ReleaseAll()
+  - InitCommonControlsEx for tooltip support
 
-## 4. Build/ Folder
+## File List (14 new files)
 
-### AppId GUID (Inno Setup)
-```
-{E4A72F8B-3D19-4C5A-9F61-B8D2E5C7A043}
-```
-
-### Menu.bat
-| Option | Action |
-|--------|--------|
-| 1 | Build → `Build.ps1` |
-| 2 | Installer → `Installer.ps1` (requires 1) |
-| 3 | Full Build → 1 then 2 |
-| 9 | Exit |
-
-### Build.ps1
-Single-project publish:
-```
-dotnet publish ScreenNap/ScreenNap.csproj -c Release -f net10.0-windows -r win-x64
-    --self-contained true -p:PublishSingleFile=true
-    -p:IncludeNativeLibrariesForSelfExtract=true
-    -p:DebugType=none -p:DebuggerSupport=false -o Build/ScreenNap
-```
-
-### Setup_ScreenNap.iss
-- `PrivilegesRequired=lowest` (per-user install, no admin)
-- `DefaultDirName={autopf}\ScreenNap`
-- Tasks: desktop shortcut, start menu, start with Windows (via HKCU\Run)
-- LicenseFile: `../LICENSE`
-
----
-
-## 5. Project Configuration (.csproj)
-
-| Property | Value | Rationale |
-|----------|-------|-----------|
-| OutputType | WinExe | No console window |
-| TargetFramework | net10.0-windows | .NET 10 LTS |
-| AllowUnsafeBlocks | true | P/Invoke fixed-size char buffers |
-| Nullable | enable | Null safety |
-| Version | 0.1.0 | Initial version |
-| ApplicationIcon | Resources\icon-normal.ico | EXE icon |
-
-**Intentionally absent**: UseWindowsForms, UseWPF, PackageReference
-
----
-
-## 6. i18n Design
-
-### String Resources (lightweight, ~10 keys)
-
-| Key | English (default) | Japanese |
-|-----|-------------------|----------|
-| MenuReleaseAll | Release All | すべて解除 |
-| MenuExit | Exit | 終了 |
-| MenuPrimary | [Primary] | [メイン] |
-| MenuActive | (Active) | (暗転中) |
-| TooltipNormal | ScreenNap | ScreenNap |
-| TooltipActive | ScreenNap ({0} active) | ScreenNap ({0}台 暗転中) |
-| NotifyAlreadyRunning | ScreenNap is already running. | ScreenNap は既に起動しています。 |
-| BlackoutDismissHint | Double-click to dismiss | ダブルクリックで解除 |
-
-### How it works
-- `Strings.resx` = English default. `Strings.ja.resx` = Japanese
-- .NET auto-selects based on `CultureInfo.CurrentUICulture` (OS language)
-- Adding a new language = add `Strings.xx.resx`, zero code changes
-- Access: `Strings.MenuExit`, `string.Format(Strings.TooltipActive, count)`
-
----
-
-## 7. Spec Updates (WinForms → Raw Win32)
-
-| Item | WinForms | Raw Win32 |
-|------|----------|-----------|
-| Black window | `Form` + `FormBorderStyle.None` | `CreateWindowEx` + `WS_POPUP` |
-| Background | `BackColor = Color.Black` | `GetStockObject(BLACK_BRUSH)` |
-| TopMost | `TopMost = true` | `WS_EX_TOPMOST` + `SetWindowPos(HWND_TOPMOST)` |
-| Hide from taskbar | `ShowInTaskbar = false` | `WS_EX_TOOLWINDOW` |
-| Hide from Alt+Tab | `WS_EX_TOOLWINDOW` override | Same (`WS_EX_TOOLWINDOW`) |
-| Focus prevention | N/A | `WS_EX_NOACTIVATE` (new addition) |
-| Double-click dismiss | `DoubleClick` event | `WM_LBUTTONDBLCLK` (`CS_DBLCLKS`) |
-| TopMost timer | `System.Windows.Forms.Timer` | `SetTimer` / `WM_TIMER` |
-| Tray icon | `NotifyIcon` component | `Shell_NotifyIcon` API |
-| Context menu | `ContextMenuStrip` | `CreatePopupMenu` + `TrackPopupMenuEx` |
-| Monitor bounds | `Screen.Bounds` | `EnumDisplayMonitors` + `GetMonitorInfo` |
-| Dismiss tooltip | `ToolTip` component | `TOOLTIPS_CLASS` common control |
-| Message loop | `Application.Run()` | `GetMessage` / `TranslateMessage` / `DispatchMessage` |
-| Memory target | ~20MB | ~10-15MB (no framework overhead) |
-
-### New considerations
-- **WS_EX_NOACTIVATE**: Prevents blackout from stealing focus when created/re-topped
-- **Monitor hot-unplug**: Windows destroys the window; BlackoutManager must clean up gracefully
-
----
-
-## Deliverables (what this plan will produce)
-
-1. `.claude/CLAUDE.md` -- Repository documentation
-2. `.claude/rules/*.md` (4 files) -- Development rules
-3. `Build/` folder (4 files) -- Build scripts + installer config with GUID
-4. `ScreenNap.slnx` -- Solution file
-5. `.gitignore`, `.gitattributes`, `LICENSE`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`
-6. Updated `ScreenNap_仕様書.md` -- Reflecting new tech decisions
-
-**NOT included in this phase**: Source code implementation (Program.cs, Native/, App/, Blackout/, Resources/). That is a separate implementation phase.
+| # | File | Phase |
+|---|------|-------|
+| 1 | Resources/Strings.resx | 1 |
+| 2 | Resources/Strings.ja.resx | 1 |
+| 3 | Resources/icon-normal.ico | 1 (placeholder) |
+| 4 | Resources/icon-active.ico | 1 (placeholder) |
+| 5 | Native/WindowStyles.cs | 2 |
+| 6 | Native/NativeStructs.cs | 2 |
+| 7 | Native/User32.cs | 2 |
+| 8 | Native/Shell32.cs | 2 |
+| 9 | Native/DisplayConfig.cs | 2 |
+| 10 | App/MonitorInfo.cs | 3 |
+| 11 | App/MonitorEnumerator.cs | 4 |
+| 12 | Blackout/BlackoutWindow.cs | 5 |
+| 13 | App/BlackoutManager.cs | 6 |
+| 14 | App/IconHelper.cs | 7 |
+| 15 | App/TrayIcon.cs | 8 |
+| 16 | App/ContextMenu.cs | 8 |
+| 17 | Program.cs | 9 |
 
 ## Verification
 
-After creating the deliverables:
-1. `dotnet new sln` equivalent via .slnx validates
-2. `dotnet build` will fail (no source yet) but .csproj structure is correct
-3. Build scripts are syntactically valid (Menu.bat, Build.ps1, Installer.ps1)
-4. All rule files are English-only and follow RioOnline conventions
+1. `dotnet build ScreenNap/ScreenNap.csproj -c Release` — must compile without errors
+2. `dotnet run --project ScreenNap/ScreenNap.csproj` — tray icon appears, context menu lists monitors, blackout toggle works
+3. Double-click blackout window — dismisses
+4. Launch second instance — MessageBox shown, process exits
+5. Tooltip on hover over blackout — "Double-click to dismiss" shown

@@ -14,13 +14,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Resources\Strings.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <EmbeddedResource Update="Resources\Strings.ja.resx">
-      <DependentUpon>Strings.resx</DependentUpon>
-    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\icon-normal.ico" />
+    <EmbeddedResource Include="Resources\icon-active.ico" />
   </ItemGroup>
 
 </Project>

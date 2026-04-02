@@ -18,6 +18,7 @@ internal static class WindowStyles
     internal const uint CS_VREDRAW = 0x0001;
 
     // Window messages
+    internal const uint WM_DISPLAYCHANGE = 0x007E;
     internal const uint WM_DESTROY = 0x0002;
     internal const uint WM_CLOSE = 0x0010;
     internal const uint WM_PAINT = 0x000F;
@@ -105,6 +106,10 @@ internal static class WindowStyles
     internal const nuint IDENTIFY_TOPMOST_TIMER_ID = 3;
     internal const uint IDENTIFY_DISMISS_MS = 3000;
     internal const uint IDENTIFY_TOPMOST_MS = 250;
+
+    // Display change debounce timer
+    internal const nuint DISPLAYCHANGE_DEBOUNCE_TIMER_ID = 4;
+    internal const uint DISPLAYCHANGE_DEBOUNCE_MS = 500;
 
     // Menu item IDs
     internal const int MENU_ID_MONITOR_BASE = 1000;

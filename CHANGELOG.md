@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-04-02
+
+### Added
+- Auto-restore blackout windows after display configuration change (RDP connect/disconnect, dock/undock)
+- Stable monitor identity using EDID + connector instance for reliable matching across display reconfigurations
+- WM_DISPLAYCHANGE handling with debounce for display change detection
+
 ## [1.2.1] - 2026-04-02
 
 ### Fixed

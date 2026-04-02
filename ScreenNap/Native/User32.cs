@@ -95,6 +95,11 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetCursorPos(out POINT lpPoint);
 
+    // Window query
+    [LibraryImport("user32.dll", EntryPoint = "IsWindow")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindow(IntPtr hWnd);
+
     // Cursor
     [LibraryImport("user32.dll", EntryPoint = "LoadCursorW", SetLastError = true)]
     internal static partial IntPtr LoadCursorW(IntPtr hInstance, int lpCursorName);

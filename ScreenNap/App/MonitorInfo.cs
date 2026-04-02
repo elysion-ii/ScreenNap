@@ -3,7 +3,7 @@ using ScreenNap.Resources;
 
 namespace ScreenNap.App;
 
-internal sealed record MonitorInfo(string DevicePath, string FriendlyName, RECT Bounds, bool IsPrimary)
+internal sealed record MonitorInfo(string DevicePath, string FriendlyName, RECT Bounds, bool IsPrimary, MonitorIdentity Identity)
 {
     internal string BuildMenuLabel(int index, bool isActive)
     {

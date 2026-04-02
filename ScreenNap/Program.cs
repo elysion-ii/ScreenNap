@@ -64,7 +64,7 @@ internal static class Program
         s_messageWindow = User32.CreateWindowExW(
             0, MessageWindowClassName, string.Empty, 0,
             0, 0, 0, 0,
-            WindowStyles.HWND_MESSAGE, IntPtr.Zero, hInstance, IntPtr.Zero);
+            IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
         if (s_messageWindow == IntPtr.Zero)
         {
@@ -124,6 +124,19 @@ internal static class Program
 
             case WindowStyles.WM_HOTKEY:
                 s_hotkeyManager?.HandleHotkey((int)wParam);
+                return 0;
+
+            case WindowStyles.WM_DISPLAYCHANGE:
+                User32.KillTimer(hWnd, WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID);
+                User32.SetTimer(hWnd, WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID,
+                    WindowStyles.DISPLAYCHANGE_DEBOUNCE_MS, IntPtr.Zero);
+                return 0;
+
+            case WindowStyles.WM_TIMER when wParam == WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID:
+                User32.KillTimer(hWnd, WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID);
+                Logger.Info("Display configuration changed (debounced)");
+                var monitors = MonitorEnumerator.EnumerateMonitors();
+                s_blackoutManager?.Reconcile(monitors);
                 return 0;
 
             case WindowStyles.WM_DESTROY:

@@ -9,7 +9,7 @@ internal static class MonitorEnumerator
     internal static List<MonitorInfo> EnumerateMonitors()
     {
         var monitors = new List<MonitorInfo>();
-        var friendlyNames = GetFriendlyNames();
+        var displayInfo = GetDisplayInfo();
 
         User32.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr hMonitor, IntPtr _, ref RECT _, nint _) =>
         {
@@ -24,9 +24,9 @@ internal static class MonitorEnumerator
             }
 
             bool isPrimary = (info.dwFlags & MONITORINFOEXW.MONITORINFOF_PRIMARY) != 0;
-            string friendlyName = ResolveFriendlyName(devicePath, friendlyNames);
+            var (friendlyName, identity) = ResolveDisplayInfo(devicePath, displayInfo);
 
-            monitors.Add(new MonitorInfo(devicePath, friendlyName, info.rcMonitor, isPrimary));
+            monitors.Add(new MonitorInfo(devicePath, friendlyName, info.rcMonitor, isPrimary, identity));
             return true;
         }, 0);
 
@@ -35,36 +35,38 @@ internal static class MonitorEnumerator
         {
             MonitorInfo m = monitors[i];
             string primary = m.IsPrimary ? " Primary" : "";
-            Logger.Info($"  #{i + 1} \"{m.FriendlyName}\" ({m.Bounds.Left},{m.Bounds.Top} {m.Bounds.Width}x{m.Bounds.Height}){primary} {m.DevicePath}");
+            Logger.Info($"  #{i + 1} \"{m.FriendlyName}\" ({m.Bounds.Left},{m.Bounds.Top} {m.Bounds.Width}x{m.Bounds.Height}){primary} {m.DevicePath} [EDID:{m.Identity.EdidManufacturerId:X4}:{m.Identity.EdidProductCodeId:X4} CI:{m.Identity.ConnectorInstance}]");
         }
 
         return monitors;
     }
 
-    private static string ResolveFriendlyName(string devicePath, Dictionary<string, string> friendlyNames)
+    private readonly record struct MonitorDisplayInfo(string FriendlyName, MonitorIdentity Identity);
+
+    private static (string FriendlyName, MonitorIdentity Identity) ResolveDisplayInfo(
+        string devicePath, Dictionary<string, MonitorDisplayInfo> displayInfo)
     {
-        // Try DisplayConfig friendly name first
-        if (friendlyNames.TryGetValue(devicePath, out string? name) &&
-            !string.IsNullOrWhiteSpace(name))
+        if (displayInfo.TryGetValue(devicePath, out MonitorDisplayInfo info) &&
+            !string.IsNullOrWhiteSpace(info.FriendlyName))
         {
-            return name;
+            return (info.FriendlyName, info.Identity);
         }
 
-        // Fallback: EnumDisplayDevices
+        // Fallback: EnumDisplayDevices (no EDID identity available)
         string? fallbackName = GetDisplayDeviceFriendlyName(devicePath);
         if (!string.IsNullOrWhiteSpace(fallbackName))
-            return fallbackName;
+            return (fallbackName, default);
 
         // Final fallback: strip \\.\ prefix from device path
-        if (devicePath.StartsWith(@"\\.\", StringComparison.Ordinal))
-            return devicePath[4..];
-
-        return devicePath;
+        string name = devicePath.StartsWith(@"\\.\", StringComparison.Ordinal)
+            ? devicePath[4..]
+            : devicePath;
+        return (name, default);
     }
 
-    private static Dictionary<string, string> GetFriendlyNames()
+    private static Dictionary<string, MonitorDisplayInfo> GetDisplayInfo()
     {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        var result = new Dictionary<string, MonitorDisplayInfo>(StringComparer.Ordinal);
 
         int status = DisplayConfigApi.GetDisplayConfigBufferSizes(
             DisplayConfigApi.QDC_ONLY_ACTIVE_PATHS,
@@ -120,7 +122,11 @@ internal static class MonitorEnumerator
             if (!string.IsNullOrWhiteSpace(friendlyName) &&
                 !string.IsNullOrWhiteSpace(gdiDeviceName))
             {
-                result[gdiDeviceName] = friendlyName;
+                var identity = new MonitorIdentity(
+                    deviceName.edidManufactureId,
+                    deviceName.edidProductCodeId,
+                    deviceName.connectorInstance);
+                result[gdiDeviceName] = new MonitorDisplayInfo(friendlyName, identity);
             }
         }
 

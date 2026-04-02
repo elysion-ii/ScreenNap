@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ScreenNap.App;
 using ScreenNap.Logging;
 using ScreenNap.Native;
 
@@ -15,6 +16,8 @@ internal sealed class BlackoutWindow
 
     internal IntPtr Handle { get; private set; }
     internal string DevicePath { get; }
+    internal MonitorIdentity Identity { get; }
+    internal bool UserDismissed { get; private set; }
     internal Action<BlackoutWindow>? OnDestroyed { get; set; }
 
     private long _lastMouseMoveTick;
@@ -22,9 +25,10 @@ internal sealed class BlackoutWindow
     private int _lastMouseY;
     private bool _cursorHidden;
 
-    internal BlackoutWindow(string devicePath, RECT bounds)
+    internal BlackoutWindow(string devicePath, RECT bounds, MonitorIdentity identity)
     {
         DevicePath = devicePath;
+        Identity = identity;
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
 
         RegisterClassOnce(hInstance);
@@ -145,11 +149,15 @@ internal sealed class BlackoutWindow
                 break;
 
             case WindowStyles.WM_LBUTTONDBLCLK:
+                if (s_instances.TryGetValue(hWnd, out BlackoutWindow? dblClickInstance))
+                    dblClickInstance.UserDismissed = true;
                 User32.DestroyWindow(hWnd);
                 return 0;
 
             // Right-click also dismisses (safety: allows recovery when main monitor is blacked out)
             case WindowStyles.WM_RBUTTONUP:
+                if (s_instances.TryGetValue(hWnd, out BlackoutWindow? rClickInstance))
+                    rClickInstance.UserDismissed = true;
                 User32.DestroyWindow(hWnd);
                 return 0;
 

@@ -39,6 +39,7 @@ dotnet publish $ProjectPath `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:DebugType=none `
+    -p:DebugSymbols=false `
     -p:DebuggerSupport=false `
     -o "$PublishDir"
 

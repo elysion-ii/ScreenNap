@@ -30,6 +30,15 @@ if (Test-Path $OutputDir) { Remove-Item $OutputDir -Recurse -Force }
 # Create output folder
 New-Item -ItemType Directory -Path $OutputDir -Force -ErrorAction SilentlyContinue | Out-Null
 
+Write-Host "Running ScreenNap tests..." -ForegroundColor Cyan
+dotnet test ScreenNap.Tests\ScreenNap.Tests.csproj -c $Configuration
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "   [ERROR] Tests failed - build aborted" -ForegroundColor Red
+    if (Test-Path $PublishDir) { Remove-Item $PublishDir -Recurse -Force }
+    Write-Host "`n=== Build Failed ===" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "Building ScreenNap..." -ForegroundColor Cyan
 dotnet publish $ProjectPath `
     -c $Configuration `

@@ -11,7 +11,7 @@ For project-specific rules, see `screennap.md`.
 - **Language:** English
 - **Style:** Simple inline comments (`//`). No XML documentation.
 - **Simple Code:** Brief one-line "what" description
-- **Complex Logic:** Explain "why", especially for non-obvious Win32 behavior
+- **Complex Logic:** Explain "why"
 
 ---
 
@@ -24,14 +24,14 @@ For project-specific rules, see `screennap.md`.
 ## VAR: Type Inference
 
 - **Use `var`** for `new` expressions and other obvious types
-- **Use explicit types** for P/Invoke return values (`IntPtr`, `int`, `bool`) and when the type is not clear from the right-hand side
+- **Use explicit types** when the type is not clear from the right-hand side
 
 ---
 
 ## STRING: String Comparison
 
 - **Always specify `StringComparison`** for string methods (`StartsWith`, `EndsWith`, `IndexOf`, `Contains`, `Equals`)
-- **Use `StringComparison.Ordinal`** for technical comparisons (device paths, identifiers)
+- **Use `StringComparison.Ordinal`** for technical comparisons (paths, identifiers)
 - **Use `StringComparison.OrdinalIgnoreCase`** when case-insensitivity is needed
 
 ---
@@ -39,8 +39,8 @@ For project-specific rules, see `screennap.md`.
 ## ERROR: Error Handling
 
 - **No empty catch blocks:** Every `catch` must handle or log the exception
-- **Check Win32 return values:** After P/Invoke calls, check the return value and use `Marshal.GetLastWin32Error()` when the function documents `SetLastError`
-- **User-facing errors:** Display via tray notification balloon or Win32 `MessageBox`
+- **No raw exception messages in output:** Never display `ex.Message` directly to users
+- **Don't log and rethrow:** The layer that handles an exception (catches without rethrowing) is responsible for logging it. A layer that rethrows must NOT log — each failure is logged exactly once
 
 ---
 
@@ -51,24 +51,27 @@ For project-specific rules, see `screennap.md`.
 
 ---
 
-## CONSTANTS: Constants
+## LOGGING: Log Output Location
 
-- **No magic numbers/strings:** Extract hardcoded values to named constants
-- **Win32 constants** go in `Native/WindowStyles.cs`
-- **Application constants** as `const` in the owning class
+- **Location:** `{Environment.GetFolderPath(SpecialFolder.LocalApplicationData)}\ScreenNap\Logs\` (the app may be installed to Program Files, which is not writable at runtime)
+- **File name:** `ScreenNap_yyyyMMdd.log` (daily rotation, 7-day retention)
+- **Log messages MUST be written in English**
+- **Logging must never crash the application:** write failures are swallowed
 
 ---
 
-## DISPOSE: Resource Cleanup
+## TEMPWORK: File Operations in %TEMP%
 
-Win32 resources must be explicitly cleaned up. Required cleanup:
+When I/O targets may be network paths, perform all file reads/writes in local `%TEMP%`.
 
-| Resource | Cleanup |
-|----------|---------|
-| Windows (HWND) | `DestroyWindow` |
-| Tray icon | `Shell_NotifyIcon(NIM_DELETE, ...)` |
-| Menus (HMENU) | `DestroyMenu` |
-| Timers | `KillTimer` |
-| Window classes | `UnregisterClass` (at shutdown) |
+- **Input**: Copy source files from network to `%TEMP%` before processing
+- **Output**: Create artifacts in `%TEMP%`, then `File.Copy` / `File.Move` to the final destination
+- **Naming**: Flat under `Path.GetTempPath()` as `{FeatureName}_{Guid.NewGuid():N}.{ext}`
+- **Cleanup**: Always delete in `finally`. Deletion failure is best-effort (log and continue)
 
-Perform cleanup in `WM_DESTROY` handler or the application shutdown path.
+---
+
+## CONSTANTS: Constants
+
+- **No magic numbers/strings:** Extract hardcoded values to named constants
+- **Application constants** as `const` in the owning class

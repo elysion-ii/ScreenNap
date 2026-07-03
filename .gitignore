@@ -4,9 +4,9 @@ obj/
 publish/
 
 ## Build output
-Build/ScreenNap/
-Build/Installer/
-Build/publish_temp*/
+build/ScreenNap/
+build/Installer/
+build/publish_temp*/
 
 ## IDE
 .vs/
@@ -21,9 +21,9 @@ Build/publish_temp*/
 ## VS Code
 .vscode/
 
-## Project internal
-Archive/
+## Working area
 plans/
+!archive/plans/
 
 ## OS
 Thumbs.db

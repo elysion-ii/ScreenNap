@@ -11,6 +11,26 @@ Project-specific rules for Win32/P/Invoke development in ScreenNap.
 - **Handle types:** Use `IntPtr` for window handles (HWND), menu handles (HMENU), icon handles (HICON), and other Win32 handles.
 - **Struct layout:** All native structs MUST have `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`.
 - **Return value checking:** Always check return values after P/Invoke calls. Use `Marshal.GetLastWin32Error()` for functions that document `SetLastError = true`.
+- **Explicit types for P/Invoke return values:** Use explicit types (`IntPtr`, `int`, `bool`) instead of `var`.
+- **Win32 constants** go in `Native/WindowStyles.cs`.
+- **User-facing errors:** Display via tray notification balloon or Win32 `MessageBox`.
+- **Comments:** Explain "why" for non-obvious Win32 behavior.
+
+---
+
+## DISPOSE: Win32 Resource Cleanup
+
+Win32 resources must be explicitly cleaned up. Required cleanup:
+
+| Resource | Cleanup |
+|----------|---------|
+| Windows (HWND) | `DestroyWindow` |
+| Tray icon | `Shell_NotifyIcon(NIM_DELETE, ...)` |
+| Menus (HMENU) | `DestroyMenu` |
+| Timers | `KillTimer` |
+| Window classes | `UnregisterClass` (at shutdown) |
+
+Perform cleanup in `WM_DESTROY` handler or the application shutdown path.
 
 ---
 

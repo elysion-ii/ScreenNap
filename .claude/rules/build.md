@@ -15,18 +15,18 @@ User-facing entry point for builds with the following options:
 
 ### Build.ps1
 
-Publishes ScreenNap as a self-contained single-file EXE to `Build/ScreenNap/`.
+Runs tests (`ScreenNap.Tests`), then publishes ScreenNap as a self-contained single-file EXE to `build/ScreenNap/`. Tests must pass before publish proceeds.
 
 ### Installer.ps1
 
-Invokes Inno Setup (ISCC.exe) on `Setup_ScreenNap.iss`. Requires `Build/ScreenNap/ScreenNap.exe` to exist.
+Invokes Inno Setup (ISCC.exe) on `Setup_ScreenNap.iss`. Requires `build/ScreenNap/ScreenNap.exe` to exist.
 
 ## OUTPUT: Output Directories
 
 | Directory | Contents |
 |-----------|----------|
-| `Build/ScreenNap/` | ScreenNap.exe (self-contained) |
-| `Build/Installer/` | Installer package |
+| `build/ScreenNap/` | ScreenNap.exe (self-contained) |
+| `build/Installer/` | Installer package |
 
 **DO NOT** manually add files to output directories or commit them to git.
 
@@ -39,8 +39,8 @@ Version is defined in `ScreenNap/ScreenNap.csproj` `<Version>` tag.
 ### Files Requiring Manual Sync
 
 When updating `<Version>`, also update these files to match:
-- `Build/Setup_ScreenNap.iss` — `#define MyAppVersion`
-- `Build/Installer.ps1` — Write-Host version display
+
+- `build/Setup_ScreenNap.iss` — `#define MyAppVersion`
 
 ### Versioning Scheme
 
@@ -51,6 +51,12 @@ When updating `<Version>`, also update these files to match:
 
 ## VERIFY: Post-Implementation Build Verification
 
+### Build
 ```bash
 dotnet build ScreenNap/ScreenNap.csproj -c Release
+```
+
+### Tests
+```bash
+dotnet test ScreenNap.Tests/ScreenNap.Tests.csproj
 ```

@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="ScreenNap/ScreenNap.csproj" />
+  <Project Path="ScreenNap.Tests/ScreenNap.Tests.csproj" />
 </Solution>

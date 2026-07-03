@@ -27,13 +27,35 @@ The main (and only) project. Contains all application source code.
 - **`Resources/`**: String resources (.resx) for i18n, and icon files (.ico).
 - **Rules:** Developers MUST read and strictly adhere to `.claude/rules/coding-standards.md` (shared) and `.claude/rules/screennap.md` (project-specific) during development.
 
-### `Build/`
+### `ScreenNap.Tests/`
+
+xUnit test project. Runs as a gate in `Build.ps1` before publish.
+
+- **Rules:** See `.claude/rules/testing.md`
+
+### `build/`
 
 Build scripts and installer configuration.
 
 - **Entry Point:** `Menu.bat` (interactive menu) or `Build.ps1`
 - **Installer:** `Installer.ps1` + `Setup_ScreenNap.iss`
 - **Rules:** See `.claude/rules/build.md`
+
+### `docs/`
+
+Specifications and design documents. Place documents that do not fit Rule, Test, or ADR categories here.
+
+### `adr/`
+
+Architecture Decision Records. Record the reasoning, alternatives considered, and applicability conditions of design decisions.
+
+### `plans/`
+
+Working area for in-progress plans. Contents are gitignored. Move files to `archive/plans/` before commit per `.claude/rules/git-commits.md`.
+
+### `archive/plans/`
+
+Completed plan files preserved for reference.
 
 ## Architecture Rules
 

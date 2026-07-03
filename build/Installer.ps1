@@ -23,7 +23,7 @@ Write-Host "`n=== Building ScreenNap Installer ===" -ForegroundColor Green
 # Check if build output exists
 $ExePath = Join-Path $BuildDir "ScreenNap\ScreenNap.exe"
 if (-not (Test-Path $ExePath)) {
-    Write-Host "   [ERROR] ScreenNap.exe not found in Build\ScreenNap\" -ForegroundColor Red
+    Write-Host "   [ERROR] ScreenNap.exe not found in build\ScreenNap\" -ForegroundColor Red
     Write-Host "   Run 'Build' (option 1) first" -ForegroundColor Yellow
     exit 1
 }
@@ -42,8 +42,7 @@ if (-not (Test-Path $SetupScriptPath)) {
 if ($LASTEXITCODE -eq 0) {
     Write-Host "   [OK] Installer created successfully" -ForegroundColor Green
     Write-Host "`n=== Installer Build Completed ===" -ForegroundColor Green
-    Write-Host "`nOutput location: Build\Installer\" -ForegroundColor Cyan
-    Write-Host "   - ScreenNap-Setup-1.3.0.exe" -ForegroundColor White
+    Write-Host "`nOutput location: build\Installer\" -ForegroundColor Cyan
     exit 0
 } else {
     Write-Host "   [ERROR] Installer build failed" -ForegroundColor Red

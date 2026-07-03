@@ -188,7 +188,7 @@ None. All operations are performed through the tray context menu to prevent acci
 ### Interactive Build
 
 ```
-cd Build
+cd build
 Menu.bat
 ```
 
@@ -204,12 +204,12 @@ dotnet publish ScreenNap/ScreenNap.csproj ^
     -p:IncludeNativeLibrariesForSelfExtract=true ^
     -p:DebugType=none ^
     -p:DebuggerSupport=false ^
-    -o "./Build/ScreenNap"
+    -o "./build/ScreenNap"
 ```
 
 ### Installer
 
-The Inno Setup installer (`Build/Setup_ScreenNap.iss`) creates a per-user installation with optional desktop shortcut and Windows startup registration.
+The Inno Setup installer (`build/Setup_ScreenNap.iss`) creates a per-user installation with optional desktop shortcut and Windows startup registration.
 
 | Item | Detail |
 |------|--------|

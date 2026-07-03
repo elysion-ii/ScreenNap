@@ -7,7 +7,7 @@ echo ================================================
 echo   ScreenNap Build Menu
 echo ================================================
 echo.
-echo   1. Build                        (NET10.0)
+echo   1. Build                        (net10.0-windows)
 echo   2. Installer                    (1 required)
 echo   3. Full Build                   (1-2 sequential)
 echo.
@@ -34,7 +34,7 @@ echo ================================================
 echo   Building ScreenNap...
 echo ================================================
 echo.
-powershell -ExecutionPolicy Bypass -File Build.ps1
+powershell -ExecutionPolicy Bypass -File "%~dp0Build.ps1"
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] ScreenNap build failed
@@ -43,7 +43,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 echo [SUCCESS] ScreenNap build completed
-echo Output: Build\ScreenNap\
+echo Output: build\ScreenNap\
 pause
 goto menu
 
@@ -53,7 +53,7 @@ echo ================================================
 echo   Creating Installer...
 echo ================================================
 echo.
-powershell -ExecutionPolicy Bypass -File Installer.ps1
+powershell -ExecutionPolicy Bypass -File "%~dp0Installer.ps1"
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Installer creation failed
@@ -74,7 +74,7 @@ echo.
 
 echo [1/2] Building ScreenNap...
 echo.
-powershell -ExecutionPolicy Bypass -File Build.ps1
+powershell -ExecutionPolicy Bypass -File "%~dp0Build.ps1"
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] ScreenNap build failed
@@ -87,7 +87,7 @@ echo.
 
 echo [2/2] Creating Installer...
 echo.
-powershell -ExecutionPolicy Bypass -File Installer.ps1
+powershell -ExecutionPolicy Bypass -File "%~dp0Installer.ps1"
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Installer creation failed
@@ -102,7 +102,7 @@ echo ================================================
 echo.
 echo [SUCCESS] All build and installer tasks completed
 echo.
-echo Output: Build\Installer\
+echo Output: build\Installer\
 pause
 goto menu
 

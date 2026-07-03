@@ -4,6 +4,7 @@
 *.slnx      text
 *.sln       text
 *.xml       text
+*.xaml      text
 *.json      text
 *.md        text
 *.txt       text

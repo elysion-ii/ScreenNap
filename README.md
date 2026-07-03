@@ -26,11 +26,11 @@ OLED monitors use self-emitting pixels. When displaying pure black (#000000), no
 
 ### Portable
 
-Download `ScreenNap.exe` from [Releases](https://github.com/luxon-45/ScreenNap/releases) and run it. No installation required.
+Download `ScreenNap.exe` from [Releases](https://github.com/elysion-ii/ScreenNap/releases) and run it. No installation required.
 
 ### Installer
 
-Download `ScreenNap-Setup-x.x.x.exe` from [Releases](https://github.com/luxon-45/ScreenNap/releases) and follow the setup wizard. Optionally register for Windows startup.
+Download `ScreenNap-Setup-x.x.x.exe` from [Releases](https://github.com/elysion-ii/ScreenNap/releases) and follow the setup wizard. Optionally register for Windows startup.
 
 Default install path: `%LocalAppData%\Programs\ScreenNap`
 

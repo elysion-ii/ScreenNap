@@ -6,6 +6,7 @@ Project-specific rules for Win32/P/Invoke development in ScreenNap.
 
 ## WIN32: P/Invoke Conventions
 
+- Place pure decision logic and shared contracts in `Core/`; P/Invoke and I/O calls are prohibited there.
 - **Prefer `[LibraryImport]`** (source-generated) over `[DllImport]` for all new declarations.
 - **Group by DLL:** `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `DisplayConfig.cs`. One file per DLL.
 - **Handle types:** Use `IntPtr` for window handles (HWND), menu handles (HMENU), icon handles (HICON), and other Win32 handles.
@@ -59,7 +60,7 @@ Perform cleanup in `WM_DESTROY` handler or the application shutdown path.
 
 - **Window styles:** `WS_POPUP | WS_VISIBLE` with extended styles `WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE`.
 - **Class style:** Include `CS_DBLCLKS` to receive `WM_LBUTTONDBLCLK` for dismiss.
-- **Background:** `GetStockObject(BLACK_BRUSH)` as the class background brush. Return `1` from `WM_ERASEBKGND`.
+- **Background:** Use `GetStockObject(BLACK_BRUSH)` as the class background brush and let `DefWindowProc` handle `WM_ERASEBKGND`.
 - **TopMost maintenance:** Use `SetTimer` (1-second interval) to call `SetWindowPos(HWND_TOPMOST, ...)` periodically.
 - **Dismiss:** Handle `WM_LBUTTONDBLCLK` → `DestroyWindow`. Notify `BlackoutManager` from `WM_DESTROY`.
 - **Focus:** `WS_EX_NOACTIVATE` prevents focus stealing when the window is created or re-topped.

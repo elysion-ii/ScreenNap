@@ -1,6 +1,7 @@
+using System.Runtime.InteropServices;
+using ScreenNap.Core;
 using ScreenNap.Logging;
 using ScreenNap.Native;
-using ScreenNap.Resources;
 
 namespace ScreenNap.App;
 
@@ -21,65 +22,59 @@ internal sealed class ContextMenu
         IntPtr hMenu = User32.CreatePopupMenu();
         if (hMenu == IntPtr.Zero)
         {
-            Logger.Warn("CreatePopupMenu failed");
+            Logger.Warn($"CreatePopupMenu failed (Win32 error: {Marshal.GetLastWin32Error()})");
             return;
         }
 
-        // Monitor items
-        for (int i = 0; i < _lastMonitors.Count; i++)
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(
+            _lastMonitors,
+            _manager.ActiveDevicePaths);
+        foreach (MenuItem item in items)
         {
-            MonitorInfo monitor = _lastMonitors[i];
-            bool isActive = _manager.IsActive(monitor.DevicePath);
-            string label = monitor.BuildMenuLabel(i + 1, isActive);
-            uint flags = WindowStyles.MF_STRING;
-            if (isActive)
+            uint flags = item.IsSeparator ? WindowStyles.MF_SEPARATOR : WindowStyles.MF_STRING;
+            if (item.Checked)
                 flags |= WindowStyles.MF_CHECKED;
 
-            User32.AppendMenuW(hMenu, flags, (nuint)(WindowStyles.MENU_ID_MONITOR_BASE + i), label);
+            if (!User32.AppendMenuW(hMenu, flags, (nuint)item.CommandId, item.Text))
+                Logger.Warn($"AppendMenuW failed for command {item.CommandId} (Win32 error: {Marshal.GetLastWin32Error()})");
         }
-
-        // "Release All" (only when blackouts are active)
-        if (_manager.ActiveCount > 0)
-        {
-            User32.AppendMenuW(hMenu, WindowStyles.MF_SEPARATOR, 0, null);
-            User32.AppendMenuW(hMenu, WindowStyles.MF_STRING, (nuint)WindowStyles.MENU_ID_RELEASE_ALL, Strings.MenuReleaseAll);
-        }
-
-        // Exit
-        User32.AppendMenuW(hMenu, WindowStyles.MF_SEPARATOR, 0, null);
-        User32.AppendMenuW(hMenu, WindowStyles.MF_STRING, (nuint)WindowStyles.MENU_ID_EXIT, Strings.MenuExit);
 
         // Required for menu to dismiss on outside click (KB Q135788)
-        User32.SetForegroundWindow(hwnd);
+        if (!User32.SetForegroundWindow(hwnd))
+            Logger.Warn("SetForegroundWindow failed before displaying context menu");
 
-        User32.GetCursorPos(out POINT pt);
-        User32.TrackPopupMenuEx(hMenu, WindowStyles.TPM_RIGHTBUTTON, pt.X, pt.Y, hwnd, IntPtr.Zero);
+        if (!User32.GetCursorPos(out POINT pt))
+        {
+            Logger.Warn($"GetCursorPos failed before displaying context menu (Win32 error: {Marshal.GetLastWin32Error()})");
+            pt = default;
+        }
+        if (!User32.TrackPopupMenuEx(hMenu, WindowStyles.TPM_RIGHTBUTTON, pt.X, pt.Y, hwnd, IntPtr.Zero))
+            Logger.Warn($"TrackPopupMenuEx failed (Win32 error: {Marshal.GetLastWin32Error()})");
 
         // Post WM_NULL to fix menu tracking (KB Q135788)
-        User32.PostMessageW(hwnd, WindowStyles.WM_NULL, 0, 0);
+        if (!User32.PostMessageW(hwnd, WindowStyles.WM_NULL, 0, 0))
+            Logger.Warn($"PostMessageW failed after displaying context menu (Win32 error: {Marshal.GetLastWin32Error()})");
 
-        User32.DestroyMenu(hMenu);
+        if (!User32.DestroyMenu(hMenu))
+            Logger.Warn($"DestroyMenu failed for context menu (Win32 error: {Marshal.GetLastWin32Error()})");
     }
 
     internal void HandleCommand(int commandId)
     {
-        if (commandId == WindowStyles.MENU_ID_EXIT)
+        MenuCommand command = MenuCommandInterpreter.Interpret(commandId, _lastMonitors.Count);
+        if (command.Kind == MenuCommandKind.Exit)
         {
             User32.PostQuitMessage(0);
             return;
         }
 
-        if (commandId == WindowStyles.MENU_ID_RELEASE_ALL)
+        if (command.Kind == MenuCommandKind.ReleaseAll)
         {
             _manager.ReleaseAll();
             return;
         }
 
-        // Monitor toggle
-        int monitorIndex = commandId - WindowStyles.MENU_ID_MONITOR_BASE;
-        if (monitorIndex >= 0 && monitorIndex < _lastMonitors.Count)
-        {
-            _manager.Toggle(_lastMonitors[monitorIndex]);
-        }
+        if (command.Kind == MenuCommandKind.ToggleMonitor)
+            _manager.Toggle(_lastMonitors[command.MonitorIndex]);
     }
 }

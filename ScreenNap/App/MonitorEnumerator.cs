@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ScreenNap.Core;
 using ScreenNap.Logging;
 using ScreenNap.Native;
 
@@ -11,7 +12,7 @@ internal static class MonitorEnumerator
         var monitors = new List<MonitorInfo>();
         var displayInfo = GetDisplayInfo();
 
-        User32.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr hMonitor, IntPtr _, ref RECT _, nint _) =>
+        bool enumerated = User32.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr hMonitor, IntPtr _, ref RECT _, nint _) =>
         {
             var info = new MONITORINFOEXW { cbSize = (uint)Marshal.SizeOf<MONITORINFOEXW>() };
             if (!User32.GetMonitorInfoW(hMonitor, ref info))
@@ -24,11 +25,18 @@ internal static class MonitorEnumerator
             }
 
             bool isPrimary = (info.dwFlags & MONITORINFOEXW.MONITORINFOF_PRIMARY) != 0;
-            var (friendlyName, identity) = ResolveDisplayInfo(devicePath, displayInfo);
+            displayInfo.TryGetValue(devicePath, out MonitorDisplayInfo qdcInfo);
+            string? fallbackName = GetDisplayDeviceFriendlyName(devicePath);
+            var (friendlyName, identity) = MonitorNameResolver.Resolve(
+                devicePath,
+                displayInfo.ContainsKey(devicePath) ? qdcInfo : null,
+                fallbackName);
 
             monitors.Add(new MonitorInfo(devicePath, friendlyName, info.rcMonitor, isPrimary, identity));
             return true;
         }, 0);
+        if (!enumerated)
+            Logger.Warn($"EnumDisplayMonitors failed (Win32 error: {Marshal.GetLastWin32Error()})");
 
         Logger.Info($"Monitors enumerated: {monitors.Count} found");
         for (int i = 0; i < monitors.Count; i++)
@@ -39,29 +47,6 @@ internal static class MonitorEnumerator
         }
 
         return monitors;
-    }
-
-    private readonly record struct MonitorDisplayInfo(string FriendlyName, MonitorIdentity Identity);
-
-    private static (string FriendlyName, MonitorIdentity Identity) ResolveDisplayInfo(
-        string devicePath, Dictionary<string, MonitorDisplayInfo> displayInfo)
-    {
-        if (displayInfo.TryGetValue(devicePath, out MonitorDisplayInfo info) &&
-            !string.IsNullOrWhiteSpace(info.FriendlyName))
-        {
-            return (info.FriendlyName, info.Identity);
-        }
-
-        // Fallback: EnumDisplayDevices (no EDID identity available)
-        string? fallbackName = GetDisplayDeviceFriendlyName(devicePath);
-        if (!string.IsNullOrWhiteSpace(fallbackName))
-            return (fallbackName, default);
-
-        // Final fallback: strip \\.\ prefix from device path
-        string name = devicePath.StartsWith(@"\\.\", StringComparison.Ordinal)
-            ? devicePath[4..]
-            : devicePath;
-        return (name, default);
     }
 
     private static Dictionary<string, MonitorDisplayInfo> GetDisplayInfo()
@@ -100,7 +85,6 @@ internal static class MonitorEnumerator
             if (status != 0)
                 continue;
 
-            // Resolve the GDI device name for this source
             var sourceName = new DISPLAYCONFIG_SOURCE_DEVICE_NAME();
             sourceName.header.type = DisplayConfigApi.DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
             sourceName.header.size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DEVICE_NAME>();

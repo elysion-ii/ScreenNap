@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-03
+
+### Added
+- Unit tests for blackout state transitions, monitor and menu decisions, hotkeys, cursor idle behavior, icon parsing, tray state, and logging rules
+
+### Changed
+- Refactored decision logic into a functional core to improve testability without changing application behavior
+- Updated project ownership and repository links to elysion-ii
+- Made log timestamps culture-independent
+
 ## [1.3.0] - 2026-04-02
 
 ### Added

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace ScreenNap.Logging;
 
 internal static class Logger
@@ -11,11 +13,18 @@ internal static class Logger
 
     internal static void Initialize()
     {
-        s_logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ScreenNap", "Logs");
-        Directory.CreateDirectory(s_logDirectory);
-        PurgeOldLogs();
+        try
+        {
+            s_logDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ScreenNap", "Logs");
+            Directory.CreateDirectory(s_logDirectory);
+            PurgeOldLogs();
+        }
+        catch
+        {
+            s_logDirectory = null;
+        }
     }
 
     internal static void Info(string message) => Write("INFO", message);
@@ -29,10 +38,10 @@ internal static class Logger
         if (s_logDirectory == null)
             return;
 
-        string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        string line = $"{timestamp} [{level}] {message}";
+        DateTime now = DateTime.Now;
+        string line = FormatLine(now, level, message);
         string filePath = Path.Combine(s_logDirectory,
-            $"{LogFilePrefix}{DateTime.Now:yyyyMMdd}{LogFileExtension}");
+            $"{LogFilePrefix}{now.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}{LogFileExtension}");
 
         try
         {
@@ -51,17 +60,29 @@ internal static class Logger
     {
         try
         {
-            var cutoff = DateTime.Now.AddDays(-RetentionDays);
-            foreach (string file in Directory.GetFiles(
-                s_logDirectory!, $"{LogFilePrefix}*{LogFileExtension}"))
-            {
-                if (File.GetLastWriteTime(file) < cutoff)
-                    File.Delete(file);
-            }
+            string[] paths = Directory.GetFiles(
+                s_logDirectory!, $"{LogFilePrefix}*{LogFileExtension}");
+            var files = paths.Select(path => (Path: path, LastWrite: File.GetLastWriteTime(path))).ToList();
+            foreach (string file in SelectExpiredLogs(files, DateTime.Now, RetentionDays))
+                File.Delete(file);
         }
         catch
         {
             // Best-effort cleanup
         }
+    }
+
+    internal static string FormatLine(DateTime timestamp, string level, string message)
+    {
+        return $"{timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)} [{level}] {message}";
+    }
+
+    internal static IReadOnlyList<string> SelectExpiredLogs(
+        IReadOnlyList<(string Path, DateTime LastWrite)> files,
+        DateTime now,
+        int retentionDays)
+    {
+        DateTime cutoff = now.AddDays(-retentionDays);
+        return files.Where(file => file.LastWrite < cutoff).Select(file => file.Path).ToList();
     }
 }

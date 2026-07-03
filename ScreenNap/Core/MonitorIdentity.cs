@@ -1,4 +1,4 @@
-namespace ScreenNap.App;
+namespace ScreenNap.Core;
 
 internal readonly record struct MonitorIdentity(
     ushort EdidManufacturerId,

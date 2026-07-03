@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ScreenNap.Core;
 using ScreenNap.Logging;
 using ScreenNap.Native;
 
@@ -21,7 +22,7 @@ internal sealed class HotkeyManager
         for (int i = 0; i < MaxHotkeys; i++)
         {
             int id = WindowStyles.HOTKEY_ID_BASE + i;
-            uint vk = (uint)(0x31 + i); // VK_1 through VK_9
+            uint vk = WindowStyles.VK_1 + (uint)i;
 
             if (!User32.RegisterHotKey(hwnd, id, Modifiers, vk))
             {
@@ -30,8 +31,7 @@ internal sealed class HotkeyManager
             }
         }
 
-        // Ctrl+Shift+Alt+0: identify monitors
-        if (!User32.RegisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY, Modifiers, 0x30))
+        if (!User32.RegisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY, Modifiers, WindowStyles.VK_0))
         {
             int error = Marshal.GetLastWin32Error();
             Logger.Warn($"Failed to register hotkey Ctrl+Shift+Alt+0 (Win32 error: {error})");
@@ -42,27 +42,27 @@ internal sealed class HotkeyManager
     {
         for (int i = 0; i < MaxHotkeys; i++)
         {
-            User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_BASE + i);
+            if (!User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_BASE + i))
+                Logger.Warn($"Failed to unregister monitor hotkey {i + 1} (Win32 error: {Marshal.GetLastWin32Error()})");
         }
-        User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY);
+        if (!User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY))
+            Logger.Warn($"Failed to unregister identify hotkey (Win32 error: {Marshal.GetLastWin32Error()})");
     }
 
     internal void HandleHotkey(int hotkeyId)
     {
-        if (hotkeyId == WindowStyles.HOTKEY_ID_IDENTIFY)
+        HotkeyAction action = HotkeyInterpreter.Interpret(hotkeyId);
+        if (action.Kind == HotkeyActionKind.Identify)
         {
             IdentifyOverlay.Toggle();
             return;
         }
 
-        int index = hotkeyId - WindowStyles.HOTKEY_ID_BASE;
-        if (index < 0 || index >= MaxHotkeys)
+        if (action.Kind != HotkeyActionKind.ToggleMonitor)
             return;
 
         var monitors = MonitorEnumerator.EnumerateMonitors();
-        if (index < monitors.Count)
-        {
-            _manager.Toggle(monitors[index]);
-        }
+        if (action.MonitorIndex < monitors.Count)
+            _manager.Toggle(monitors[action.MonitorIndex]);
     }
 }

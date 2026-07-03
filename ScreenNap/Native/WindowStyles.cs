@@ -92,6 +92,8 @@ internal static class WindowStyles
     internal const uint MOD_SHIFT = 0x0004;
     internal const uint MOD_ALT = 0x0001;
     internal const uint MOD_NOREPEAT = 0x4000;
+    internal const uint VK_0 = 0x30;
+    internal const uint VK_1 = 0x31;
 
     // DrawText flags
     internal const uint DT_CENTER = 0x01;

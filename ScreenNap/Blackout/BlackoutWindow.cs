@@ -1,11 +1,11 @@
 using System.Runtime.InteropServices;
-using ScreenNap.App;
+using ScreenNap.Core;
 using ScreenNap.Logging;
 using ScreenNap.Native;
 
 namespace ScreenNap.Blackout;
 
-internal sealed class BlackoutWindow
+internal sealed class BlackoutWindow : IBlackoutWindow
 {
     private const string WindowClassName = "ScreenNap_Blackout";
 
@@ -15,21 +15,25 @@ internal sealed class BlackoutWindow
     private static readonly Dictionary<IntPtr, BlackoutWindow> s_instances = [];
 
     internal IntPtr Handle { get; private set; }
-    internal string DevicePath { get; }
-    internal MonitorIdentity Identity { get; }
-    internal bool UserDismissed { get; private set; }
-    internal Action<BlackoutWindow>? OnDestroyed { get; set; }
+    public string DevicePath { get; }
+    public MonitorIdentity Identity { get; }
+    public bool UserDismissed { get; private set; }
+    public bool IsAlive => Handle != IntPtr.Zero && User32.IsWindow(Handle);
+    public Action<IBlackoutWindow>? OnDestroyed { get; set; }
 
-    private long _lastMouseMoveTick;
-    private int _lastMouseX;
-    private int _lastMouseY;
-    private bool _cursorHidden;
+    private readonly CursorIdleTracker _cursorIdleTracker;
 
     internal BlackoutWindow(string devicePath, RECT bounds, MonitorIdentity identity)
     {
         DevicePath = devicePath;
         Identity = identity;
+        _cursorIdleTracker = new CursorIdleTracker(Environment.TickCount64);
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
+        if (hInstance == IntPtr.Zero)
+        {
+            Logger.Error($"GetModuleHandleW failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
+            return;
+        }
 
         RegisterClassOnce(hInstance);
 
@@ -49,24 +53,36 @@ internal sealed class BlackoutWindow
         Logger.Info($"Blackout window created: {devicePath} ({bounds.Left},{bounds.Top} {bounds.Width}x{bounds.Height})");
 
         s_instances[Handle] = this;
-        _lastMouseMoveTick = Environment.TickCount64;
-
         // TopMost maintenance timer (non-critical: window still works without it)
-        _ = User32.SetTimer(Handle, WindowStyles.TOPMOST_TIMER_ID, WindowStyles.TOPMOST_TIMER_INTERVAL_MS, IntPtr.Zero);
+        nuint timerId = User32.SetTimer(
+            Handle,
+            WindowStyles.TOPMOST_TIMER_ID,
+            WindowStyles.TOPMOST_TIMER_INTERVAL_MS,
+            IntPtr.Zero);
+        if (timerId == 0)
+            Logger.Warn($"SetTimer failed for blackout window {devicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
     }
 
-    internal void Destroy()
+    public bool Destroy()
     {
-        if (Handle != IntPtr.Zero)
-            User32.DestroyWindow(Handle);
+        if (Handle == IntPtr.Zero)
+            return true;
+
+        if (User32.DestroyWindow(Handle))
+            return true;
+
+        Logger.Warn($"DestroyWindow failed for blackout window {DevicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
+        return false;
     }
 
     internal static void UnregisterClass(IntPtr hInstance)
     {
         if (s_classRegistered)
         {
-            User32.UnregisterClassW(WindowClassName, hInstance);
-            s_classRegistered = false;
+            if (User32.UnregisterClassW(WindowClassName, hInstance))
+                s_classRegistered = false;
+            else
+                Logger.Warn($"UnregisterClassW failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
         }
     }
 
@@ -75,14 +91,22 @@ internal sealed class BlackoutWindow
         if (s_classRegistered)
             return;
 
+        IntPtr backgroundBrush = Gdi32.GetStockObject(WindowStyles.BLACK_BRUSH);
+        IntPtr cursor = User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW);
+        if (backgroundBrush == IntPtr.Zero || cursor == IntPtr.Zero)
+        {
+            Logger.Error("Failed to load resources for blackout window class");
+            return;
+        }
+
         var wc = new WNDCLASSEXW
         {
             cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
             style = WindowStyles.CS_DBLCLKS | WindowStyles.CS_HREDRAW | WindowStyles.CS_VREDRAW,
             lpfnWndProc = Marshal.GetFunctionPointerForDelegate(s_wndProc),
             hInstance = hInstance,
-            hbrBackground = Gdi32.GetStockObject(WindowStyles.BLACK_BRUSH),
-            hCursor = User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW),
+            hbrBackground = backgroundBrush,
+            hCursor = cursor,
             lpszClassName = Marshal.StringToHGlobalUni(WindowClassName)
         };
 
@@ -99,20 +123,18 @@ internal sealed class BlackoutWindow
     {
         switch (msg)
         {
-            // WM_ERASEBKGND: let DefWindowProc paint with BLACK_BRUSH
-
             case WindowStyles.WM_TIMER when wParam == WindowStyles.TOPMOST_TIMER_ID:
-                User32.SetWindowPos(hWnd, WindowStyles.HWND_TOPMOST,
+                if (!User32.SetWindowPos(hWnd, WindowStyles.HWND_TOPMOST,
                     0, 0, 0, 0,
-                    WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE);
-
-                // Auto-hide cursor after idle timeout
-                if (s_instances.TryGetValue(hWnd, out BlackoutWindow? timerInstance) &&
-                    !timerInstance._cursorHidden &&
-                    Environment.TickCount64 - timerInstance._lastMouseMoveTick >= WindowStyles.CURSOR_HIDE_TIMEOUT_MS)
+                    WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
                 {
-                    User32.SetCursor(IntPtr.Zero);
-                    timerInstance._cursorHidden = true;
+                    Logger.Warn($"SetWindowPos failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
+                }
+
+                if (s_instances.TryGetValue(hWnd, out BlackoutWindow? timerInstance) &&
+                    timerInstance._cursorIdleTracker.OnTimerTick(Environment.TickCount64) == CursorAction.Hide)
+                {
+                    _ = User32.SetCursor(IntPtr.Zero);
                 }
                 return 0;
 
@@ -122,18 +144,12 @@ internal sealed class BlackoutWindow
                     int x = (short)(lParam & 0xFFFF);
                     int y = (short)((lParam >> 16) & 0xFFFF);
 
-                    // Only react to actual position changes (ignore synthetic messages)
-                    if (x != moveInstance._lastMouseX || y != moveInstance._lastMouseY)
+                    if (moveInstance._cursorIdleTracker.OnMouseMove(
+                        x, y, Environment.TickCount64) == CursorAction.Show)
                     {
-                        moveInstance._lastMouseX = x;
-                        moveInstance._lastMouseY = y;
-                        moveInstance._lastMouseMoveTick = Environment.TickCount64;
-
-                        if (moveInstance._cursorHidden)
-                        {
-                            User32.SetCursor(User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW));
-                            moveInstance._cursorHidden = false;
-                        }
+                        IntPtr cursor = User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW);
+                        if (cursor != IntPtr.Zero)
+                            _ = User32.SetCursor(cursor);
                     }
                 }
                 return 0;
@@ -141,9 +157,9 @@ internal sealed class BlackoutWindow
             case WindowStyles.WM_SETCURSOR:
                 if ((lParam & 0xFFFF) == WindowStyles.HTCLIENT &&
                     s_instances.TryGetValue(hWnd, out BlackoutWindow? cursorInstance) &&
-                    cursorInstance._cursorHidden)
+                    cursorInstance._cursorIdleTracker.IsHidden)
                 {
-                    User32.SetCursor(IntPtr.Zero);
+                    _ = User32.SetCursor(IntPtr.Zero);
                     return 1;
                 }
                 break;
@@ -151,18 +167,21 @@ internal sealed class BlackoutWindow
             case WindowStyles.WM_LBUTTONDBLCLK:
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? dblClickInstance))
                     dblClickInstance.UserDismissed = true;
-                User32.DestroyWindow(hWnd);
+                if (!User32.DestroyWindow(hWnd))
+                    Logger.Warn($"DestroyWindow failed after double-click (Win32 error: {Marshal.GetLastWin32Error()})");
                 return 0;
 
             // Right-click also dismisses (safety: allows recovery when main monitor is blacked out)
             case WindowStyles.WM_RBUTTONUP:
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? rClickInstance))
                     rClickInstance.UserDismissed = true;
-                User32.DestroyWindow(hWnd);
+                if (!User32.DestroyWindow(hWnd))
+                    Logger.Warn($"DestroyWindow failed after right-click (Win32 error: {Marshal.GetLastWin32Error()})");
                 return 0;
 
             case WindowStyles.WM_DESTROY:
-                User32.KillTimer(hWnd, WindowStyles.TOPMOST_TIMER_ID);
+                if (!User32.KillTimer(hWnd, WindowStyles.TOPMOST_TIMER_ID))
+                    Logger.Warn($"KillTimer failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? instance))
                 {
                     Logger.Info($"Blackout window destroyed: {instance.DevicePath}");

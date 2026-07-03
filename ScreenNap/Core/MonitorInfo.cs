@@ -1,7 +1,7 @@
 using ScreenNap.Native;
 using ScreenNap.Resources;
 
-namespace ScreenNap.App;
+namespace ScreenNap.Core;
 
 internal sealed record MonitorInfo(string DevicePath, string FriendlyName, RECT Bounds, bool IsPrimary, MonitorIdentity Identity)
 {

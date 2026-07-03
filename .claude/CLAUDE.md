@@ -22,8 +22,10 @@ The main (and only) project. Contains all application source code.
 
 - **`Program.cs`**: Application entry point. Named Mutex for single-instance enforcement. Win32 message loop.
 - **`Native/`**: P/Invoke declarations, Win32 constants, native struct definitions. Purely declarative — no business logic.
-- **`App/`**: Application-level components (tray icon, context menu, monitor enumeration, blackout lifecycle management, global hotkey management, monitor identify overlay).
+- **`Core/`**: Shared contracts, domain types, and pure decision logic. P/Invoke and I/O calls are prohibited; references to native structs and constants are allowed.
+- **`App/`**: Application-level orchestration (tray icon, context menu, monitor enumeration, `BlackoutManager`, global hotkey management, monitor identify overlay).
 - **`Blackout/`**: The blackout window implementation (window class registration, creation, WndProc message handling).
+- **`Logging/`**: Best-effort file logging and retention. Logging failures must never terminate the application.
 - **`Resources/`**: String resources (.resx) for i18n, and icon files (.ico).
 - **Rules:** Developers MUST read and strictly adhere to `.claude/rules/coding-standards.md` (shared) and `.claude/rules/screennap.md` (project-specific) during development.
 
@@ -72,12 +74,17 @@ All functionality is provided through .NET BCL and Win32 P/Invoke. Do NOT add Nu
 Dependencies must flow in one direction only:
 
 ```
-Program.cs → App/ → Native/
-                  → Blackout/ → Native/
+Program.cs → App/, Blackout/, Logging/, Native/, Resources/
+App/ → Core/, Logging/, Native/, Resources/
+Blackout/ → Core/, Logging/, Native/
+Core/ → Native/, Resources/
+Logging/ → BCL only
+Native/ → no project dependencies
 ```
 
-- `Native/` must NEVER reference `App/` or `Blackout/`.
+- `Native/` must NEVER reference other project layers.
 - `Blackout/` must NEVER reference `App/`.
+- `Core/` must NEVER reference `App/`, `Blackout/`, or `Logging/`, and must NEVER call P/Invoke or I/O methods.
 
 ### Single-Instance Enforcement
 

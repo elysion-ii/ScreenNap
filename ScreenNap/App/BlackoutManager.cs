@@ -1,15 +1,21 @@
-using ScreenNap.Blackout;
+using ScreenNap.Core;
 using ScreenNap.Logging;
-using ScreenNap.Native;
 
 namespace ScreenNap.App;
 
 internal sealed class BlackoutManager
 {
-    private readonly Dictionary<string, BlackoutWindow> _windows = new(StringComparer.Ordinal);
+    private readonly IBlackoutWindowFactory _factory;
+    private readonly Dictionary<string, IBlackoutWindow> _windows = new(StringComparer.Ordinal);
     private readonly HashSet<MonitorIdentity> _desired = [];
 
+    internal BlackoutManager(IBlackoutWindowFactory factory)
+    {
+        _factory = factory;
+    }
+
     internal int ActiveCount => _windows.Count;
+    internal IReadOnlySet<string> ActiveDevicePaths => _windows.Keys.ToHashSet(StringComparer.Ordinal);
     internal event Action? ActiveCountChanged;
 
     internal bool IsActive(string devicePath)
@@ -19,25 +25,30 @@ internal sealed class BlackoutManager
 
     internal void Toggle(MonitorInfo monitor)
     {
-        if (_windows.TryGetValue(monitor.DevicePath, out BlackoutWindow? existing))
+        if (_windows.TryGetValue(monitor.DevicePath, out IBlackoutWindow? existing))
         {
-            _desired.Remove(monitor.Identity);
-            Logger.Info($"Blackout toggled off: {monitor.FriendlyName} ({monitor.DevicePath})");
-            existing.Destroy();
-            // Removal from _windows happens in OnBlackoutDestroyed callback
+            bool desiredRemoved = _desired.Remove(monitor.Identity);
+            if (existing.Destroy())
+            {
+                Logger.Info($"Blackout toggled off: {monitor.FriendlyName} ({monitor.DevicePath})");
+            }
+            else if (desiredRemoved)
+            {
+                _desired.Add(monitor.Identity);
+            }
         }
         else
         {
+            IBlackoutWindow? window = _factory.Create(monitor);
+            if (window is null)
+                return;
+
             if (monitor.Identity != default)
                 _desired.Add(monitor.Identity);
 
-            Logger.Info($"Blackout toggled on: {monitor.FriendlyName} ({monitor.DevicePath})");
-            var window = new BlackoutWindow(monitor.DevicePath, monitor.Bounds, monitor.Identity);
-            if (window.Handle == IntPtr.Zero)
-                return;
-
             window.OnDestroyed = OnBlackoutDestroyed;
             _windows[monitor.DevicePath] = window;
+            Logger.Info($"Blackout toggled on: {monitor.FriendlyName} ({monitor.DevicePath})");
             ActiveCountChanged?.Invoke();
         }
     }
@@ -49,27 +60,28 @@ internal sealed class BlackoutManager
 
         _desired.Clear();
 
-        // Snapshot keys to avoid modification during enumeration
         var paths = _windows.Keys.ToList();
         foreach (string path in paths)
         {
-            if (_windows.TryGetValue(path, out BlackoutWindow? window))
-                window.Destroy();
+            if (_windows.TryGetValue(path, out IBlackoutWindow? window))
+            {
+                if (!window.Destroy() && window.Identity != default)
+                    _desired.Add(window.Identity);
+            }
         }
     }
 
-    internal void Reconcile(List<MonitorInfo> currentMonitors)
+    internal void Reconcile(IReadOnlyList<MonitorInfo> currentMonitors)
     {
         if (_desired.Count == 0)
             return;
 
         Logger.Info($"Reconciling display change: {_desired.Count} desired, {currentMonitors.Count} monitors, {_windows.Count} live windows");
 
-        // Clean up stale window handles
         var staleKeys = new List<string>();
         foreach (var kvp in _windows)
         {
-            if (!User32.IsWindow(kvp.Value.Handle))
+            if (!kvp.Value.IsAlive)
             {
                 Logger.Warn($"Stale blackout window handle detected: {kvp.Key}");
                 staleKeys.Add(kvp.Key);
@@ -78,7 +90,6 @@ internal sealed class BlackoutManager
         foreach (string key in staleKeys)
             _windows.Remove(key);
 
-        // Build lookup of currently-attached monitors by identity
         var monitorsByIdentity = new Dictionary<MonitorIdentity, MonitorInfo>();
         foreach (MonitorInfo m in currentMonitors)
         {
@@ -87,12 +98,10 @@ internal sealed class BlackoutManager
             monitorsByIdentity[m.Identity] = m;
         }
 
-        // Collect identities that already have live windows
         var activeIdentities = new HashSet<MonitorIdentity>();
-        foreach (BlackoutWindow w in _windows.Values)
+        foreach (IBlackoutWindow w in _windows.Values)
             activeIdentities.Add(w.Identity);
 
-        // Restore blackout windows for desired monitors that reappeared
         int restored = 0;
         foreach (MonitorIdentity desired in _desired)
         {
@@ -103,8 +112,8 @@ internal sealed class BlackoutManager
                 continue;
 
             Logger.Info($"Restoring blackout: {monitor.FriendlyName} ({monitor.DevicePath})");
-            var window = new BlackoutWindow(monitor.DevicePath, monitor.Bounds, monitor.Identity);
-            if (window.Handle == IntPtr.Zero)
+            IBlackoutWindow? window = _factory.Create(monitor);
+            if (window is null)
                 continue;
 
             window.OnDestroyed = OnBlackoutDestroyed;
@@ -116,11 +125,10 @@ internal sealed class BlackoutManager
             ActiveCountChanged?.Invoke();
     }
 
-    private void OnBlackoutDestroyed(BlackoutWindow window)
+    private void OnBlackoutDestroyed(IBlackoutWindow window)
     {
         _windows.Remove(window.DevicePath);
 
-        // User-initiated dismissal: remove from desired set
         if (window.UserDismissed)
             _desired.Remove(window.Identity);
 

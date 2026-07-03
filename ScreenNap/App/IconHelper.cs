@@ -1,15 +1,16 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using ScreenNap.Core;
+using ScreenNap.Logging;
 using ScreenNap.Native;
 
 namespace ScreenNap.App;
 
 internal static class IconHelper
 {
-    /// <summary>
-    /// Load an HICON from an embedded .ico resource.
-    /// Resource names follow the pattern "ScreenNap.Resources.{fileName}".
-    /// </summary>
+    private const uint IconResourceVersion = 0x00030000;
+    private const int TrayIconSize = 16;
+
     internal static IntPtr LoadIconFromResource(string resourceFileName)
     {
         string resourceName = $"ScreenNap.Resources.{resourceFileName}";
@@ -27,15 +28,7 @@ internal static class IconHelper
 
     private static IntPtr CreateIconFromIcoData(byte[] icoData)
     {
-        // .ico format: 6-byte ICONDIR + 16-byte ICONDIRENTRY per image + image data
-        // We read the first image entry
-        if (icoData.Length < 22)
-            return IntPtr.Zero;
-
-        int imageOffset = BitConverter.ToInt32(icoData, 18);
-        int imageSize = BitConverter.ToInt32(icoData, 14);
-
-        if (imageOffset + imageSize > icoData.Length)
+        if (!IcoParser.TryGetFirstImage(icoData, out int imageOffset, out int imageSize))
             return IntPtr.Zero;
 
         IntPtr buffer = Marshal.AllocHGlobal(imageSize);
@@ -43,10 +36,12 @@ internal static class IconHelper
         {
             Marshal.Copy(icoData, imageOffset, buffer, imageSize);
 
-            // 0x00030000 = version required by CreateIconFromResourceEx
             IntPtr hIcon = User32.CreateIconFromResourceEx(
-                buffer, (uint)imageSize, true, 0x00030000,
-                16, 16, WindowStyles.LR_DEFAULTCOLOR);
+                buffer, (uint)imageSize, true, IconResourceVersion,
+                TrayIconSize, TrayIconSize, WindowStyles.LR_DEFAULTCOLOR);
+
+            if (hIcon == IntPtr.Zero)
+                Logger.Warn($"CreateIconFromResourceEx failed (Win32 error: {Marshal.GetLastWin32Error()})");
 
             return hIcon;
         }

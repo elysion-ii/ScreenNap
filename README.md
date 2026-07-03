@@ -44,7 +44,7 @@ Default install path: `%LocalAppData%\Programs\ScreenNap`
 ### Build
 
 ```
-cd Build
+cd build
 Menu.bat
 ```
 

@@ -43,6 +43,7 @@ Version is defined in `ScreenNap/ScreenNap.csproj` `<Version>` tag.
 When updating `<Version>`, also update these files to match:
 
 - `build/Setup_ScreenNap.iss` — `#define MyAppVersion`
+- `CHANGELOG.md` — move the `[Unreleased]` section's entries into a new `## [<Version>] - <date>` section (Keep a Changelog format)
 
 ### Versioning Scheme
 

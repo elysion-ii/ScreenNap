@@ -2,6 +2,11 @@
   <!-- Build settings shared by every project in this repository.
        Project-specific settings belong in each .csproj. -->
   <PropertyGroup>
+    <!-- Single source of truth for the app version. Do not define <Version>
+         anywhere else; Installer.ps1 reads this value and injects it into the
+         Inno Setup script, and checks CHANGELOG.md (if present) for an entry. -->
+    <Version>1.3.2</Version>
+
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

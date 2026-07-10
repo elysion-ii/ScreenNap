@@ -23,6 +23,8 @@ Additionally, `TreatWarningsAsErrors` in `Directory.Build.props` turns warnings 
 
 Invokes Inno Setup (ISCC.exe) on `Setup_ScreenNap.iss`. Requires `build/ScreenNap/ScreenNap.exe` to exist.
 
+Before running ISCC it reads `<Version>` from `Directory.Build.props`, injects it via `/DMyAppVersion`, and — if `CHANGELOG.md` exists — verifies it contains a heading for the current version (fails otherwise).
+
 ## OUTPUT: Output Directories
 
 | Directory | Contents |
@@ -36,14 +38,18 @@ Invokes Inno Setup (ISCC.exe) on `Setup_ScreenNap.iss`. Requires `build/ScreenNa
 
 ### Single Source of Truth
 
-Version is defined in `ScreenNap/ScreenNap.csproj` `<Version>` tag.
+The version is defined ONLY in the `<Version>` tag of `Directory.Build.props`. Never add `<Version>` to a csproj or `#define MyAppVersion` to `Setup_ScreenNap.iss` — duplicate definitions are how versions drift out of sync.
 
-### Files Requiring Manual Sync
+- The EXE version is inherited automatically from `Directory.Build.props` by MSBuild
+- The installer version is read from `Directory.Build.props` and injected by `Installer.ps1` (the `.iss` fails with `#error` if it is not injected)
 
-When updating `<Version>`, also update these files to match:
+### Version Bump Procedure
 
-- `build/Setup_ScreenNap.iss` — `#define MyAppVersion`
-- `CHANGELOG.md` — move the `[Unreleased]` section's entries into a new `## [<Version>] - <date>` section (Keep a Changelog format)
+1. Update `<Version>` in `Directory.Build.props`
+2. If `CHANGELOG.md` exists, move the `[Unreleased]` section's entries into a new `## [<Version>] - <date>` section (Keep a Changelog format)
+3. Include both in the **same commit**
+
+Running `Installer.ps1` without the changelog heading fails at the gate.
 
 ### Versioning Scheme
 

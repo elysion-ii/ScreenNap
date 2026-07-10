@@ -1,6 +1,7 @@
 # ScreenNap Installer Build Script
 
 $BuildDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$SolutionDir = Split-Path -Parent $BuildDir
 Set-Location $BuildDir
 
 # Check Inno Setup installation
@@ -10,6 +11,34 @@ if (-not (Test-Path $IsccPath)) {
     Write-Host "   [ERROR] Inno Setup not found" -ForegroundColor Red
     Write-Host "   Install Inno Setup 6 or later from https://jrsoftware.org/isdl.php" -ForegroundColor Yellow
     exit 1
+}
+
+# Read the app version from Directory.Build.props (single source of truth).
+# The .iss script has no version of its own; it is injected below via /D.
+$PropsPath = Join-Path $SolutionDir "Directory.Build.props"
+if (-not (Test-Path $PropsPath)) {
+    Write-Host "   [ERROR] Directory.Build.props not found at $PropsPath" -ForegroundColor Red
+    exit 1
+}
+$PropsXml = [xml](Get-Content $PropsPath -Raw)
+$AppVersion = ($PropsXml.Project.PropertyGroup.Version | Where-Object { $_ }) | Select-Object -First 1
+if (-not $AppVersion) {
+    Write-Host "   [ERROR] <Version> not found in Directory.Build.props" -ForegroundColor Red
+    Write-Host "   Directory.Build.props is the single source of truth for the app version" -ForegroundColor Yellow
+    exit 1
+}
+Write-Host "App version: $AppVersion (from Directory.Build.props)" -ForegroundColor Cyan
+
+# Release gate: if a changelog exists, it must have an entry for this version
+$ChangelogPath = Join-Path $SolutionDir "CHANGELOG.md"
+if (Test-Path $ChangelogPath) {
+    $VersionPattern = "^##\s*\[?" + [regex]::Escape($AppVersion) + "\]?(\s|$)"
+    $Entry = Select-String -Path $ChangelogPath -Pattern $VersionPattern
+    if (-not $Entry) {
+        Write-Host "   [ERROR] CHANGELOG.md has no entry for version $AppVersion" -ForegroundColor Red
+        Write-Host "   Add a '## [$AppVersion]' section before building the installer" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # Create Installer output folder
@@ -37,7 +66,7 @@ if (-not (Test-Path $SetupScriptPath)) {
     exit 1
 }
 
-& $IsccPath $SetupScriptPath
+& $IsccPath "/DMyAppVersion=$AppVersion" $SetupScriptPath
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "   [OK] Installer created successfully" -ForegroundColor Green

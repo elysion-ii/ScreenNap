@@ -89,7 +89,7 @@ internal static class Program
         };
 
         s_trayIcon.Create();
-        s_hotkeyManager.Register(s_messageWindow);
+        HotkeyManager.Register(s_messageWindow);
 
         while (User32.GetMessageW(out MSG msg, IntPtr.Zero, 0, 0))
         {
@@ -98,7 +98,7 @@ internal static class Program
         }
 
         Logger.Info("Application exiting");
-        s_hotkeyManager.Unregister(s_messageWindow);
+        HotkeyManager.Unregister(s_messageWindow);
         s_trayIcon.Remove();
         s_blackoutManager.ReleaseAll();
         IdentifyOverlay.DismissAll();

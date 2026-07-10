@@ -9,5 +9,10 @@
     <!-- Static analysis: built-in Roslyn analyzers + .editorconfig style rules -->
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Warnings are build errors. Never turn this off; relax individual
+         diagnostics at the narrowest scope with a reason
+         (see .claude/rules/coding-standards.md ANALYZERS). -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 </Project>

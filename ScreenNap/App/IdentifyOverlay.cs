@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using ScreenNap.Logging;
 using ScreenNap.Native;
@@ -123,11 +124,13 @@ internal sealed class IdentifyOverlay
                         FontHeight, 0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0, "Segoe UI");
 
                     IntPtr oldFont = Gdi32.SelectObject(hdc, hFont);
-                    Gdi32.SetTextColor(hdc, White);
-                    Gdi32.SetBkMode(hdc, WindowStyles.TRANSPARENT_BK);
+                    // Failure leaves default text attributes; the paint proceeds either way and
+                    // logging here would spam on every WM_PAINT
+                    _ = Gdi32.SetTextColor(hdc, White);
+                    _ = Gdi32.SetBkMode(hdc, WindowStyles.TRANSPARENT_BK);
 
                     var rect = new RECT { Left = 0, Top = 0, Right = OverlayWidth, Bottom = OverlayHeight };
-                    string text = paintInstance._displayNumber.ToString();
+                    string text = paintInstance._displayNumber.ToString(CultureInfo.InvariantCulture);
                     User32.DrawTextW(hdc, text, -1, ref rect,
                         WindowStyles.DT_CENTER | WindowStyles.DT_VCENTER | WindowStyles.DT_SINGLELINE);
 

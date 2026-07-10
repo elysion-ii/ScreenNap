@@ -17,7 +17,7 @@ internal sealed class HotkeyManager
         _manager = manager;
     }
 
-    internal void Register(IntPtr hwnd)
+    internal static void Register(IntPtr hwnd)
     {
         for (int i = 0; i < MaxHotkeys; i++)
         {
@@ -38,7 +38,7 @@ internal sealed class HotkeyManager
         }
     }
 
-    internal void Unregister(IntPtr hwnd)
+    internal static void Unregister(IntPtr hwnd)
     {
         for (int i = 0; i < MaxHotkeys; i++)
         {

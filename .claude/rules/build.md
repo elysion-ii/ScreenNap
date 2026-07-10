@@ -15,7 +15,9 @@ User-facing entry point for builds with the following options:
 
 ### Build.ps1
 
-Runs tests (`ScreenNap.Tests`), then publishes ScreenNap as a self-contained single-file EXE to `build/ScreenNap/`. Tests must pass before publish proceeds.
+Runs format verification (`dotnet format --verify-no-changes`) and tests (`ScreenNap.Tests`), then publishes ScreenNap as a self-contained single-file EXE to `build/ScreenNap/`. Both must pass before publish proceeds.
+
+Additionally, `TreatWarningsAsErrors` in `Directory.Build.props` turns warnings into errors in every build (Build.ps1, Visual Studio, direct `dotnet build`). See ANALYZERS in `.claude/rules/coding-standards.md` for the relaxation rules.
 
 ### Installer.ps1
 
@@ -50,6 +52,11 @@ When updating `<Version>`, also update these files to match:
 - PATCH: bug fixes and small changes
 
 ## VERIFY: Post-Implementation Build Verification
+
+### Format
+```bash
+dotnet format ScreenNap.slnx --verify-no-changes
+```
 
 ### Build
 ```bash

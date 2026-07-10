@@ -1,0 +1,13 @@
+<Project>
+  <!-- Build settings shared by every project in this repository.
+       Project-specific settings belong in each .csproj. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Static analysis: built-in Roslyn analyzers + .editorconfig style rules -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+</Project>

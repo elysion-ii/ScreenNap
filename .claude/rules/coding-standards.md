@@ -6,6 +6,30 @@ For project-specific rules, see `screennap.md`.
 
 ---
 
+## FORMAT: Code Formatting
+
+- **Style definition:** `.editorconfig` at the repository root is the single source of formatting rules. To change a style, edit `.editorconfig` — never deviate per file
+- **Always run before completing implementation:** `dotnet format ScreenNap.slnx`
+- Do NOT report completion unless `dotnet format ScreenNap.slnx --verify-no-changes` passes
+- `Build.ps1` runs the same verification and fails the build on unformatted code
+
+---
+
+## ANALYZERS: Static Analysis
+
+- `Directory.Build.props` enables the built-in Roslyn analyzers (`AnalysisLevel = latest-recommended`, `EnforceCodeStyleInBuild`, `TreatWarningsAsErrors`). **Warnings are build errors in every project**
+- **Never disable or lower `TreatWarningsAsErrors` or `AnalysisLevel`.** To tolerate a specific warning, suppress it at the narrowest possible scope:
+
+| Scope | Mechanism |
+|---|---|
+| A specific line | `#pragma warning disable <ID>` followed by `restore`. Reason comment required |
+| A specific file/folder | `.editorconfig` section with `dotnet_diagnostic.<ID>.severity = none`. Reason comment required |
+| A whole project | Add the ID to `<NoWarn>` in that csproj. Reason comment required |
+
+- The reason comment states why this warning is acceptable here as a current constraint ("for now" or "fix later" is not a reason)
+
+---
+
 ## COMMENTS: Code Comments
 
 - **Language:** English

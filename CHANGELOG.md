@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-10
+
+### Added
+- `.editorconfig` and `Directory.Build.props` as the single source of formatting and analyzer configuration
+- Format verification (`dotnet format --verify-no-changes`) as a `Build.ps1` gate
+
+### Fixed
+- Cleared the Roslyn analyzer warning backlog (CA1822, CA1806, CA1305, CA1863) and enabled `TreatWarningsAsErrors`
+
 ## [1.3.1] - 2026-07-03
 
 ### Added

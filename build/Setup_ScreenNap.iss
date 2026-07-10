@@ -1,6 +1,6 @@
 ; ScreenNap Installer Script
 #define MyAppName "ScreenNap"
-#define MyAppVersion "1.3.1"
+#define MyAppVersion "1.3.2"
 #define MyAppPublisher "elysion-ii"
 #define MyAppURL "https://github.com/elysion-ii/ScreenNap"
 #define MyAppExeName "ScreenNap.exe"

@@ -45,17 +45,17 @@ Build scripts and installer configuration.
 
 ### `docs/`
 
-Specifications and design documents. Place documents that do not fit Rule, Test, or ADR categories here.
+All non-source documents, placed in role-based subfolders (`adr/`, `specs/`, `guides/`, `references/`, `investigations/`, `notes/`, `plans/`, `inbox/`, `archive/`). Every document carries front matter (at least `created` and `status`). Follow the `doc-placement` skill for placement, naming, and archiving decisions.
 
-### `adr/`
+### `docs/adr/`
 
-Architecture Decision Records. Record the reasoning, alternatives considered, and applicability conditions of design decisions.
+Architecture Decision Records. Record the reasoning, alternatives considered, and applicability conditions of design decisions. Retired ADRs move to `docs/adr/archive/`.
 
-### `plans/`
+### `docs/plans/`
 
-Working area for in-progress plans. Contents are gitignored. Move files to `archive/plans/` before commit per `.claude/rules/git-commits.md`.
+Working area for in-progress plans. Gitignored — the folder itself is not in the repository and is created on demand. In-progress plans need no front matter. Move files to `docs/archive/plans/` before commit per `.claude/rules/git-commits.md`.
 
-### `archive/plans/`
+### `docs/archive/plans/`
 
 Completed plan files preserved for reference.
 

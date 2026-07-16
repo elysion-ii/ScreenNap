@@ -5,7 +5,7 @@ When the user grants permission to commit, follow these rules:
 - **Commit messages must be written entirely in English.** Do not use Japanese in commit messages.
 - Use clear, concise descriptions of what was changed.
 - Follow the conventional commit format: `feat:`, `fix:`, `refactor:`, `docs:`, `build:`, `chore:`, etc.
-- **Before committing, ensure the `plans/` folder is clean.** Move any remaining plan files to `archive/plans/` before creating the commit. If a filename conflicts with an existing file in `archive/plans/`, rename the file to avoid the collision before moving.
+- **Only in projects that track plan files: ensure the `docs/plans/` folder is clean before committing.** Move any remaining plan files to `docs/archive/plans/` before creating the commit. If a filename conflicts with an existing file in `docs/archive/plans/`, rename the file to avoid the collision before moving. Add front matter (`created`, `status: archived`) when moving. In the default setup (plan files are gitignored) this rule does not apply — archive or delete plans whenever convenient.
 
 ## Release Rules
 

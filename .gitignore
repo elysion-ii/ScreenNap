@@ -22,8 +22,8 @@ build/publish_temp*/
 .vscode/
 
 ## Working area
-plans/
-!archive/plans/
+docs/plans/
+docs/archive/plans/
 
 ## OS
 Thumbs.db

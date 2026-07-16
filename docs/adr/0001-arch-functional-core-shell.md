@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Functional Core and Imperative Shell
 
 ## Decision

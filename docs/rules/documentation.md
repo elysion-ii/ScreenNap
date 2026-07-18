@@ -1,11 +1,10 @@
----
-name: doc-placement
-description: Placement, classification, naming, front matter, and archiving procedure for all non-source documents (specs, guides, references, investigations, notes, ADRs). Use BEFORE creating, moving, renaming, or archiving any document, when deciding where a new document belongs, or when unsure how to name one or what front matter to add. Do not guess placement from memory — read this skill first.
----
+# Documentation
 
-# doc-placement
-
-Classification and placement procedure for every non-source document in a repository.
+Rules for classifying, placing, naming, and retiring every non-source document in a
+repository — specs, guides, references, ADRs, investigations, notes, and the rest.
+Read this file together with `standard.md` whenever a task creates, changes, moves,
+renames, archives, or deletes a document, or when it is unclear where a new one
+belongs. Do not classify or name documents from memory.
 
 ## Principles
 
@@ -14,6 +13,17 @@ Classification and placement procedure for every non-source document in a reposi
 - Active documents live directly under their category folder. Never create `current/` or `active/` subfolders whose only meaning is "not archived" — the sole exceptions are categories where state itself is meaningful (`investigations/`, and `adr/archive/`).
 - Archiving is not deletion: it removes a document from the normal reference path while keeping history. Documents with no future reference value are deleted, not archived.
 
+## Document responsibilities
+
+- `AGENTS.md` holds facts, commands, the Applications table, and reading instructions only — no rule text.
+- `docs/rules/` holds development and change rules that cannot be enforced mechanically.
+- `docs/specs/` states behavior a system must exhibit, observable from outside it.
+- `docs/adr/` records an adopted decision, its reasoning, consequences, rejected alternatives, and revisit conditions.
+- `docs/guides/` records a reproducible working procedure.
+- `docs/references/` records a durable fact consulted during work.
+- `docs/investigations/`, `docs/notes/`, `docs/plans/`, `docs/inbox/`, and `docs/archive/` each have one distinct purpose — see Category notes below; do not blend them.
+- Content that defines a correct input/output pair belongs in test code (table-driven), not in a document.
+
 ## Directory layout
 
 ```text
@@ -21,8 +31,9 @@ AGENTS.md                   router: repository facts, commands, Applications tab
                             reading instructions — no rule text
 
 docs/
-  rules/                    rule bodies: shared core + language files (managed by
-                            dev-standards) + application rules files
+  rules/                    rule bodies: shared core + task-specific rule files +
+                            language files (managed by dev-standards) + application
+                            rules files
   adr/                      active ADRs
     archive/                superseded / rejected / withdrawn ADRs
   specs/                    specifications: what the system must do
@@ -68,12 +79,12 @@ differ between categories. Use the same application identifier in every category
 
 | Question | Destination |
 |---|---|
-| Is it a development or change rule that cannot be enforced mechanically? | `docs/rules/` — repository/application rules go in the application's rules file; shared core and language files are managed by dev-standards |
+| Is it a development or change rule that cannot be enforced mechanically? | `docs/rules/` — repository/application rules go in the application's rules file; shared core, task-specific rule files, and language files are managed by dev-standards |
 | Is it a repository fact, command, or routing instruction (no rule text)? | Root `AGENTS.md` (or a nested `AGENTS.md` for a subtree) |
 | Does it define correct results (input → output)? | Test code (table-driven) |
 | Does it record why a decision was made? | `docs/adr/` |
 | Does it state what the system must do (a specification)? | `docs/specs/` |
-| Is it a reproducible working procedure? | `docs/guides/` |
+| Is it a reproducible working procedure? | `docs/guides/` — unless a distributed task-specific rule file already defines it as a generic procedure (see Category notes) |
 | Is it a durable fact referenced during work? | `docs/references/` |
 | Does it record how a specific problem was investigated? | `docs/investigations/` |
 | Valid, but too light for a formal category? | `docs/notes/` |
@@ -86,8 +97,10 @@ differ between categories. Use the same application identifier in every category
 ## Category notes
 
 - **`AGENTS.md` (router)**: repository and application descriptions, technology stack, the Applications table (rules ↔ specification paths), real commands, and reading/AUDIT instructions. No rule text — rule bodies live in `docs/rules/`. Never duplicate a rule across files.
-- **`docs/rules/`**: rule bodies in three layers — shared core (`standard.md`) and language files are distributed verbatim by dev-standards (never edit them; retrofit updates them from a pinned tag and reports local edits); application rules files are repository-authored and hold only deltas and overrides against the shared rules. The more specific file wins on conflict.
+- **`docs/rules/`**: rule bodies in layers — the shared core (`standard.md`), task-specific rule files (`documentation.md`, `git.md`, read only for the matching kind of work), and per-stack language files are distributed verbatim by dev-standards (never edit them; retrofit updates them from a pinned tag and reports local edits); application rules files are repository-authored and hold only deltas and overrides against the shared rules. The more specific file wins on conflict.
+- **`docs/specs/`**: states what the system must do — purpose, scope, users and external systems, required behavior, inputs and outputs, error behavior, invariants, non-functional requirements, and what is out of scope. Specifications describe behavior, not implementation: no class structures, libraries, or internal algorithms. Requirement IDs are optional; when present, tests reference them so conformance is verifiable. (The rule that a spec must be updated before implementing behavior it does not yet cover — spec-first — is a development rule and lives in `standard.md`, not here.)
 - **`docs/adr/`**: the adopted decision plus reasoning, constraints, rejected alternatives, and revisit conditions. Body sections (Nygard-style): Context, Decision, Consequences (required); Alternatives considered, Revisit when (when they exist). A superseded ADR names its successor in front matter (`superseded-by`); an ADR stays an ADR — retired ones go to `docs/adr/archive/`, never `docs/archive/`.
+- **`docs/guides/`**: repository- or application-specific reproducible procedures. Exception: a generic procedure that a distributed task-specific rule file already defines (e.g., the `gh pr merge` procedure in `git.md`) is not duplicated here — the rule file is the sole source for that procedure. `docs/guides/` holds only what the rule files do not already cover, including a procedure that layers repository-specific decisions on top of one (e.g., a release guide that adds this repository's own release/tag decision on top of the generic Git procedure).
 - **`docs/references/`**: durable facts that are hard to read from source alone: external API constraints, auth flows, data mappings, legacy caveats, domain vocabulary. Current-state architecture/design descriptions default here; promote to a dedicated category when numerous.
 - **`docs/investigations/`**: state matters — `active/` (ongoing) vs `closed/` (finished, still worth reading; not an archive). When finished, promote durable outcomes: rules → `docs/rules/` (the application rules file), decisions → `docs/adr/`, procedures → `docs/guides/`, facts → `docs/references/`.
 - **`docs/notes/` vs `docs/inbox/`**: the line is whether the placement decision has been made — `inbox` holds unclassified documents; `notes` holds documents decided to be lightweight-but-valid. Putting something in `notes` "for now" means it belongs in `inbox`. Promote a note to `references/` when it becomes the authoritative answer you would point someone to.

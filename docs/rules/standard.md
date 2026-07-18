@@ -7,6 +7,10 @@ rules file listed in the repository's `AGENTS.md` Applications table.
 
 ## How to use these rules
 
+This directory holds rule files in two groups: a chain that is always read (this file →
+language files → application rules), and task-specific rule files read only for the
+matching kind of work.
+
 1. Read this file.
 2. Read every language file in this directory that matches the project's technology
    stack (a .NET repository reads `dotnet.md`; a multi-stack repository reads all
@@ -17,9 +21,15 @@ rules file listed in the repository's `AGENTS.md` Applications table.
 4. Each language file begins with an **enforcement matrix** stating which rules the
    project scaffold enforces mechanically (analyzers, build gates) and which must be
    checked by AUDIT.
-5. Precedence on conflict: the more specific file wins — application rules > language
-   rules > this file. `AGENTS.md` holds no rule text; it only routes.
-6. Before reporting an implementation task as complete, run **AUDIT** (bottom of this
+5. Precedence on conflict within this always-read chain: the more specific file wins —
+   application rules > language rules > this file. `AGENTS.md` holds no rule text; it
+   only routes.
+6. Two more rule files in this directory are task-specific, outside the chain above,
+   and read in addition only when that kind of work is underway: `documentation.md`
+   when creating, changing, moving, renaming, archiving, or deleting any document;
+   `git.md` for any Git write operation or PR operation. `AGENTS.md` states when each
+   applies.
+7. Before reporting an implementation task as complete, run **AUDIT** (bottom of this
    file).
 
 ---
@@ -167,44 +177,8 @@ If the current code is clear without a comment, write no comment. If the reason 
 
 ## Specifications
 
-- Each application has a specification (`docs/specs/...`, listed in the `AGENTS.md` Applications table) stating what the system must do: purpose, scope, users and external systems, required behavior, inputs and outputs, error behavior, invariants, non-functional requirements, and what is out of scope
-- Specifications describe behavior, not implementation: no class structures, libraries, or internal algorithms
-- **Spec-first**: when a change requires behavior not in the specification, update the specification before implementing. Never retro-fit the spec to the implementation afterwards
-- Requirement IDs are optional; when present, tests reference them so conformance to the specification is verifiable
-
----
-
-## Git
-
-### Operation Language
-
-- Write all Git-related text in English by default: commit messages, branch names, PR titles and descriptions, tags, and the like
-- If the application rules file specifies another language (e.g., Japanese), follow it instead
-- When no language is specified, English is the default
-
-### Commit Format
-
-- Use clear, concise descriptions of what was changed
-- Follow the conventional commit format: `feat:`, `fix:`, `refactor:`, `docs:`, `build:`, `chore:`, etc.
-
-### Merge Strategy
-
-- Merge PRs with `--squash` by default; use `--merge` / `--rebase` only when explicitly instructed or specified by the application rules file
-
-### Squash Commit Message Composition
-
-When squash-merging, always specify the final commit message explicitly. Never rely on
-the tool's defaults, the PR title, the PR body, or auto-generated co-author text.
-
-- **Subject**: a concise statement of what the change does, in the Operation Language
-- **Body**: summarize what changed and why at a level useful when reading the history during a future review. Not a copy of the PR description — distill it
-- **Nothing useful beyond the subject**: set an explicitly empty body instead of letting the tool generate one
-
-### Branch Cleanup
-
-- After a PR is merged, delete the source branch on both the remote and the local clone (`gh pr merge --delete-branch` does both in one step)
-- Under squash merging, `git branch -d` does not recognize the branch as merged — the default branch received a different commit SHA. After confirming the PR is merged, delete with `git branch -D <branch>`
-- Prune stale remote-tracking refs with `git fetch --prune`
+- **Spec-first**: when a change requires behavior not in the specification (`docs/specs/...`, listed in the `AGENTS.md` Applications table), update the specification before implementing. Never retro-fit the spec to the implementation afterwards
+- What a specification must contain and how it is structured is defined in `documentation.md`
 
 ---
 
@@ -240,6 +214,7 @@ of when it was introduced. Check each target file against:
 - Every language-file rule whose enforcement matrix row says **AUDIT** (skip rules marked as mechanically enforced — the build gate covers them; but if the repository lacks the enforcing mechanism, treat those rules as AUDIT items too)
 - The application-specific rules from the application's rules file (and any other repository-authored files under `docs/rules/`)
 - The application's specification (`docs/specs/...`): implemented behavior must match it, and any needed spec change must have happened before the implementation, never as an after-the-fact edit
+- If the task created, changed, moved, renamed, archived, or deleted any document, also check it against `documentation.md`; if the task performed a Git write or PR operation, also check it against `git.md`
 
 ### 4. Run the mechanical gates
 

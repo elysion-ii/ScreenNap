@@ -16,7 +16,7 @@ OLED monitors use self-emitting pixels. When displaying pure black (#000000), no
 - Auto-hide cursor on blackout window after 10 seconds of inactivity
 - Single-instance enforcement
 - File-based logging with automatic rotation and retention
-- Zero external dependencies
+- Zero external runtime dependencies
 
 ## Requirements
 
@@ -79,7 +79,7 @@ Create `ScreenNap/Resources/Strings.xx.resx` (where `xx` is the language code, e
 
 - **C#** on **.NET 10.0 LTS**
 - **Raw Win32 API** via P/Invoke (no WinForms, WPF, or WinUI)
-- Zero NuGet dependencies
+- Zero runtime NuGet dependencies; the build uses a private analyzer package
 
 ## License
 

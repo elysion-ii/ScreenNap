@@ -17,7 +17,14 @@
 
     <!-- Warnings are build errors. Never turn this off; relax individual
          diagnostics at the narrowest scope with a reason
-         (see .claude/rules/coding-standards.md ANALYZERS). -->
+         (see docs/rules/dotnet.md, ANALYZERS). -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- VSTHRD analyzers enforce the async rules mechanically (e.g. VSTHRD002:
+         no .Result/.Wait() blocking on async code). See docs/rules/dotnet.md,
+         ASYNC. -->
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.*" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

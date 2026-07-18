@@ -1,5 +1,5 @@
 # Shared code style for editors and `dotnet format`.
-# Rule IDs in comments refer to .claude/rules/coding-standards.md.
+# Rule IDs in comments refer to docs/rules/dotnet.md.
 root = true
 
 [*]

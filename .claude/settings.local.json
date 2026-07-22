@@ -10,32 +10,5 @@
       "Bash(find:*)",
       "Bash(grep:*)"
     ]
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "find docs/rules -type f 2>/dev/null | sort | sed 's/^/Read file: /'",
-            "statusMessage": "Loading project rules"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"Before committing: read the AUDIT procedure in the rule files under docs/rules/ and confirm all steps have been completed.\"}}'",
-            "if": "Bash(git commit*)",
-            "statusMessage": "Audit reminder"
-          }
-        ]
-      }
-    ]
   }
 }

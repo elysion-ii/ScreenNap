@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "find docs/rules -type f 2>/dev/null | sort | sed 's/^/Read file: /'",
+            "command": "printf '%s\\n\\n' 'MANDATORY: Before you answer, plan, or run any other tool this session, read EVERY file below IN FULL using your file-reading tool. Do not do anything else until all are read:'; find docs/rules -type f 2>/dev/null | sort",
             "statusMessage": "Loading project rules"
           }
         ]
@@ -18,9 +18,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"Before committing: read the AUDIT procedure in the rule files under docs/rules/ and confirm all steps have been completed.\"}}'",
+            "command": "bash -c 'grep -q \"audit\\.ok=true\" && exit 0 || printf \"%s\" \"$0\"' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"AUDIT not confirmed. Run the AUDIT procedure in docs/rules and fix issues; if already complete, re-run with: git -c audit.ok=true commit\"}}'",
             "if": "Bash(git commit*)",
-            "statusMessage": "Audit reminder"
+            "statusMessage": "Audit gate"
           }
         ]
       }

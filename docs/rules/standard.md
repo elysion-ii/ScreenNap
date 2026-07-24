@@ -182,6 +182,61 @@ If the current code is clear without a comment, write no comment. If the reason 
 
 ---
 
+## Procedure Design
+
+Applies to any ordered sequence of steps written for someone — human or agent — to
+execute: guides (`docs/guides/`), release and migration steps, setup instructions, and
+step sequences delivered in a PR description or conversation. Where procedure documents
+are placed is `documentation.md`'s concern; this section governs how the steps
+themselves are designed.
+
+### Design Before Writing
+
+- Do not accrete steps ad hoc. Fix the entry state and the goal state first, then design
+  the path between them before writing any step
+- When the design stops holding mid-way, do not patch around it with extra steps —
+  return to the design, reorder, then rewrite
+
+### Phases and Steps
+
+- Structure any procedure beyond a few steps in two layers: phases (headings) and the
+  steps inside them. One phase = one concern; one step = one operation
+- The phase sequence alone must tell the whole story (e.g., prepare → change → verify →
+  clean up)
+- Do not split for splitting's sake: work that forms one responsibility stays in one
+  step, and a short procedure needs no phases — the same judgment as not creating a
+  folder for a single file
+
+### Motivated Order
+
+- Adjacency is the only grouping device a document has. Code expresses relatedness
+  through folders and namespaces regardless of distance; a linear document cannot —
+  operations of the same kind scattered across distant steps lose their structure
+- Keep same-kind operations adjacent (e.g., one "update configuration" phase covering
+  app A, then app B) unless a dependency or verification requirement forces separation —
+  "change A, verify A, only then change B" is a valid reason to separate
+- Every step's position must be explainable by dependency, verification, or locality.
+  A step that could move elsewhere without breaking the procedure has no reason to be
+  where it is — regroup it
+
+### Step Contract
+
+- A step may rely only on explicitly stated inputs or the outputs of earlier steps —
+  no implicit preconditions. Reading top to bottom must never require looking ahead
+- Every step ends with a verifiable confirmation: not "done" but an observable check
+  ("the command exits 0", "the service responds on port 8080")
+- For substantial procedures, write each step as precondition / operation / confirmation
+
+### Automation Boundary
+
+- Do not leave automatable work as manual steps out of inertia; fold it into existing
+  automation (build scripts, batch files) where one exists
+- Keep operations that require human judgment, and irreversible operations, as manual
+  steps, explicitly marked as such ("requires confirmation", "irreversible"). Do not
+  over-integrate
+
+---
+
 ## AUDIT
 
 Run this procedure after completing an implementation task and **before reporting it as

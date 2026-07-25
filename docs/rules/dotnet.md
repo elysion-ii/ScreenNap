@@ -31,6 +31,7 @@ mechanism is added.
 | TESTNAME | xUnit test naming | — | AUDIT |
 | VERSION | Single version definition + CHANGELOG release gate | Installer script `#ifndef MyAppVersion → #error` guard; the installer build injects the version and gates on a CHANGELOG heading | AUDIT — the gates cover only the installer path; "no `<Version>` in a csproj" has no guard |
 | OUTPUT | No manual or committed build outputs | Output directories are gitignored by the scaffold | AUDIT — gitignore blocks commits, not manual additions |
+| SERIAL | One dotnet command at a time per solution | — | AUDIT — behavioral: observed at command-execution time, leaves no file artifact to check |
 
 ---
 
@@ -150,3 +151,9 @@ C# specifics:
 ## OUTPUT: Build Outputs
 
 - **Never manually add files to build output directories, and never commit them** — outputs are produced only by the build scripts (the scaffold gitignores the output directories; `AGENTS.md` names them)
+
+## SERIAL: Sequential Command Execution
+
+- **Run `dotnet` commands that touch build state (`build`, `test`, `publish`, `format`, `restore`) and the scripts that wrap them one at a time per solution** — start the next only after the previous has exited, and never launch them in parallel background shells
+- MSBuild does not coordinate concurrent processes over the same `obj`/`bin` directories, so concurrent runs contend for each other's outputs: on Windows they fail with file-lock errors (CS2012, CS0006, MSB3061); on macOS they can hang indefinitely
+- A hang is indistinguishable from a slow build from the outside — the processes stay alive and emit nothing, so waiting longer never resolves it. Kill the stuck processes and rerun sequentially

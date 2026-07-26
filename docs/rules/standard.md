@@ -227,6 +227,22 @@ themselves are designed.
   ("the command exits 0", "the service responds on port 8080")
 - For substantial procedures, write each step as precondition / operation / confirmation
 
+### Name the Place
+
+- Steps adjacent in text implicitly claim "you are still in the same place". When that
+  claim is false, the reader hunts for a control that does not exist in front of them,
+  with no way to tell "wrong place" from "not found yet" — never leave the location
+  implicit
+- Every step names the place it operates in (URL, screen, full path), stated so the
+  reader can verify "am I here?" before looking for the operation's target. On the
+  named place with the item absent, the document is wrong — stop searching, fix the
+  document
+- Moving between places is itself an operation: when consecutive steps happen in
+  different places, write the transition as an explicit step
+- The named place is a claim about the external system, not about the document — verify
+  it against the actual structure (the real UI hierarchy, the real directory tree)
+  instead of assuming continuity from the previous step
+
 ### Automation Boundary
 
 - Do not leave automatable work as manual steps out of inertia; fold it into existing

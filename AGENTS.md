@@ -81,4 +81,5 @@ moving, renaming, archiving, or deleting a document, read
 - `docs/rules/` contains `standard.md`, `documentation.md`, `git.md`, `cli.md`, and `dotnet.md` managed by dev-standards, plus the ScreenNap-specific rule body
 - `docs/specs/ScreenNap.md` defines ScreenNap behavior
 - `docs/adr/` contains active Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
+- `docs/guides/release.md` is the version bump → assets → tag → GitHub Release procedure
 - `docs/plans/` and `docs/archive/plans/` are gitignored working areas (`docs/rules/documentation.md`, `docs/plans/`)

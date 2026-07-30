@@ -89,5 +89,7 @@ Native/ → no project dependencies
 
 ## Release Constraints
 
+- Every `<Version>` change in `Directory.Build.props` must be published as an annotated tag `v{version}` on `main` and a matching GitHub Release; the procedure is `docs/guides/release.md`
 - Every release tag must have a corresponding GitHub Release
 - Release assets must be produced with `build/Build.ps1` and `build/Installer.ps1`, and every GitHub Release must include both `build/ScreenNap/ScreenNap.exe` and `build/Installer/ScreenNap-Setup-{version}.exe`
+- Only the current version stays published: once a new release is verified, the previous version's tag and GitHub Release must be deleted as a pair, locally and on `origin`, so that no tag outlives its release

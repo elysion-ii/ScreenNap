@@ -51,6 +51,7 @@ internal static class WindowStyles
     internal const uint MF_STRING = 0x00000000;
     internal const uint MF_SEPARATOR = 0x00000800;
     internal const uint MF_CHECKED = 0x00000008;
+    internal const uint MF_GRAYED = 0x00000001;
     internal const uint TPM_RIGHTBUTTON = 0x0002;
     internal const uint TPM_BOTTOMALIGN = 0x0020;
 
@@ -114,6 +115,7 @@ internal static class WindowStyles
     internal const uint DISPLAYCHANGE_DEBOUNCE_MS = 500;
 
     // Menu item IDs
+    internal const int MENU_ID_NONE = 0;
     internal const int MENU_ID_MONITOR_BASE = 1000;
     internal const int MENU_ID_RELEASE_ALL = 2000;
     internal const int MENU_ID_EXIT = 9999;

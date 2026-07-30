@@ -6,7 +6,7 @@ namespace ScreenNap.Tests.Core;
 public sealed class CursorIdleTrackerTests
 {
     [Fact]
-    public void OnMouseMove_FirstPositionChangeDoesNotShowVisibleCursor()
+    public void OnMouseMove_FirstPositionWhileCursorVisible_ReturnsNone()
     {
         var tracker = new CursorIdleTracker(0);
 
@@ -16,7 +16,7 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void OnMouseMove_FirstPositionAtOriginResetsIdleTimer()
+    public void OnMouseMove_FirstPositionAtOrigin_RestartsIdlePeriod()
     {
         var tracker = new CursorIdleTracker(0);
 
@@ -28,7 +28,7 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void OnMouseMove_SameCoordinatesAreIgnored()
+    public void OnMouseMove_SameCoordinates_DoesNotRestartIdlePeriod()
     {
         var tracker = new CursorIdleTracker(0);
         tracker.OnMouseMove(1, 1, 100);
@@ -43,7 +43,7 @@ public sealed class CursorIdleTrackerTests
     [InlineData(9999, 0)]
     [InlineData(10000, 2)]
     [InlineData(10001, 2)]
-    public void OnTimerTick_UsesTimeoutBoundary(long tick, int expected)
+    public void OnTimerTick_AnyElapsedTime_HidesAtTimeoutBoundary(long tick, int expected)
     {
         var tracker = new CursorIdleTracker(0);
 
@@ -51,7 +51,7 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void OnTimerTick_HidesOnlyOnce()
+    public void OnTimerTick_AlreadyHidden_ReturnsNone()
     {
         var tracker = new CursorIdleTracker(0);
         tracker.OnTimerTick(10000);
@@ -60,7 +60,7 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void HiddenCursor_MoveShowsAndCanHideAgain()
+    public void OnMouseMove_HiddenCursor_ShowsAndAllowsHidingAgain()
     {
         var tracker = new CursorIdleTracker(0);
         tracker.OnTimerTick(10000);

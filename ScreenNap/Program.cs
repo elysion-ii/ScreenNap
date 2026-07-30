@@ -38,8 +38,7 @@ internal static class Program
         }
 
         Logger.Initialize();
-        string version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
-        Logger.Info($"Application started (v{version})");
+        Logger.Info($"Application started (v{AppVersion.Current})");
 
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
         if (hInstance == IntPtr.Zero)

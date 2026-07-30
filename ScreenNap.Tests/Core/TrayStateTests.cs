@@ -13,7 +13,7 @@ public sealed class TrayStateTests
     [InlineData("ja-JP", 0, false, "ScreenNap")]
     [InlineData("ja-JP", 1, true, "ScreenNap (1台 暗転中)")]
     [InlineData("ja-JP", 3, true, "ScreenNap (3台 暗転中)")]
-    public void For_SelectsLocalizedState(string culture, int count, bool expectedActive, string expectedTip)
+    public void For_AnyActiveCountAndCulture_SelectsLocalizedState(string culture, int count, bool expectedActive, string expectedTip)
     {
         using var scope = new CultureScope(culture);
 
@@ -27,7 +27,7 @@ public sealed class TrayStateTests
     [InlineData(126, 126)]
     [InlineData(127, 127)]
     [InlineData(128, 127)]
-    public void TruncateTip_EnforcesMaximumLength(int inputLength, int expectedLength)
+    public void TruncateTip_AnyLength_EnforcesMaximumLength(int inputLength, int expectedLength)
     {
         string result = TrayState.TruncateTip(new string('x', inputLength));
 

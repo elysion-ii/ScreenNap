@@ -8,7 +8,7 @@ public sealed class IcoParserTests
     [Theory]
     [InlineData(0)]
     [InlineData(21)]
-    public void TryGetFirstImage_TooShortReturnsFalse(int length)
+    public void TryGetFirstImage_DataTooShort_ReturnsFalse(int length)
     {
         Assert.False(IcoParser.TryGetFirstImage(new byte[length], out _, out _));
     }
@@ -19,7 +19,7 @@ public sealed class IcoParserTests
     [InlineData(-1, 22, 22, false)]
     [InlineData(1, -1, 22, false)]
     [InlineData(20, 10, 22, false)]
-    public void TryGetFirstImage_ValidatesImageRange(
+    public void TryGetFirstImage_AnyImageRange_AcceptsOnlyRangeInsideData(
         int imageSize,
         int imageOffset,
         int dataLength,

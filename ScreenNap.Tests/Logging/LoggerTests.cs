@@ -10,7 +10,7 @@ public sealed class LoggerTests
     [Theory]
     [InlineData("en-US")]
     [InlineData("ja-JP")]
-    public void FormatLine_IsCultureIndependent(string culture)
+    public void FormatLine_AnyCulture_FormatsCultureIndependentLine(string culture)
     {
         using var scope = new CultureScope(culture);
         var timestamp = new DateTime(2026, 7, 3, 12, 34, 56, 789, DateTimeKind.Local);
@@ -21,7 +21,7 @@ public sealed class LoggerTests
     }
 
     [Fact]
-    public void SelectExpiredLogs_UsesExclusiveCutoff()
+    public void SelectExpiredLogs_FilesAroundCutoff_SelectsOnlyOlderThanCutoff()
     {
         var now = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Local);
         var files = new List<(string Path, DateTime LastWrite)>
@@ -37,7 +37,7 @@ public sealed class LoggerTests
     }
 
     [Fact]
-    public void SelectExpiredLogs_EmptyInputReturnsEmpty()
+    public void SelectExpiredLogs_EmptyInput_ReturnsEmpty()
     {
         IReadOnlyList<string> expired = Logger.SelectExpiredLogs([], new DateTime(2026, 7, 10), 7);
 

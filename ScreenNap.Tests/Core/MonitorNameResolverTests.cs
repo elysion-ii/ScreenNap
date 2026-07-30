@@ -6,7 +6,7 @@ namespace ScreenNap.Tests.Core;
 public sealed class MonitorNameResolverTests
 {
     [Fact]
-    public void Resolve_UsesQdcNameAndIdentity()
+    public void Resolve_QdcNameAvailable_UsesQdcNameAndIdentity()
     {
         var identity = new MonitorIdentity(1, 2, 3);
 
@@ -19,7 +19,7 @@ public sealed class MonitorNameResolverTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData(" ")]
-    public void Resolve_BlankQdcNameUsesEnumDisplayDevice(string? qdcName)
+    public void Resolve_BlankQdcName_UsesEnumDisplayDeviceName(string? qdcName)
     {
         MonitorDisplayInfo? qdc = qdcName is null ? null : new MonitorDisplayInfo(qdcName, new MonitorIdentity(1, 2, 3));
 
@@ -33,7 +33,7 @@ public sealed class MonitorNameResolverTests
     [InlineData(null, @"\\.\DISPLAY1", "DISPLAY1")]
     [InlineData("", @"\\.\DISPLAY1", "DISPLAY1")]
     [InlineData(" ", "DISPLAY1", "DISPLAY1")]
-    public void Resolve_MissingNamesUsesDevicePath(string? fallback, string path, string expected)
+    public void Resolve_NoNamesAvailable_UsesDevicePath(string? fallback, string path, string expected)
     {
         var result = MonitorNameResolver.Resolve(path, null, fallback);
 

@@ -9,7 +9,7 @@ namespace ScreenNap.Tests.App;
 public sealed class BlackoutManagerTests
 {
     [Fact]
-    public void Toggle_CreatesWindowAndRaisesEvent()
+    public void Toggle_InactiveMonitor_CreatesWindowAndRaisesEvent()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -25,7 +25,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Toggle_ExistingWindowDestroysAndRemovesIt()
+    public void Toggle_ActiveMonitor_DestroysAndRemovesWindow()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -39,7 +39,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Toggle_SuccessClearsDesiredBeforeChangeEvent()
+    public void Toggle_ReconcileInsideChangeEvent_DoesNotRecreateWindow()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -54,7 +54,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Toggle_DestroyFailurePreservesActiveAndDesiredState()
+    public void Toggle_DestroyFailure_PreservesActiveAndDesiredState()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -77,7 +77,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Toggle_FactoryFailureLeavesStateUnchanged()
+    public void Toggle_FactoryFailure_LeavesStateUnchanged()
     {
         var factory = new FakeBlackoutWindowFactory();
         factory.ReturnFailure();
@@ -94,7 +94,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Toggle_DefaultIdentityIsNotRestoredAfterOsDismissal()
+    public void Toggle_DefaultIdentityAfterOsDismissal_DoesNotRestore()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -107,7 +107,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void ReleaseAll_WithNoWindowsDoesNothing()
+    public void ReleaseAll_NoWindows_DoesNothing()
     {
         var manager = new BlackoutManager(new FakeBlackoutWindowFactory());
         int changes = 0;
@@ -120,7 +120,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void ReleaseAll_DestroysEveryWindow()
+    public void ReleaseAll_MultipleWindows_DestroysEveryWindow()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -134,7 +134,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void ReleaseAll_DestroyFailurePreservesOnlyFailedWindowDesiredState()
+    public void ReleaseAll_DestroyFailure_PreservesOnlyFailedWindowDesiredState()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -159,7 +159,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void ReleaseAll_ClearsDesiredState()
+    public void ReleaseAll_DestroySucceeds_ClearsDesiredState()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -173,7 +173,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_WithNoDesiredStateDoesNothing()
+    public void Reconcile_NoDesiredState_DoesNothing()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -184,7 +184,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_RemovesStaleWindowAndRestoresDesiredMonitor()
+    public void Reconcile_StaleWindow_RemovesItAndRestoresDesiredMonitor()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -199,7 +199,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_DisconnectedMonitorIsRestoredWhenReconnected()
+    public void Reconcile_ReconnectedMonitorOnNewPath_RestoresBlackout()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -215,7 +215,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_LiveWindowIsNotRecreated()
+    public void Reconcile_LiveWindow_DoesNotRecreateIt()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -228,7 +228,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_UndesiredMonitorIsIgnored()
+    public void Reconcile_UndesiredMonitor_IsIgnored()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -242,7 +242,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_FactoryFailureIsSkipped()
+    public void Reconcile_FactoryFailure_LeavesMonitorInactive()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -257,7 +257,7 @@ public sealed class BlackoutManagerTests
     }
 
     [Fact]
-    public void Reconcile_RaisesEventOnlyWhenStateChanges()
+    public void Reconcile_RepeatedCalls_RaisesEventOnlyWhenCountChanges()
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);
@@ -276,7 +276,7 @@ public sealed class BlackoutManagerTests
     [Theory]
     [InlineData(true, 1)]
     [InlineData(false, 2)]
-    public void DestroyedWindow_UserDismissalControlsRestoration(bool userDismissed, int expectedRequests)
+    public void Reconcile_DestroyedWindow_RestoresOnlyWhenNotUserDismissed(bool userDismissed, int expectedRequests)
     {
         var factory = new FakeBlackoutWindowFactory();
         var manager = new BlackoutManager(factory);

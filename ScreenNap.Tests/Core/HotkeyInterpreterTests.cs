@@ -12,7 +12,7 @@ public sealed class HotkeyInterpreterTests
     [InlineData(2999, 0, -1)]
     [InlineData(3010, 0, -1)]
     [InlineData(5000, 0, -1)]
-    public void Interpret_MapsHotkey(int id, int expectedKind, int expectedIndex)
+    public void Interpret_AnyHotkeyId_MapsToAction(int id, int expectedKind, int expectedIndex)
     {
         HotkeyAction action = HotkeyInterpreter.Interpret(id);
 

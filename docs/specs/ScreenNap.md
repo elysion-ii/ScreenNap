@@ -60,12 +60,21 @@ localized user-visible text, logging, portable distribution, and installer behav
 
 ### Context menu
 
+- The menu must open with a disabled version item, followed by a separator, before the monitor items.
+- The menu must never contain two consecutive separators.
 - The menu must list every currently enumerated monitor before its action items.
 - Each monitor item must contain its one-based accelerator number, friendly name, resolution, localized primary marker when applicable, and localized active marker when blacked out.
 - A live blackout monitor item must be checked.
 - Selecting a monitor item must toggle the blackout for the monitor represented by the menu snapshot.
 - `Release All` must appear only while at least one live blackout window exists and must attempt to close every live blackout window.
 - `Exit` must always appear, including when no monitor is available, and must terminate the application through normal shutdown.
+
+### Version display
+
+- The context menu's version item must read `ScreenNap X.Y.Z`, using the product version the application was built with, with no build metadata.
+- The version item must be disabled: it must be visible, and selecting it must do nothing.
+- When the product version cannot be determined, the item must read `ScreenNap unknown`.
+- The context-menu item is ScreenNap's only version display: there is no about window, and ScreenNap accepts no command-line options.
 
 ### Blackout activation and state
 
@@ -112,7 +121,7 @@ localized user-visible text, logging, portable distribution, and installer behav
 - ScreenNap must provide English default resources and Japanese resources selected through the current Windows UI culture.
 - Localized text must cover menu actions, primary and active monitor markers, tray tooltips, and the duplicate-instance notification.
 - If a resource lookup fails, ScreenNap must use its built-in English fallback text.
-- Monitor numbers, hotkey combinations, log messages, and identification-overlay numerals are language-independent.
+- Monitor numbers, hotkey combinations, the version item, log messages, and identification-overlay numerals are language-independent.
 
 ### Logging
 
@@ -136,7 +145,7 @@ localized user-visible text, logging, portable distribution, and installer behav
 
 | Input | Observable output |
 |---|---|
-| Tray-icon left or right button release | Current-monitor context menu |
+| Tray-icon left or right button release | Context menu with the version item and the current monitors |
 | Monitor menu item | Blackout toggled for that menu entry |
 | `Release All` | All closable blackouts dismissed |
 | `Exit` | Normal application shutdown |
@@ -188,6 +197,7 @@ localized user-visible text, logging, portable distribution, and installer behav
 | Monitor discovery, names, and numbering | `MonitorNameResolverTests`, `MonitorInfoTests` |
 | Tray icon and tooltip | `TrayStateTests` |
 | Context menu | `MenuModelTests`, `MonitorInfoTests` |
+| Version display | `AppVersionTests`, `MenuModelTests` |
 | Blackout activation and state | `BlackoutManagerTests` |
 | Blackout window behavior | `CursorIdleTrackerTests`; remaining behavior requires Win32 integration |
 | Display configuration changes and restoration | `BlackoutManagerTests` |

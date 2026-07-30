@@ -28,12 +28,15 @@ internal sealed class ContextMenu
 
         IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(
             _lastMonitors,
-            _manager.ActiveDevicePaths);
+            _manager.ActiveDevicePaths,
+            AppVersion.DisplayText);
         foreach (MenuItem item in items)
         {
             uint flags = item.IsSeparator ? WindowStyles.MF_SEPARATOR : WindowStyles.MF_STRING;
             if (item.Checked)
                 flags |= WindowStyles.MF_CHECKED;
+            if (item.Disabled)
+                flags |= WindowStyles.MF_GRAYED;
 
             if (!User32.AppendMenuW(hMenu, flags, (nuint)item.CommandId, item.Text))
                 Logger.Warn($"AppendMenuW failed for command {item.CommandId} (Win32 error: {Marshal.GetLastWin32Error()})");

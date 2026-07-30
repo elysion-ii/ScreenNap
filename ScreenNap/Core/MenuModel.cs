@@ -3,15 +3,21 @@ using ScreenNap.Resources;
 
 namespace ScreenNap.Core;
 
-internal sealed record MenuItem(bool Checked, bool IsSeparator, int CommandId, string? Text);
+internal sealed record MenuItem(bool Checked, bool IsSeparator, int CommandId, string? Text, bool Disabled = false);
 
 internal static class MenuModelBuilder
 {
     internal static IReadOnlyList<MenuItem> Build(
         IReadOnlyList<MonitorInfo> monitors,
-        IReadOnlySet<string> activeDevicePaths)
+        IReadOnlySet<string> activeDevicePaths,
+        string versionText)
     {
-        var items = new List<MenuItem>();
+        var items = new List<MenuItem>
+        {
+            new(false, false, WindowStyles.MENU_ID_NONE, versionText, true),
+            Separator()
+        };
+
         for (int i = 0; i < monitors.Count; i++)
         {
             MonitorInfo monitor = monitors[i];
@@ -25,14 +31,18 @@ internal static class MenuModelBuilder
 
         if (activeDevicePaths.Count > 0)
         {
-            items.Add(new MenuItem(false, true, 0, null));
+            items.Add(Separator());
             items.Add(new MenuItem(false, false, WindowStyles.MENU_ID_RELEASE_ALL, Strings.MenuReleaseAll));
         }
 
-        items.Add(new MenuItem(false, true, 0, null));
+        if (!items[^1].IsSeparator)
+            items.Add(Separator());
         items.Add(new MenuItem(false, false, WindowStyles.MENU_ID_EXIT, Strings.MenuExit));
         return items;
     }
+
+    private static MenuItem Separator()
+        => new(false, true, WindowStyles.MENU_ID_NONE, null);
 }
 
 internal enum MenuCommandKind

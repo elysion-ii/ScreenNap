@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-30
+
+### Added
+- Application version display as a disabled item at the top of the tray context menu (`ScreenNap X.Y.Z`)
+
+### Changed
+- Converged the repository onto dev-standards v4.8.0: added the `cli.md` rule file, updated the shared rule bodies, excluded build metadata from the informational version, and applied `Method_Scenario_ExpectedResult` naming across the test suite
+- Startup log and menu version display read the same single version source
+
 ## [1.3.2] - 2026-07-10
 
 ### Added

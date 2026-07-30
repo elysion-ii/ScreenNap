@@ -27,12 +27,13 @@ Rule bodies live under `docs/rules/`. Edit this file, never `CLAUDE.md`.
 ## Rules and AUDIT
 
 - **Before implementing any change**, read in order: `docs/rules/standard.md` (shared core), `docs/rules/dotnet.md` (.NET rules), then the application's rules file and specification from the Applications table. On conflict the more specific file wins (application > language > core)
+- **When the application being changed exposes a command-line interface** (a console application, or a GUI application that accepts command-line options), also read `docs/rules/cli.md`
 - **Before creating, changing, moving, renaming, archiving, or deleting any document**, also read `docs/rules/documentation.md`
 - **Before any Git write operation or PR operation** (commit, branch, push, PR creation, update, or merge), also read `docs/rules/git.md`
-- When a change requires behavior not in the specification, update the specification **before** implementing (spec-first — see the Specifications section of `docs/rules/standard.md`)
+- **When a change requires behavior not in the specification**, spec-first applies — read the Specifications section of `docs/rules/standard.md` before implementing
 - **When transitioning from a plan to implementation**, re-read this file (root and any nested `AGENTS.md` covering the work area) and the rules files first, so all rules are loaded before code is written
 - **Before reporting an implementation task as complete**, run the AUDIT procedure at the end of `docs/rules/standard.md`
-- `docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/git.md`, and `docs/rules/dotnet.md` are managed by dev-standards — never edit them; repository- and application-specific rules go in `docs/rules/ScreenNap.md`
+- `docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/git.md`, `docs/rules/cli.md`, and `docs/rules/dotnet.md` are managed by dev-standards — never edit them; repository- and application-specific rules go in `docs/rules/ScreenNap.md`
 
 ## Commands
 
@@ -76,9 +77,8 @@ The directory contains build scripts and installer configuration.
 All non-source documents live in role-based subfolders. Before creating, changing,
 moving, renaming, archiving, or deleting a document, read
 `docs/rules/documentation.md` first. It defines placement, naming, and front matter.
-Do not classify or name documents from memory.
 
-- `docs/rules/` contains `standard.md`, `documentation.md`, `git.md`, and `dotnet.md` managed by dev-standards, plus the ScreenNap-specific rule body
+- `docs/rules/` contains `standard.md`, `documentation.md`, `git.md`, `cli.md`, and `dotnet.md` managed by dev-standards, plus the ScreenNap-specific rule body
 - `docs/specs/ScreenNap.md` defines ScreenNap behavior
 - `docs/adr/` contains active Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
-- `docs/plans/` and `docs/archive/plans/` are gitignored working areas; plans never enter the repository
+- `docs/plans/` and `docs/archive/plans/` are gitignored working areas (`docs/rules/documentation.md`, `docs/plans/`)

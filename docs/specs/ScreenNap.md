@@ -119,6 +119,7 @@ localized user-visible text, logging, portable distribution, and installer behav
 ### Localization
 
 - ScreenNap must provide English default resources and Japanese resources selected through the current Windows UI culture.
+- A UI culture with no resources of its own must receive the English default resources.
 - Localized text must cover menu actions, primary and active monitor markers, tray tooltips, and the duplicate-instance notification.
 - If a resource lookup fails, ScreenNap must use its built-in English fallback text.
 - Monitor numbers, hotkey combinations, the version item, log messages, and identification-overlay numerals are language-independent.
@@ -203,6 +204,6 @@ localized user-visible text, logging, portable distribution, and installer behav
 | Display configuration changes and restoration | `BlackoutManagerTests` |
 | Global hotkeys | `HotkeyInterpreterTests`; registration requires Win32 integration |
 | Monitor-identification overlays | No automated Win32 overlay test |
-| Localization | `MonitorInfoTests`, `TrayStateTests` |
+| Localization | `StringsTests`, `MonitorInfoTests`, `TrayStateTests` |
 | Logging | `LoggerTests` |
 | Distribution and installer | No automated installer integration test |

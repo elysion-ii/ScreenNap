@@ -36,7 +36,9 @@ Name: "startmenu"; Description: "Create a Start Menu shortcut"
 Name: "startup"; Description: "Start with Windows"; Flags: unchecked
 
 [Files]
-Source: "ScreenNap\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Ship the whole publish output, not just the executable: a native dependency
+; adds files beside it (see docs/rules/dotnet.md, NATIVEDEP).
+Source: "ScreenNap\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon

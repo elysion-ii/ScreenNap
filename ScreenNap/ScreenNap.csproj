@@ -5,9 +5,12 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources\icon-normal.ico</ApplicationIcon>
-    <PublishSingleFile>true</PublishSingleFile>
+    <PublishAot>true</PublishAot>
     <SelfContained>true</SelfContained>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- The installer ships whatever the publish directory holds, so debug
+         symbols left in the intermediate output must not be copied there. -->
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,5 +21,16 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ScreenNap.Tests" />
   </ItemGroup>
+
+  <!-- The AOT compiler links the satellite resources into the executable, and the
+       portable distribution is a single file (docs/specs/ScreenNap.md). -->
+  <Target Name="RemoveSatelliteAssembliesFromPublish"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(PublishAot)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.Extension)' == '.dll' And $([System.String]::Copy('%(ResolvedFileToPublish.Filename)').EndsWith('.resources'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>

@@ -7,10 +7,6 @@
     <ApplicationIcon>Resources\icon-normal.ico</ApplicationIcon>
     <PublishAot>true</PublishAot>
     <SelfContained>true</SelfContained>
-
-    <!-- The installer ships whatever the publish directory holds, so debug
-         symbols left in the intermediate output must not be copied there. -->
-    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
   </PropertyGroup>
 
   <ItemGroup>

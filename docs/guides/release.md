@@ -5,8 +5,11 @@ created: 2026-07-30
 
 # ScreenNap Release Procedure
 
-Publishing a new ScreenNap version: the version bump, the release assets, the tag, and
-the GitHub Release.
+Publishing a new ScreenNap version: the version bump, the tag, and the GitHub Release.
+
+Pushing the tag is what publishes. `.github/workflows/release.yml` triggers on `v*`,
+builds both release assets on a runner, and creates the GitHub Release with this
+version's `CHANGELOG.md` section as its notes. Nothing here uploads assets by hand.
 
 The entry state is a clean `main` holding every change the release contains, with
 `Directory.Build.props` still carrying the previous version. The goal state is the
@@ -53,10 +56,11 @@ other file in the repository defines a version.
 
 In `CHANGELOG.md`, add a `## [{version}] - YYYY-MM-DD` heading directly below
 `## [Unreleased]`, with `### Added` / `### Changed` / `### Fixed` entries describing the
-release from a user's perspective.
+release from a user's perspective. This section becomes the published release notes
+verbatim, so write it for the people downloading the release.
 
-Confirmation: the heading matches `^## \[{version}\]` exactly — `build/Installer.ps1`
-gates on that pattern in Phase 2 and fails the installer build when it is absent.
+Confirmation: the heading matches `^## \[{version}\]` exactly — both
+`build/Installer.ps1` and the release workflow's notes extraction fail without it.
 
 ### 4. Commit both files together
 
@@ -77,10 +81,12 @@ Confirmation: `gh pr view {number} --json state` reports `MERGED`,
 `git branch --show-current` prints `main`, and `git log --oneline -1` shows the squash
 commit.
 
-## Phase 2 — Build the release assets
+## Phase 2 — Rehearse the publish
 
-The assets are built from `main` after the merge, so the files published in Phase 3
-come from the same commit the tag will point at.
+The pull request's CI builds and tests, but it never publishes. Phase 3 does, and it
+cannot be undone once the tag is on `origin` — so the same two scripts the workflow runs
+are run locally first, on `main` at the squash commit. Their output is a rehearsal; the
+published assets come from the workflow.
 
 ### 6. Build the portable EXE
 
@@ -88,7 +94,8 @@ Run `powershell -ExecutionPolicy Bypass -File build/Build.ps1`. It checks the
 configuration files, verifies formatting, runs the test suite, and publishes the
 Native AOT single EXE; a failure in any gate stops it before publishing.
 
-Confirmation: the command exits 0, `build/ScreenNap/ScreenNap.exe` exists, and
+Confirmation: the command exits 0, `build/ScreenNap/ScreenNap.exe` is the only file in
+`build/ScreenNap/`, and
 `(Get-Item build/ScreenNap/ScreenNap.exe).VersionInfo.ProductVersion` prints the new
 version.
 
@@ -105,43 +112,33 @@ Confirmation: the command exits 0 and
 
 ## Phase 3 — Publish
 
-Every step in this phase is visible to users the moment it succeeds, and a published
-tag or release can only be withdrawn manually. Run them only after Phase 2 has produced
-both assets.
+Pushing the tag publishes the release, and a published tag or release can only be
+withdrawn manually. Run this phase only after Phase 2 succeeded.
 
 ### 8. Create and push the tag
 
 On `main` at the squash commit from step 5, run `git tag -a v{version} -m "v{version}"`,
-then `git push origin v{version}`.
+then `git push origin v{version}`. The push starts `release.yml`, which builds both
+assets and creates the GitHub Release.
 
-Confirmation: `git ls-remote --tags origin` lists `refs/tags/v{version}`.
+Confirmation: `gh run list --workflow=release.yml --limit 1` reports the run for
+`v{version}` as `success`.
 
-### 9. Create the GitHub Release
-
-Write the release notes into a file — the body is this version's `CHANGELOG.md`
-section without its heading — then run:
-
-```powershell
-gh release create v{version} --title "v{version}" --notes-file <notes-file> `
-  build/ScreenNap/ScreenNap.exe `
-  build/Installer/ScreenNap-Setup-{version}.exe
-```
-
-Both assets are mandatory: the portable EXE and the installer are the two documented
-download paths in `README.md`.
-
-Confirmation: the command prints the release URL.
+A tag must never outlive its release: when the run fails, delete the tag on `origin` and
+locally (`git push origin :refs/tags/v{version}` and `git tag -d v{version}`), fix the
+cause, and start Phase 3 again.
 
 ## Phase 4 — Verify the published release
 
-### 10. Check the release contents
+### 9. Check the release contents
 
-Run `gh release view v{version} --json tagName,isDraft,assets`.
+Run `gh release view v{version} --json tagName,isDraft,assets,body`.
 
-Confirmation: `tagName` is `v{version}`, `isDraft` is `false`, and `assets` lists both
-`ScreenNap.exe` and `ScreenNap-Setup-{version}.exe`.
+Confirmation: `tagName` is `v{version}`, `isDraft` is `false`, `assets` lists both
+`ScreenNap.exe` and `ScreenNap-Setup-{version}.exe`, and `body` is this version's
+`CHANGELOG.md` section.
 
-### 11. Check the download page
+### 10. Check the download page
 
 Open `https://github.com/elysion-ii/ScreenNap/releases`.
 
@@ -154,16 +151,16 @@ Only the current version stays published, so the previous version's tag and its 
 Release are removed once the new release is verified. Deleting them is irreversible and
 their assets cannot be recovered — run this phase only after Phase 4 confirmed the new
 release carries both assets. When `v{version}` is the only published version, this phase
-ends at step 12.
+ends at step 11.
 
-### 12. Identify what is still published
+### 11. Identify what is still published
 
 Run `gh release list` and `git ls-remote --tags origin`.
 
 Confirmation: both list `v{version}`, and whether a previous `v{previous}` remains is now
 known. With no `v{previous}` in either listing, the release is complete.
 
-### 13. Delete the previous release and its tag
+### 12. Delete the previous release and its tag
 
 A tag must never outlive its release, so remove both in one step:
 

@@ -14,8 +14,8 @@ Rule bodies live under `docs/rules/`. Edit this file, never `CLAUDE.md`.
 | Runtime | `net10.0-windows` (.NET 10 LTS) |
 | UI | Raw Win32 API via P/Invoke; no UI framework |
 | Target OS | Windows 10 / 11 (x64) |
-| Distribution | Self-contained single EXE + Inno Setup installer |
-| Runtime dependencies | .NET runtime bundled in the EXE; no external NuGet runtime packages |
+| Distribution | Native AOT single EXE + Inno Setup installer |
+| Runtime dependencies | Ahead-of-time compiled to native code; no .NET runtime, no external NuGet runtime packages |
 | License | MIT |
 
 ## Applications
@@ -26,12 +26,18 @@ Rule bodies live under `docs/rules/`. Edit this file, never `CLAUDE.md`.
 
 ## Rules and AUDIT
 
-- **Before implementing any change**, read in order: `docs/rules/standard.md` (shared core), `docs/rules/dotnet.md` (.NET rules), then the application's rules file and specification from the Applications table. On conflict the more specific file wins (application > language > core)
-- **When the application being changed exposes a command-line interface** (a console application, or a GUI application that accepts command-line options), also read `docs/rules/cli.md`
-- **Before creating, changing, moving, renaming, archiving, or deleting any document**, also read `docs/rules/documentation.md`
-- **Before any Git write operation or PR operation** (commit, branch, push, PR creation, update, or merge), also read `docs/rules/git.md`
-- **When a change requires behavior not in the specification**, spec-first applies — read the Specifications section of `docs/rules/standard.md` before implementing
-- **When transitioning from a plan to implementation**, re-read this file (root and any nested `AGENTS.md` covering the work area) and the rules files first, so all rules are loaded before code is written
+`docs/rules/` holds the core — `standard.md`, `documentation.md`, `git.md`, `cli.md`,
+`dotnet.md` — and `ScreenNap.md`, which carries this repository's own rules and its
+overrides of the core. `ScreenNap.md` wins on conflict; within the core `dotnet.md`
+wins over `standard.md`.
+
+**Before implementing any change, read all of them, and `docs/specs/ScreenNap.md` with
+them.** `cli.md` is the only one you may skip, and only while ScreenNap exposes no
+command-line interface — neither a console application nor a GUI application that
+accepts command-line options. Judging any other file unrelated to the work at hand and
+leaving it unread is how a rule goes unapplied.
+
+- **When transitioning from a plan to implementation**, re-read this file (root and any nested `AGENTS.md` covering the work area) and the files listed above, so all rules are loaded before code is written
 - **Before reporting an implementation task as complete**, run the AUDIT procedure at the end of `docs/rules/standard.md`
 - `docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/git.md`, `docs/rules/cli.md`, and `docs/rules/dotnet.md` are managed by dev-standards — never edit them; repository- and application-specific rules go in `docs/rules/ScreenNap.md`
 
@@ -68,7 +74,7 @@ The xUnit test project runs as a gate in `Build.ps1` before publishing.
 
 The directory contains build scripts and installer configuration.
 
-- `Build.ps1` runs format verification and tests, then publishes ScreenNap as a self-contained single-file EXE to `build/ScreenNap/`
+- `Build.ps1` runs the configuration-file check, format verification, and tests, then publishes ScreenNap as a Native AOT single EXE to `build/ScreenNap/`
 - `Installer.ps1` invokes Inno Setup on `Setup_ScreenNap.iss`; it reads `<Version>` from `Directory.Build.props`, injects `/DMyAppVersion`, and verifies the matching `CHANGELOG.md` heading
 - `build/ScreenNap/` and `build/Installer/` are generated, gitignored output directories
 

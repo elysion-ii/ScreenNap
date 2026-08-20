@@ -8,28 +8,37 @@ created: 2026-07-30
 Publishing a new ScreenNap version: the version bump, the release assets, the tag, and
 the GitHub Release.
 
-The entry state is `main` holding every change the release contains, with
-`Directory.Build.props` still carrying the previous version. The goal state is a pushed
-version commit, an annotated tag `v{version}` on `origin`, a GitHub Release carrying both
-release assets, and the previous version's tag and release gone — only the current
-version stays published.
+The entry state is a clean `main` holding every change the release contains, with
+`Directory.Build.props` still carrying the previous version. The goal state is the
+version commit merged into `origin/main`, an annotated tag `v{version}` on `origin`, a
+GitHub Release carrying both release assets, and the previous version's tag and release
+gone — only the current version stays published.
 
 ## Prerequisites
 
 - The repository root — the directory containing `ScreenNap.slnx` — is the working
   directory for every command below unless a step names another one
+- Visual Studio Build Tools carry the C++ desktop workload
+  (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`); the Native AOT publish in
+  `build/Build.ps1` links with MSVC
+- `C:\Program Files (x86)\Microsoft Visual Studio\Installer` is on `PATH`; the MSVC
+  environment script invokes `vswhere` by bare name, and the publish fails with
+  `MSB3073` when the directory is missing from `PATH`
 - Inno Setup 6 is installed at `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`;
   `build/Installer.ps1` aborts when that path is absent
 - `gh auth status` reports an account with push access to `elysion-ii/ScreenNap`
 
-## Phase 1 — Commit the version
+## Phase 1 — Land the version on `main`
 
-### 1. Start from a clean `main`
+### 1. Branch from a clean `main`
 
-Run `git switch main`, then `git pull`.
+Run `git switch main` and `git pull`, then `git switch -c {branch}`. `main` is
+protected, so the version commit is made on a branch and reaches `main` only through a
+pull request; `docs/rules/git.md` governs the branch name. When the version bump travels
+with the change being released, that change's own branch is the one.
 
 Confirmation: `git status --porcelain` prints nothing, and `git branch --show-current`
-prints `main`.
+prints `{branch}`.
 
 ### 2. Set the new version
 
@@ -52,23 +61,38 @@ gates on that pattern in Phase 2 and fails the installer build when it is absent
 ### 4. Commit both files together
 
 Commit `Directory.Build.props` and `CHANGELOG.md` in one commit, either on their own or
-together with the change being released.
+together with the change being released. The pre-commit hook rejects a commit until
+AUDIT is confirmed; once the AUDIT procedure at the end of `docs/rules/standard.md` has
+run, commit with `git -c audit.ok=true commit`.
 
 Confirmation: `git show --stat HEAD` lists both files in the same commit.
 
+### 5. Merge the branch into `main`
+
+Push the branch, open a pull request, and merge it by the Merge Procedure in
+`docs/rules/git.md` — squash merge with an explicit subject and body, then delete the
+branch on both the remote and the local clone. Return to `main` and run `git pull`.
+
+Confirmation: `gh pr view {number} --json state` reports `MERGED`,
+`git branch --show-current` prints `main`, and `git log --oneline -1` shows the squash
+commit.
+
 ## Phase 2 — Build the release assets
 
-### 5. Build the portable EXE
+The assets are built from `main` after the merge, so the files published in Phase 3
+come from the same commit the tag will point at.
 
-Run `powershell -ExecutionPolicy Bypass -File build/Build.ps1`. It verifies formatting,
-runs the test suite, and publishes the self-contained single-file EXE; a failure in
-either gate stops it before publishing.
+### 6. Build the portable EXE
+
+Run `powershell -ExecutionPolicy Bypass -File build/Build.ps1`. It checks the
+configuration files, verifies formatting, runs the test suite, and publishes the
+Native AOT single EXE; a failure in any gate stops it before publishing.
 
 Confirmation: the command exits 0, `build/ScreenNap/ScreenNap.exe` exists, and
 `(Get-Item build/ScreenNap/ScreenNap.exe).VersionInfo.ProductVersion` prints the new
 version.
 
-### 6. Build the installer
+### 7. Build the installer
 
 Run `powershell -ExecutionPolicy Bypass -File build/Installer.ps1`. It reads `<Version>`
 from `Directory.Build.props`, verifies the changelog heading, and injects the version
@@ -77,7 +101,7 @@ into `build/Setup_ScreenNap.iss`.
 Confirmation: the command exits 0 and
 `build/Installer/ScreenNap-Setup-{version}.exe` exists.
 
-`build/Menu.bat` option 3 runs steps 5 and 6 in sequence and stops at the first failure.
+`build/Menu.bat` option 3 runs steps 6 and 7 in sequence and stops at the first failure.
 
 ## Phase 3 — Publish
 
@@ -85,16 +109,10 @@ Every step in this phase is visible to users the moment it succeeds, and a publi
 tag or release can only be withdrawn manually. Run them only after Phase 2 has produced
 both assets.
 
-### 7. Push the version commit
-
-Run `git push origin main`.
-
-Confirmation: `git log --oneline -1 origin/main` prints the same commit as
-`git log --oneline -1 main`.
-
 ### 8. Create and push the tag
 
-Run `git tag -a v{version} -m "v{version}"`, then `git push origin v{version}`.
+On `main` at the squash commit from step 5, run `git tag -a v{version} -m "v{version}"`,
+then `git push origin v{version}`.
 
 Confirmation: `git ls-remote --tags origin` lists `refs/tags/v{version}`.
 

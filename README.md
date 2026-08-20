@@ -39,6 +39,8 @@ Default install path: `%LocalAppData%\Programs\ScreenNap`
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- Visual Studio Build Tools with the C++ desktop workload (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) — the Native AOT publish links with MSVC
+- `C:\Program Files (x86)\Microsoft Visual Studio\Installer` on `PATH` — the MSVC environment script invokes `vswhere` by bare name, and the publish fails with `MSB3073` when the directory is missing from `PATH`
 - (Optional) [Inno Setup 6](https://jrsoftware.org/isdl.php) for creating the installer
 
 ### Build
@@ -51,7 +53,7 @@ Menu.bat
 Or directly:
 
 ```
-dotnet publish ScreenNap/ScreenNap.csproj -c Release -f net10.0-windows -r win-x64 --self-contained true -p:PublishSingleFile=true
+powershell -ExecutionPolicy Bypass -File build/Build.ps1
 ```
 
 ## Usage

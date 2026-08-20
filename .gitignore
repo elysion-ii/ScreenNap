@@ -8,6 +8,9 @@ build/ScreenNap/
 build/Installer/
 build/publish_temp*/
 
+## Local configuration (only the .template.* placeholder is tracked)
+appsettings.json
+
 ## IDE
 .vs/
 *.user

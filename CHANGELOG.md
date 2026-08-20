@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-20
+
+### Changed
+- Publish ScreenNap with Native AOT: the portable EXE is compiled to native code and no longer carries the .NET runtime
+- Converged the repository onto dev-standards v4.12.0: the publish shape moved from `Build.ps1` into the csproj, a self-extracting single-file publish now fails the build, `Build.ps1` gained the configuration-file check, and the installer ships the whole publish directory
+- The release workflow is the single publisher: pushing a `v*` tag builds both assets and creates the GitHub Release with that version's changelog section as its notes
+
 ## [1.4.0] - 2026-07-30
 
 ### Added

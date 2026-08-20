@@ -22,13 +22,31 @@ if (-not (Test-Path $ProjectPath)) {
     exit 1
 }
 
-# Cleanup temp folder
 if (Test-Path $PublishDir) { Remove-Item $PublishDir -Recurse -Force }
-# Clean existing output folder
 if (Test-Path $OutputDir) { Remove-Item $OutputDir -Recurse -Force }
 
-# Create output folder
 New-Item -ItemType Directory -Path $OutputDir -Force -ErrorAction SilentlyContinue | Out-Null
+
+# Only the placeholder template of a configuration file belongs in the repository:
+# the real file carries credentials and environment-specific values
+# (rule: docs/rules/dotnet.md, CONFIGFILE)
+Write-Host "Verifying configuration files..." -ForegroundColor Cyan
+# Configuration extensions only, so a source-code template never trips the check
+$ConfigTemplate = '\.template\.(json|ya?ml|xml|ini|config|toml|env)$'
+$TrackedFiles = @()
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $TrackedFiles = @(git ls-files 2>$null)
+    if ($LASTEXITCODE -ne 0) { $TrackedFiles = @() }
+}
+foreach ($Template in $TrackedFiles | Where-Object { $_ -match $ConfigTemplate }) {
+    $RealName = $Template -replace $ConfigTemplate, '.$1'
+    if ($TrackedFiles -contains $RealName) {
+        Write-Host "   [ERROR] $RealName is tracked by git - only $Template belongs in the repository" -ForegroundColor Red
+        Write-Host "           Run 'git rm --cached $RealName' and add it to .gitignore" -ForegroundColor Red
+        Write-Host "`n=== Build Failed ===" -ForegroundColor Red
+        exit 1
+    }
+}
 
 Write-Host "Verifying code format..." -ForegroundColor Cyan
 dotnet format ScreenNap.slnx --verify-no-changes
@@ -52,16 +70,13 @@ dotnet publish $ProjectPath `
     -c $Configuration `
     -f $Framework `
     -r $Runtime `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:DebugType=none `
     -p:DebugSymbols=false `
     -p:DebuggerSupport=false `
     -o "$PublishDir"
 
 if ($LASTEXITCODE -eq 0) {
-    Copy-Item "$PublishDir\*" "$OutputDir\" -Force
+    Copy-Item "$PublishDir\*" "$OutputDir\" -Force -Recurse
     Remove-Item $PublishDir -Recurse -Force
 
     Write-Host "   [OK] ScreenNap.exe deployed" -ForegroundColor Green

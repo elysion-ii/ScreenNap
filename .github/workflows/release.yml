@@ -22,16 +22,37 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
+      # The MSVC environment script the Native AOT publish runs invokes vswhere by
+      # bare name (docs/rules/dotnet.md NATIVEDEP; README.md Prerequisites).
+      - name: Put vswhere on PATH
+        shell: pwsh
+        run: |
+          "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer" |
+            Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Build EXE
         run: pwsh build/Build.ps1
 
       - name: Build Installer
         run: pwsh build/Installer.ps1
 
+      # The release notes are this version's CHANGELOG.md section, so the published
+      # notes and the changelog never drift apart.
+      - name: Extract release notes
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $heading = '^## \[' + [regex]::Escape($version) + '\].*?$'
+          $pattern = '(?ms)' + $heading + '(.*?)(?=^## |\z)'
+          $found = [regex]::Match((Get-Content CHANGELOG.md -Raw), $pattern)
+          if (-not $found.Success) { throw "CHANGELOG.md has no section for $version" }
+          $found.Groups[1].Value.Trim() | Set-Content release-notes.md -Encoding utf8
+          Get-Content release-notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: release-notes.md
           files: |
             build/ScreenNap/ScreenNap.exe
             build/Installer/ScreenNap-Setup-*.exe

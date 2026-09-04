@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-04
+
+### Changed
+- Updating an installed ScreenNap while it is running now closes it and starts it again after the install, instead of leaving files locked
+- Uninstalling while ScreenNap is running now offers to close it and retry, so an uninstall no longer leaves a half-removed installation behind. ScreenNap is never force-closed: when it does not shut down gracefully, the choice returns to you
+- Converged the repository onto dev-standards v4.16.0: a second enumeration of a LINQ query now fails the build, and the shared rules gained the deferred-execution, running-application, and declarative-code sections
+
 ## [1.5.0] - 2026-08-20
 
 ### Changed

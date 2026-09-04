@@ -78,7 +78,6 @@ if (Test-Path $ChangelogPath) {
     }
 }
 
-# Create Installer output folder
 $InstallerDir = Join-Path $BuildDir "Installer"
 if (-not (Test-Path $InstallerDir)) {
     New-Item -ItemType Directory -Path $InstallerDir -Force | Out-Null
@@ -86,7 +85,6 @@ if (-not (Test-Path $InstallerDir)) {
 
 Write-Host "`n=== Building ScreenNap Installer ===" -ForegroundColor Green
 
-# Check if build output exists
 $ExePath = Join-Path $BuildDir "ScreenNap\ScreenNap.exe"
 if (-not (Test-Path $ExePath)) {
     Write-Host "   [ERROR] ScreenNap.exe not found in build\ScreenNap\" -ForegroundColor Red
@@ -94,7 +92,6 @@ if (-not (Test-Path $ExePath)) {
     exit 1
 }
 
-# Build installer
 Write-Host "Building installer..." -ForegroundColor Cyan
 $SetupScriptPath = Join-Path $BuildDir "Setup_ScreenNap.iss"
 

@@ -101,7 +101,6 @@ echo   Full Build Completed
 echo ================================================
 echo.
 echo [SUCCESS] All build and installer tasks completed
-echo.
 echo Output: build\Installer\
 pause
 goto menu

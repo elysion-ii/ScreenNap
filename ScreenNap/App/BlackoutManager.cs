@@ -98,9 +98,7 @@ internal sealed class BlackoutManager
             monitorsByIdentity[m.Identity] = m;
         }
 
-        var activeIdentities = new HashSet<MonitorIdentity>();
-        foreach (IBlackoutWindow w in _windows.Values)
-            activeIdentities.Add(w.Identity);
+        HashSet<MonitorIdentity> activeIdentities = _windows.Values.Select(w => w.Identity).ToHashSet();
 
         int restored = 0;
         foreach (MonitorIdentity desired in _desired)

@@ -29,8 +29,18 @@ csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_for_built_in_types = false:suggestion
 csharp_style_var_elsewhere = false:suggestion
 
+# VISIBILITY: no public type in an application, and every declaration except an interface member writes its modifier
+dotnet_diagnostic.CA1515.severity = warning
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
+dotnet_diagnostic.IDE0040.severity = warning
+
 # DEFERRED: a second enumeration of an IEnumerable re-runs the whole query
 dotnet_diagnostic.CA1851.severity = warning
+
+# UNUSED: a member or parameter the change stopped reaching fails the build (standard.md Leave No Vestiges)
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
+dotnet_diagnostic.IDE0060.severity = warning
 
 # Usings: outside namespace, System directives first
 csharp_using_directive_placement = outside_namespace:warning

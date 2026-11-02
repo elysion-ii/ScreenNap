@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded-by: 0003-end-to-end-tests-drive-the-built-application.md
 ---
 
 # Functional Core and Imperative Shell

@@ -27,10 +27,6 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "DefWindowProcW")]
     internal static partial nint DefWindowProcW(IntPtr hWnd, uint msg, nuint wParam, nint lParam);
 
-    [LibraryImport("user32.dll", EntryPoint = "ShowWindow")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
     [LibraryImport("user32.dll", EntryPoint = "SetWindowPos", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
@@ -143,10 +139,4 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "DestroyIcon", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool DestroyIcon(IntPtr hIcon);
-}
-
-internal static partial class Kernel32
-{
-    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
-    internal static partial IntPtr GetModuleHandleW(string? lpModuleName);
 }

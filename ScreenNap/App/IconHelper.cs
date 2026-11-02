@@ -14,11 +14,14 @@ internal static class IconHelper
     internal static IntPtr LoadIconFromResource(string resourceFileName)
     {
         string resourceName = $"ScreenNap.Resources.{resourceFileName}";
-        var assembly = Assembly.GetExecutingAssembly();
+        Assembly assembly = Assembly.GetExecutingAssembly();
 
         using Stream? stream = assembly.GetManifestResourceStream(resourceName);
         if (stream is null)
+        {
+            Logger.Warn($"Icon resource not found: {resourceName}");
             return IntPtr.Zero;
+        }
 
         byte[] icoData = new byte[stream.Length];
         stream.ReadExactly(icoData);

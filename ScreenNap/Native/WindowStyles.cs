@@ -1,6 +1,5 @@
 namespace ScreenNap.Native;
 
-// Win32 constants grouped by category
 internal static class WindowStyles
 {
     // Window styles
@@ -20,9 +19,7 @@ internal static class WindowStyles
     // Window messages
     internal const uint WM_DISPLAYCHANGE = 0x007E;
     internal const uint WM_DESTROY = 0x0002;
-    internal const uint WM_CLOSE = 0x0010;
     internal const uint WM_PAINT = 0x000F;
-    internal const uint WM_ERASEBKGND = 0x0014;
     internal const uint WM_TIMER = 0x0113;
     internal const uint WM_COMMAND = 0x0111;
     internal const uint WM_LBUTTONUP = 0x0202;
@@ -45,6 +42,8 @@ internal static class WindowStyles
     internal const uint NIF_MESSAGE = 0x00000001;
     internal const uint NIF_ICON = 0x00000002;
     internal const uint NIF_TIP = 0x00000004;
+    internal const uint NIF_INFO = 0x00000010;
+    internal const uint NIIF_WARNING = 0x00000002;
     internal const uint NOTIFYICON_VERSION_4 = 4;
 
     // Menu flags
@@ -53,25 +52,19 @@ internal static class WindowStyles
     internal const uint MF_CHECKED = 0x00000008;
     internal const uint MF_GRAYED = 0x00000001;
     internal const uint TPM_RIGHTBUTTON = 0x0002;
-    internal const uint TPM_BOTTOMALIGN = 0x0020;
 
     // SetWindowPos
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
-    internal static readonly IntPtr HWND_MESSAGE = new(-3);
     internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOSIZE = 0x0001;
     internal const uint SWP_NOACTIVATE = 0x0010;
-    internal const uint SWP_SHOWWINDOW = 0x0040;
 
-    // ShowWindow
-    internal const int SW_HIDE = 0;
-
-    // Icons and images
-    internal const uint IMAGE_ICON = 1;
+    // Icons
     internal const uint LR_DEFAULTCOLOR = 0x00000000;
 
-    // Cursors
+    // Cursors and hit testing
     internal const int IDC_ARROW = 32512;
+    internal const int HTCLIENT = 1;
 
     // Stock objects
     internal const int BLACK_BRUSH = 4;
@@ -79,16 +72,9 @@ internal static class WindowStyles
     // MessageBox
     internal const uint MB_OK = 0x00000000;
     internal const uint MB_ICONINFORMATION = 0x00000040;
+    internal const uint MB_ICONERROR = 0x00000010;
 
-    // Timer ID for TopMost maintenance
-    internal const nuint TOPMOST_TIMER_ID = 1;
-    internal const uint TOPMOST_TIMER_INTERVAL_MS = 1000;
-
-    // Cursor auto-hide on blackout window
-    internal const int CURSOR_HIDE_TIMEOUT_MS = 10000;
-    internal const int HTCLIENT = 1;
-
-    // Hotkey modifiers
+    // Hotkey modifiers and virtual keys
     internal const uint MOD_CONTROL = 0x0002;
     internal const uint MOD_SHIFT = 0x0004;
     internal const uint MOD_ALT = 0x0001;
@@ -101,24 +87,7 @@ internal static class WindowStyles
     internal const uint DT_VCENTER = 0x04;
     internal const uint DT_SINGLELINE = 0x20;
 
-    // GDI background mode
+    // GDI
     internal const int TRANSPARENT_BK = 1;
-
-    // Identify overlay timers
-    internal const nuint IDENTIFY_DISMISS_TIMER_ID = 2;
-    internal const nuint IDENTIFY_TOPMOST_TIMER_ID = 3;
-    internal const uint IDENTIFY_DISMISS_MS = 3000;
-    internal const uint IDENTIFY_TOPMOST_MS = 250;
-
-    // Display change debounce timer
-    internal const nuint DISPLAYCHANGE_DEBOUNCE_TIMER_ID = 4;
-    internal const uint DISPLAYCHANGE_DEBOUNCE_MS = 500;
-
-    // Menu item IDs
-    internal const int MENU_ID_NONE = 0;
-    internal const int MENU_ID_MONITOR_BASE = 1000;
-    internal const int MENU_ID_RELEASE_ALL = 2000;
-    internal const int MENU_ID_EXIT = 9999;
-    internal const int HOTKEY_ID_BASE = 3000;
-    internal const int HOTKEY_ID_IDENTIFY = 3009;
+    internal const int FW_BOLD = 700;
 }

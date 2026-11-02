@@ -36,7 +36,7 @@ Native/ → no project dependencies
 ## Win32 and P/Invoke
 
 - Prefer `[LibraryImport]` over `[DllImport]` for new declarations
-- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, and `DisplayConfig.cs`
+- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, and `DisplayConfig.cs`
 - Use `IntPtr` for HWND, HMENU, HICON, and other Win32 handles
 - Native structures must use `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`
 - Check every P/Invoke return value and use `Marshal.GetLastWin32Error()` when the function documents `SetLastError = true`
@@ -79,13 +79,19 @@ Native/ → no project dependencies
 ## Internationalization Implementation
 
 - Store default English strings in `Resources/Strings.resx` and Japanese strings in `Resources/Strings.ja.resx`
-- Use PascalCase resource keys with a category prefix and access values through the generated `Strings` class
+- Use PascalCase resource keys with a category prefix and access values through the `Strings` class in `Resources/Strings.cs`
 - Format parameterized resources with `string.Format`
 - Build-script output must be written in English
 
 ## Logging Override
 
-- This section overrides `dotnet.md` LOGGING: write logs directly to `{Environment.GetFolderPath(SpecialFolder.LocalApplicationData)}\ScreenNap\Logs\`, not to `AppContext.BaseDirectory`
+- This section overrides `dotnet.md` LOGGING: the default log directory is `{Environment.GetFolderPath(SpecialFolder.LocalApplicationData)}\ScreenNap\Logs\`, not `AppContext.BaseDirectory`, and the `SCREENNAP_LOG_DIR` environment variable replaces it as the specification states (LOG-1, LOG-2)
+- **Retention**: this section overrides the `dotnet.md` LOGGING default of 30 files. ScreenNap deletes its log files whose last write is older than 7 days, because ScreenNap is resident and writes a log file on every day it runs: the last 7 days cover the period in which a reported problem is investigated, and older files only occupy the user's disk
+- **The logger's own write failures**: this section overrides `dotnet.md` ERROR for the `catch` around a log-line write in `Logging/Logger.cs`. The `catch` swallows the failure, because the logger has no other channel to report its own failure, and the specification requires a logging failure to stay silent to the user
+
+## Documentation Override
+
+- **Front matter**: this section overrides the `documentation.md` front matter requirement for `CONTRIBUTING.md` at the repository root. Like `README.md` and `CHANGELOG.md`, `CONTRIBUTING.md` faces external readers, and GitHub renders front matter as a table above the document's content, so `CONTRIBUTING.md` carries no front matter
 
 ## Release Constraints
 

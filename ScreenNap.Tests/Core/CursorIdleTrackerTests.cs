@@ -6,7 +6,8 @@ namespace ScreenNap.Tests.Core;
 public sealed class CursorIdleTrackerTests
 {
     [Fact]
-    public void OnMouseMove_FirstPositionWhileCursorVisible_ReturnsNone()
+    [Trait("Requirement", "WIN-5")]
+    internal void OnMouseMove_FirstPositionWhileCursorVisible_ReturnsNone()
     {
         var tracker = new CursorIdleTracker(0);
 
@@ -16,7 +17,8 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void OnMouseMove_FirstPositionAtOrigin_RestartsIdlePeriod()
+    [Trait("Requirement", "WIN-5")]
+    internal void OnMouseMove_FirstPositionAtOrigin_RestartsIdlePeriod()
     {
         var tracker = new CursorIdleTracker(0);
 
@@ -28,7 +30,8 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void OnMouseMove_SameCoordinates_DoesNotRestartIdlePeriod()
+    [Trait("Requirement", "WIN-5")]
+    internal void OnMouseMove_SameCoordinates_DoesNotRestartIdlePeriod()
     {
         var tracker = new CursorIdleTracker(0);
         tracker.OnMouseMove(1, 1, 100);
@@ -40,18 +43,20 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Theory]
-    [InlineData(9999, 0)]
-    [InlineData(10000, 2)]
-    [InlineData(10001, 2)]
-    public void OnTimerTick_AnyElapsedTime_HidesAtTimeoutBoundary(long tick, int expected)
+    [InlineData(9999, CursorAction.None)]
+    [InlineData(10000, CursorAction.Hide)]
+    [InlineData(10001, CursorAction.Hide)]
+    [Trait("Requirement", "WIN-5")]
+    internal void OnTimerTick_AnyElapsedTime_HidesAtTimeoutBoundary(long tick, CursorAction expected)
     {
         var tracker = new CursorIdleTracker(0);
 
-        Assert.Equal((CursorAction)expected, tracker.OnTimerTick(tick));
+        Assert.Equal(expected, tracker.OnTimerTick(tick));
     }
 
     [Fact]
-    public void OnTimerTick_AlreadyHidden_ReturnsNone()
+    [Trait("Requirement", "WIN-5")]
+    internal void OnTimerTick_AlreadyHidden_ReturnsNone()
     {
         var tracker = new CursorIdleTracker(0);
         tracker.OnTimerTick(10000);
@@ -60,7 +65,8 @@ public sealed class CursorIdleTrackerTests
     }
 
     [Fact]
-    public void OnMouseMove_HiddenCursor_ShowsAndAllowsHidingAgain()
+    [Trait("Requirement", "WIN-5")]
+    internal void OnMouseMove_HiddenCursor_ShowsAndAllowsHidingAgain()
     {
         var tracker = new CursorIdleTracker(0);
         tracker.OnTimerTick(10000);

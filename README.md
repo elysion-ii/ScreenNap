@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File build/Build.ps1
 
 ### Logs
 
-Log files are written to `%LocalAppData%\ScreenNap\Logs\` with daily rotation and 7-day retention.
+Log files are written to `%LocalAppData%\ScreenNap\Logs\` with daily rotation and 7-day retention. Set the `SCREENNAP_LOG_DIR` environment variable to an absolute directory path to write them there instead. Each line carries the local time with its UTC offset.
 
 | Level | Description |
 |-------|-------------|

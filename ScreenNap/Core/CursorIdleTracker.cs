@@ -1,5 +1,3 @@
-using ScreenNap.Native;
-
 namespace ScreenNap.Core;
 
 internal enum CursorAction
@@ -11,6 +9,8 @@ internal enum CursorAction
 
 internal sealed class CursorIdleTracker
 {
+    private const long HideTimeoutMs = 10000;
+
     private long _lastMouseMoveTick;
     private int _lastMouseX;
     private int _lastMouseY;
@@ -41,7 +41,7 @@ internal sealed class CursorIdleTracker
 
     internal CursorAction OnTimerTick(long tick)
     {
-        if (IsHidden || tick - _lastMouseMoveTick < WindowStyles.CURSOR_HIDE_TIMEOUT_MS)
+        if (IsHidden || tick - _lastMouseMoveTick < HideTimeoutMs)
             return CursorAction.None;
 
         IsHidden = true;

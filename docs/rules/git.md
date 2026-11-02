@@ -1,36 +1,27 @@
 # Git
 
-Rules for Git write operations and pull request operations, distributed into each
-repository at `docs/rules/git.md`. Read this file before implementing any change, as
-`standard.md` How to use these rules directs, and consult it again before every commit,
-branch, push, and pull request.
+Part of the shared core rules (`docs/rules/`). Governs Git write operations, branch
+lifecycle, commit composition, and pull requests. Every Git operation must strictly
+adhere to these rules.
 
 ## Confirming Scope
 
-How far a task goes is the user's decision, not something to infer from the work being
-complete. Agree on the destination before the first Git write operation.
+The extent of Git operations is decided by the user, never assumed by the agent. Always agree on the stopping stage before the first Git write operation:
 
-Ask how far to go:
+1. **Commit only**: stage and commit changes locally.
+2. **Commit and push**: commit and push the feature branch to the remote.
+3. **Through PR creation**: push and open a pull request.
+4. **Full lifecycle**: PR creation, squash merge, return to default branch, and delete the feature branch.
 
-1. Commit only
-2. Commit and push
-3. Through PR creation
-4. All the way — PR, merge, return to the default branch, delete the branch
+Stop strictly at the agreed stage and report. Never proceed beyond the agreed stage autonomously; unpushed or unmerged branches are valid resting states.
 
-Stop at the agreed point and report. Stopping early is normal: a branch holding unpushed
-or unmerged commits is a valid resting state, not unfinished work.
-
-Never go beyond the agreed point. Do not push, open a PR, or merge because the work looks
-ready.
+- **What counts as agreement**: the user names a stage, or gives an instruction that maps to exactly one stage. An instruction that maps to more than one (e.g., "finish this") is confirmed with the user before the first Git write operation.
+- **Agreed once per task**: the agreement covers every Git operation of the task it was made for; a new task needs a new agreement.
+- **What counts as a write**: a Git write operation is any operation from the stages above — staging, committing, pushing, opening or merging a PR, deleting a branch. Fetching and creating a local branch are not.
 
 ## Operation Language
 
-Git text is typed back into shell commands — branch names into `git checkout`, messages
-into `-m`, tags into `git push`. Non-ASCII text there is a standing source of mistakes:
-mistyped names, pathspecs that match nothing, garbled output. English is also the common
-language of the tooling and of everyone who reads the history.
-
-- Write all Git-related text in English by default: commit messages, branch names, PR titles and descriptions, tags, and the like
+Write all Git-related text in English: commit messages, branch names, PR titles and descriptions, tag names and tag messages, and release notes. This prevents shell encoding issues, garbled terminal output, and cross-environment inconsistencies.
 
 ## Commit Format
 
@@ -39,8 +30,8 @@ language of the tooling and of everyone who reads the history.
 
 ## Branches
 
-- Treat the default branch as protected, whether or not the repository actually enforces it: never commit on it. Create a branch first, from the default branch's current state. Work on the default branch only when the user explicitly asks for it
-- Branch names are kebab-case and describe the change; a type prefix mirroring the commit type (`feat/`, `fix/`, `docs/`, `chore/`, ...) is recommended, not required
+- Treat the default branch as protected, whether or not the repository actually enforces it: never commit on it. Create a branch first, from the remote default branch's latest state (fetch before branching; a local default branch behind the remote is not its current state). Work on the default branch only when the user explicitly asks for it
+- Branch names are kebab-case and name the change, at least by the area it changes (e.g., `login-screen`); a type prefix mirroring the commit type (`feat/`, `fix/`, `docs/`, `chore/`, ...) is recommended, not required
 - A branch carries as many commits as the work needs — one PR does not mean one commit
 - Delete branches per Branch Cleanup below once their PR is merged
 
@@ -48,6 +39,7 @@ language of the tooling and of everyone who reads the history.
 
 - Landing a branch on the default branch always goes through a PR; never merge a branch locally
 - Give every PR a clear title and a description of what changed and why
+- Before opening a PR, and again after every later push to it, run every end-to-end test command `AGENTS.md` names; each exits 0 (`testing.md` When Tests Run)
 - Before relying on a PR's diff, composing a merge message, or merging, confirm the PR still reflects the intended change — re-check with `gh pr view` if commits were pushed after opening
 
 ## Merge Strategy

@@ -7,46 +7,42 @@ namespace ScreenNap.App;
 
 internal sealed class HotkeyManager
 {
-    private const int MaxHotkeys = 9;
     private const uint Modifiers = WindowStyles.MOD_CONTROL | WindowStyles.MOD_SHIFT | WindowStyles.MOD_ALT | WindowStyles.MOD_NOREPEAT;
 
     private readonly BlackoutManager _manager;
+    private readonly IUserNotifier _notifier;
+    private readonly List<int> _registeredIds = [];
 
-    internal HotkeyManager(BlackoutManager manager)
+    internal HotkeyManager(BlackoutManager manager, IUserNotifier notifier)
     {
         _manager = manager;
+        _notifier = notifier;
     }
 
-    internal static void Register(IntPtr hwnd)
+    internal void Register(IntPtr hwnd)
     {
-        for (int i = 0; i < MaxHotkeys; i++)
+        var unavailable = new List<string>();
+        for (int i = 0; i < HotkeyInterpreter.MonitorHotkeyCount; i++)
         {
-            int id = WindowStyles.HOTKEY_ID_BASE + i;
-            uint vk = WindowStyles.VK_1 + (uint)i;
-
-            if (!User32.RegisterHotKey(hwnd, id, Modifiers, vk))
-            {
-                int error = Marshal.GetLastWin32Error();
-                Logger.Warn($"Failed to register hotkey Ctrl+Shift+Alt+{i + 1} (Win32 error: {error})");
-            }
+            if (!TryRegister(hwnd, HotkeyInterpreter.MonitorHotkeyIdBase + i, WindowStyles.VK_1 + (uint)i, i + 1))
+                unavailable.Add(HotkeyInterpreter.CombinationFor(i + 1));
         }
 
-        if (!User32.RegisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY, Modifiers, WindowStyles.VK_0))
-        {
-            int error = Marshal.GetLastWin32Error();
-            Logger.Warn($"Failed to register hotkey Ctrl+Shift+Alt+0 (Win32 error: {error})");
-        }
+        if (!TryRegister(hwnd, HotkeyInterpreter.IdentifyHotkeyId, WindowStyles.VK_0, HotkeyInterpreter.IdentifyDigit))
+            unavailable.Add(HotkeyInterpreter.CombinationFor(HotkeyInterpreter.IdentifyDigit));
+
+        if (unavailable.Count > 0)
+            _notifier.Notify(FailureNotices.HotkeysUnavailable(unavailable));
     }
 
-    internal static void Unregister(IntPtr hwnd)
+    internal void Unregister(IntPtr hwnd)
     {
-        for (int i = 0; i < MaxHotkeys; i++)
+        foreach (int id in _registeredIds)
         {
-            if (!User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_BASE + i))
-                Logger.Warn($"Failed to unregister monitor hotkey {i + 1} (Win32 error: {Marshal.GetLastWin32Error()})");
+            if (!User32.UnregisterHotKey(hwnd, id))
+                Logger.Warn($"Failed to unregister hotkey {id} (Win32 error: {Marshal.GetLastWin32Error()})");
         }
-        if (!User32.UnregisterHotKey(hwnd, WindowStyles.HOTKEY_ID_IDENTIFY))
-            Logger.Warn($"Failed to unregister identify hotkey (Win32 error: {Marshal.GetLastWin32Error()})");
+        _registeredIds.Clear();
     }
 
     internal void HandleHotkey(int hotkeyId)
@@ -54,15 +50,28 @@ internal sealed class HotkeyManager
         HotkeyAction action = HotkeyInterpreter.Interpret(hotkeyId);
         if (action.Kind == HotkeyActionKind.Identify)
         {
-            IdentifyOverlay.Toggle();
+            IdentifyOverlay.Toggle(_notifier);
             return;
         }
 
         if (action.Kind != HotkeyActionKind.ToggleMonitor)
             return;
 
-        var monitors = MonitorEnumerator.EnumerateMonitors();
+        List<MonitorInfo> monitors = MonitorEnumerator.EnumerateMonitors();
         if (action.MonitorIndex < monitors.Count)
             _manager.Toggle(monitors[action.MonitorIndex]);
+    }
+
+    private bool TryRegister(IntPtr hwnd, int id, uint virtualKey, int digit)
+    {
+        if (!User32.RegisterHotKey(hwnd, id, Modifiers, virtualKey))
+        {
+            int error = Marshal.GetLastWin32Error();
+            Logger.Warn($"Failed to register hotkey {HotkeyInterpreter.CombinationFor(digit)} (Win32 error: {error})");
+            return false;
+        }
+
+        _registeredIds.Add(id);
+        return true;
     }
 }

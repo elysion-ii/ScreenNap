@@ -8,6 +8,8 @@ namespace ScreenNap.Blackout;
 internal sealed class BlackoutWindow : IBlackoutWindow
 {
     private const string WindowClassName = "ScreenNap_Blackout";
+    private const nuint TopmostTimerId = 1;
+    private const uint TopmostIntervalMs = 1000;
 
     // Pin delegate to prevent GC collection
     private static readonly WNDPROC s_wndProc = WndProc;
@@ -56,8 +58,8 @@ internal sealed class BlackoutWindow : IBlackoutWindow
         // TopMost maintenance timer (non-critical: window still works without it)
         nuint timerId = User32.SetTimer(
             Handle,
-            WindowStyles.TOPMOST_TIMER_ID,
-            WindowStyles.TOPMOST_TIMER_INTERVAL_MS,
+            TopmostTimerId,
+            TopmostIntervalMs,
             IntPtr.Zero);
         if (timerId == 0)
             Logger.Warn($"SetTimer failed for blackout window {devicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
@@ -92,10 +94,16 @@ internal sealed class BlackoutWindow : IBlackoutWindow
             return;
 
         IntPtr backgroundBrush = Gdi32.GetStockObject(WindowStyles.BLACK_BRUSH);
-        IntPtr cursor = User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW);
-        if (backgroundBrush == IntPtr.Zero || cursor == IntPtr.Zero)
+        if (backgroundBrush == IntPtr.Zero)
         {
-            Logger.Error("Failed to load resources for blackout window class");
+            Logger.Error("GetStockObject(BLACK_BRUSH) failed for blackout window class");
+            return;
+        }
+
+        IntPtr cursor = User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW);
+        if (cursor == IntPtr.Zero)
+        {
+            Logger.Error($"LoadCursorW failed for blackout window class (Win32 error: {Marshal.GetLastWin32Error()})");
             return;
         }
 
@@ -123,7 +131,7 @@ internal sealed class BlackoutWindow : IBlackoutWindow
     {
         switch (msg)
         {
-            case WindowStyles.WM_TIMER when wParam == WindowStyles.TOPMOST_TIMER_ID:
+            case WindowStyles.WM_TIMER when wParam == TopmostTimerId:
                 if (!User32.SetWindowPos(hWnd, WindowStyles.HWND_TOPMOST,
                     0, 0, 0, 0,
                     WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
@@ -180,7 +188,7 @@ internal sealed class BlackoutWindow : IBlackoutWindow
                 return 0;
 
             case WindowStyles.WM_DESTROY:
-                if (!User32.KillTimer(hWnd, WindowStyles.TOPMOST_TIMER_ID))
+                if (!User32.KillTimer(hWnd, TopmostTimerId))
                     Logger.Warn($"KillTimer failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? instance))
                 {

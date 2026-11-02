@@ -1,11 +1,9 @@
 # Documentation
 
-Rules for writing, classifying, placing, naming, and retiring every non-source document
-in a repository — specs, guides, references, ADRs, investigations, notes, and the rest.
-Read this file before implementing any change, as `standard.md` How to use these rules
-directs, and consult it again whenever a task creates, changes, moves, renames,
-archives, or deletes a document, or when it is unclear where a new one belongs. Do not
-classify or name documents from memory.
+Part of the shared core rules (`docs/rules/`). Governs the classification, lifecycle,
+placement, naming, and authoring of all non-source documents across a repository —
+specifications, guides, references, ADRs, investigations, notes, and plans. Every document
+operation must strictly follow these rules. Do not classify, name, or place documents from memory.
 
 ## Principles
 
@@ -16,7 +14,7 @@ classify or name documents from memory.
 
 ## Document responsibilities
 
-- `AGENTS.md` holds facts, commands, the Applications table, and reading instructions only — no rule text.
+- `AGENTS.md` holds facts, commands, the Applications table, and reading instructions only — no rule text. A sentence that points to where a requirement is stated ("pass the AUDIT gate at the end of `standard.md`") is a reading instruction; a sentence that states a requirement itself ("always run the tests before committing") is rule text.
 - `docs/rules/` holds development and change rules that cannot be enforced mechanically.
 - `docs/specs/` states behavior a system must exhibit, observable from outside it.
 - `docs/adr/` records an adopted decision, its reasoning, consequences, rejected alternatives, and revisit conditions.
@@ -27,11 +25,37 @@ classify or name documents from memory.
 
 ## Writing
 
-Applies to the body of every document in this tree.
+Applies to all documents across the repository:
 
-- **State the what and the why before the how.** Cover the 5W1H the subject actually needs — what, why, who, when, where, how. Which of them matter varies by category; the ones that do are written down rather than left to be inferred from the surrounding text
-- **Re-read a finished draft for means presented as ends.** A document drifts there while it is being written: the mechanism gets named where the property belongs, and a tool or a threshold stands in for the criterion it was chosen to serve. State the property or the criterion first, then the mechanism that currently satisfies it
-- **A number belongs in a document when it is the criterion**, never when it stands in for one. A version, a limit the system enforces, or a default stated together with the condition for departing from it is a criterion; a quantity offered as an illustration of an acceptable cost is not, and it will be read as a threshold it was never meant to be
+- **State purpose before procedure**: explain *what* and *why* before *how*. Explicitly document all required 5W1H context instead of leaving it to inference.
+- **Distinguish criteria from mechanism**: state the required property or criterion first, then the specific mechanism or tool currently satisfying it. Never present temporary mechanisms or tools as the objective itself.
+- **Include numbers only as true criteria**: cite numerical values only when they define enforceable boundaries (system limits, version numbers, configurable defaults). Never quote arbitrary examples or illustrations as requirements.
+- **Open with the rule, not an essay**: the first sentence of a section declares what the section requires or decides, and the conditional bullets follow immediately. Never open with reflection, self-questioning, or address to the reader.
+- **Each item stands alone**: state the requirement and its reason within the item itself. Never justify a requirement by invoking another rule or by analogy.
+- **Write contracts, not admonitions**: state required and prohibited behavior as a contract a human and an agent verify the same way. Never write reassurance, scolding, or commentary about the act of writing.
+- **One item, one verdict**: each bullet takes the form `**headword**: applicable condition + required action + reason where needed`, and resolves to a single pass or fail. Never chain multiple requirements, exceptions, and reasons into one sentence.
+- **Criteria must be checkable**: state what to remove, what to include, and what condition ends an obligation. Never instruct with subjective adjectives alone (e.g., "simple", "short", "readable", "clean").
+
+### Requirement text
+
+Applies to every text that states a requirement — rule files, specifications, acceptance criteria. Two readers who apply a requirement to the same case reach the same verdict without supplying a judgment of their own.
+
+- **Boundary terms are defined by a test**: a term that decides whether a requirement applies (a layer, a "decision", "behavior", "the environment") is defined by an observable test in the text, never left to the reader's sense of the word.
+- **Requirements are stated as requirements**: an obligation is never carried only by a rationale or consequence clause ("so ...", "which means ...").
+- **Lists say what they are**: a list whose completeness changes a verdict — what a requirement applies to, or what satisfies it — is marked as examples ("e.g.") or as the complete set ("only", "one of").
+- **Conditions run both ways**: a permission granted under a condition also states what holds outside the condition, and every later reference to the permission repeats its condition.
+- **Scope follows the hazard**: a requirement is scoped by the property that creates the hazard it prevents (where a value goes), not by a property incidental to it (where the value came from).
+- **One strength per requirement**: a requirement's lead sentence and its items state the same strength, and "default" in the sense of a strength (what holds unless someone decides otherwise) appears only together with who may deviate and how. The default of a configuration value — what the application uses when the setting is missing — is unaffected.
+- **The property, not a proxy**: a requirement states the property it protects, and the property is the checkable criterion. A measurable proxy (e.g., a line count, the presence of a keyword) follows the property only as an example of meeting it, because a proxy can be met while the property is violated. A number is the criterion only when it is the property itself (a system limit, a version), never when it stands in for a quality.
+- **Overlaps are resolved in the text**: where two requirements govern the same artifact, at least one of them states how the two combine.
+- **Outside facts are located**: a requirement whose verdict depends on a fact held elsewhere (what a framework requires, what a language can declare) names where that fact is recorded, or states what applies where it does not exist.
+
+### Requirement IDs
+
+- **Every requirement has an ID**: each requirement a specification states, in any of its sections, is a heading that begins with its ID and a colon (`### ORD-1: An order without lines is rejected`). The text under that heading, up to the next heading of the same or a higher level, is that requirement. A heading without an ID may group requirements; it states none itself.
+- **The ID's form**: a prefix, a hyphen, and a number (`<PREFIX>-<number>`); the prefix starts with an uppercase letter and holds only uppercase letters and digits (`ORD`, `CLI2`).
+- **IDs are unique and never reused**: an ID names one requirement across the repository's specifications, and a removed requirement's ID is never given to another.
+- **Older specifications**: a specification whose requirements have no IDs gives all of them IDs in the first change that edits it.
 
 ## Directory layout
 
@@ -41,7 +65,7 @@ AGENTS.md                   router: repository facts, commands, Applications tab
 
 docs/
   rules/                    rule bodies: shared core + task-specific rule files +
-                            language files (managed by dev-standards) + application
+                            stack rules (managed by dev-standards) + application
                             rules files
   adr/                      active ADRs
     archive/                superseded / rejected / withdrawn ADRs
@@ -88,7 +112,7 @@ differ between categories. Use the same application identifier in every category
 
 | Question | Destination |
 |---|---|
-| Is it a development or change rule that cannot be enforced mechanically? | `docs/rules/` — repository/application rules go in the application's rules file; shared core, task-specific rule files, and language files are managed by dev-standards |
+| Is it a development or change rule that cannot be enforced mechanically? | `docs/rules/` — repository/application rules go in the application's rules file; shared core and task-specific rule files are managed by dev-standards; stack rules are managed by dev-standards (or repository-authored until promoted) |
 | Is it a repository fact, command, or routing instruction (no rule text)? | Root `AGENTS.md` (or a nested `AGENTS.md` for a subtree) |
 | Does it define correct results (input → output)? | Test code (table-driven) |
 | Does it record why a decision was made? | `docs/adr/` |
@@ -106,8 +130,8 @@ differ between categories. Use the same application identifier in every category
 ## Category notes
 
 - **`AGENTS.md` (router)**: repository and application descriptions, technology stack, the Applications table (rules ↔ specification paths), real commands, and reading/AUDIT instructions. No rule text — rule bodies live in `docs/rules/`. Never duplicate a rule across files.
-- **`docs/rules/`**: rule bodies in layers — the shared core (`standard.md`), the subject-specific `documentation.md` and `git.md`, the interface-specific `cli.md` (the one file skippable, and only while the application exposes no command-line interface), and per-stack language files are distributed verbatim by dev-standards (never edit them; retrofit updates them from a pinned tag and reports local edits); application rules files are repository-authored and hold only deltas and overrides against the shared rules. The more specific file wins on conflict.
-- **`docs/specs/`**: states what the system must do — purpose, scope, users and external systems, required behavior, inputs and outputs, error behavior, invariants, non-functional requirements, and what is out of scope. Specifications describe behavior, not implementation: no class structures, libraries, or internal algorithms. Requirement IDs are optional; when present, tests reference them so conformance is verifiable. (The rule that a spec must be updated before implementing behavior it does not yet cover — spec-first — is a development rule and lives in `standard.md`, not here.)
+- **`docs/rules/`**: rule bodies organized in three tiers — Core rules (`standard.md`, `documentation.md`, `git.md`, `testing.md`, and the conditional core files `cli.md` and `db.md`), Stack rules (`dotnet.md`, `typescript.md`, `python.md`, ...; managed by dev-standards when distributed, or repository-authored), and Application rules (`<App>.md`, repository-authored deltas and overrides). Precedence: Application rules > Stack rules > Core rules. Never duplicate a rule across files.
+- **`docs/specs/`**: states what the system must do — purpose, scope, users and external systems, required behavior, inputs and outputs, error behavior, invariants, non-functional requirements, and what is out of scope. Specifications describe behavior, not implementation: no class structures, libraries, or internal algorithms. Every requirement carries an ID (Requirement IDs above), which the tests that verify it name (`testing.md` Requirement Coverage). (The rule that a spec must be updated before implementing behavior it does not yet cover — spec-first — is a development rule and lives in `standard.md`, not here.)
 - **`docs/adr/`**: the adopted decision plus reasoning, constraints, rejected alternatives, and revisit conditions. Body sections (Nygard-style): Context, Decision, Consequences (required); Alternatives considered, Revisit when (when they exist). A superseded ADR names its successor in front matter (`superseded-by`); an ADR stays an ADR — retired ones go to `docs/adr/archive/`, never `docs/archive/`.
 - **`docs/guides/`**: repository- or application-specific reproducible procedures. Exception: a generic procedure that a distributed task-specific rule file already defines (e.g., the `gh pr merge` procedure in `git.md`) is not duplicated here — the rule file is the sole source for that procedure. `docs/guides/` holds only what the rule files do not already cover, including a procedure that layers repository-specific decisions on top of one (e.g., a release guide that adds this repository's own release/tag decision on top of the generic Git procedure).
 - **`docs/references/`**: durable facts that are hard to read from source alone: external API constraints, auth flows, data mappings, legacy caveats, domain vocabulary. Current-state architecture/design descriptions default here; promote to a dedicated category when numerous.
@@ -150,7 +174,7 @@ Do not invent other values. Optional fields: `last-reviewed`, `topics`,
 
 - Lowercase kebab-case describing the content: `database-migration.md`, `authentication-flow.md`.
 - **Application identifiers are exempt**: `<App>.md` files and `<App>/` directories use the identifier verbatim, exactly as declared in the `AGENTS.md` Applications table (see Application scope).
-- Never content-free names: `memo.md`, `temp.md`, `note1.md`, `misc.md`.
+- Never content-free names (e.g., `memo.md`, `temp.md`, `note1.md`, `misc.md`): a name that does not say what the document is about.
 - No sequential numbering for general documents (`0001-`) — chronology belongs in `git log`.
 - **ADRs are the exception**, following the community convention: `NNNN-description.md` with a 4-digit zero-padded number. Numbers are immutable IDs allocated append-only: next = highest existing number across `docs/adr/` **and** `docs/adr/archive/` + 1. Never renumber and never fill gaps.
 - Infrastructure directories are lowercase (`docs/`, `adr/`, `guides/`); code directories follow the language convention.
@@ -163,6 +187,8 @@ investigations: active → closed → archive/investigations
 adr:            adr/ → adr/archive/
 plans:          docs/plans/ → docs/archive/plans/ (or delete)
 ```
+
+A document moves only along these arrows, one stage at a time; an investigation that is finished but still worth reading goes to `closed/`, never straight to the archive. A document is retired — and leaves the normal reference path — when it is no longer valid: replaced, or describing a state the system is no longer in.
 
 ## Archive vs delete
 

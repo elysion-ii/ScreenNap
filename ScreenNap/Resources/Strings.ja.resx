@@ -63,4 +63,28 @@
   <data name="NotifyTitle" xml:space="preserve">
     <value>ScreenNap</value>
   </data>
+  <data name="NotifyStartFailed" xml:space="preserve">
+    <value>ScreenNap を起動できませんでした。詳細はログを参照してください。</value>
+  </data>
+  <data name="NotifyTrayFailed" xml:space="preserve">
+    <value>ScreenNap はトレイアイコンを作成できなかったため終了します。</value>
+  </data>
+  <data name="NotifyBlackoutNotCreated" xml:space="preserve">
+    <value>{0} を暗転できませんでした。</value>
+  </data>
+  <data name="NotifyBlackoutNotClosed" xml:space="preserve">
+    <value>{0} の暗転を解除できませんでした。</value>
+  </data>
+  <data name="NotifyReleaseAllIncomplete" xml:space="preserve">
+    <value>{0} 台の暗転を解除できませんでした。</value>
+  </data>
+  <data name="NotifyBlackoutNotRestored" xml:space="preserve">
+    <value>{0} の暗転を復元できませんでした。</value>
+  </data>
+  <data name="NotifyHotkeysUnavailable" xml:space="preserve">
+    <value>次のホットキーは使用できません: {0}</value>
+  </data>
+  <data name="NotifyOverlaysNotCreated" xml:space="preserve">
+    <value>モニター {0} に識別番号を表示できませんでした。</value>
+  </data>
 </root>

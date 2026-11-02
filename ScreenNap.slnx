@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="ScreenNap/ScreenNap.csproj" />
+  <Project Path="ScreenNap.E2ETests/ScreenNap.E2ETests.csproj" />
   <Project Path="ScreenNap.Tests/ScreenNap.Tests.csproj" />
 </Solution>

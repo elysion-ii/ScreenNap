@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-02
+
+### Added
+- ScreenNap now tells you when something fails: a message box when it cannot start or cannot create its tray icon, and a tray notification when a blackout cannot be created, released, or restored, when hotkeys are taken by another application, or when an identification number cannot be shown
+- The `SCREENNAP_LOG_DIR` environment variable chooses the log directory
+
+### Changed
+- Log lines carry their UTC offset (for example `2026-11-02 15:30:12.345 +09:00`)
+- A log file that cannot be deleted during cleanup is now logged, and the remaining expired logs are still deleted
+- Converged the repository onto dev-standards v4.28.0, including end-to-end tests that drive the built application
+
+### Fixed
+- A blackout window that Windows destroyed is now removed from the tray count even when no blackout is waiting to be restored
+- A missing resource set now falls back to the built-in English text instead of failing
+
 ## [1.6.0] - 2026-09-04
 
 ### Changed

@@ -11,6 +11,8 @@ internal static class Program
 {
     private const string MutexName = "ScreenNap_SingleInstance";
     private const string MessageWindowClassName = "ScreenNap_MessageWindow";
+    private const nuint DisplayChangeDebounceTimerId = 4;
+    private const uint DisplayChangeDebounceMs = 500;
 
     // Pin delegate to prevent GC collection
     private static readonly WNDPROC s_wndProc = MessageWndProc;
@@ -24,6 +26,8 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        Logger.Initialize();
+
         using var mutex = new Mutex(true, MutexName, out bool createdNew);
         if (!createdNew)
         {
@@ -37,13 +41,13 @@ internal static class Program
             return;
         }
 
-        Logger.Initialize();
         Logger.Info($"Application started (v{AppVersion.Current})");
 
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
         if (hInstance == IntPtr.Zero)
         {
             Logger.Error($"GetModuleHandleW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            ShowError(Strings.NotifyStartFailed);
             return;
         }
 
@@ -61,6 +65,7 @@ internal static class Program
         if (atom == 0)
         {
             Logger.Error($"RegisterClassExW failed for message window (Win32 error: {Marshal.GetLastWin32Error()})");
+            ShowError(Strings.NotifyStartFailed);
             return;
         }
 
@@ -74,30 +79,37 @@ internal static class Program
             Logger.Error($"CreateWindowExW failed for message window (Win32 error: {Marshal.GetLastWin32Error()})");
             if (!User32.UnregisterClassW(MessageWindowClassName, hInstance))
                 Logger.Warn($"UnregisterClassW failed after message window creation failure (Win32 error: {Marshal.GetLastWin32Error()})");
+            ShowError(Strings.NotifyStartFailed);
             return;
         }
 
-        s_blackoutManager = new BlackoutManager(new BlackoutWindowFactory());
         s_trayIcon = new TrayIcon(s_messageWindow);
+        s_blackoutManager = new BlackoutManager(new BlackoutWindowFactory(), s_trayIcon);
         s_contextMenu = new ContextMenu(s_blackoutManager);
-        s_hotkeyManager = new HotkeyManager(s_blackoutManager);
+        s_hotkeyManager = new HotkeyManager(s_blackoutManager, s_trayIcon);
 
         s_blackoutManager.ActiveCountChanged += () =>
         {
             s_trayIcon.UpdateState(s_blackoutManager.ActiveCount);
         };
 
-        s_trayIcon.Create();
-        HotkeyManager.Register(s_messageWindow);
-
-        while (User32.GetMessageW(out MSG msg, IntPtr.Zero, 0, 0))
+        if (s_trayIcon.Create())
         {
-            _ = User32.TranslateMessage(ref msg);
-            _ = User32.DispatchMessageW(ref msg);
+            s_hotkeyManager.Register(s_messageWindow);
+
+            while (User32.GetMessageW(out MSG msg, IntPtr.Zero, 0, 0))
+            {
+                _ = User32.TranslateMessage(ref msg);
+                _ = User32.DispatchMessageW(ref msg);
+            }
+        }
+        else
+        {
+            ShowError(Strings.NotifyTrayFailed);
         }
 
         Logger.Info("Application exiting");
-        HotkeyManager.Unregister(s_messageWindow);
+        s_hotkeyManager.Unregister(s_messageWindow);
         s_trayIcon.Remove();
         s_blackoutManager.ReleaseAll();
         IdentifyOverlay.DismissAll();
@@ -107,6 +119,17 @@ internal static class Program
         IdentifyOverlay.UnregisterClass(hInstance);
         if (!User32.UnregisterClassW(MessageWindowClassName, hInstance))
             Logger.Warn($"UnregisterClassW failed for message window (Win32 error: {Marshal.GetLastWin32Error()})");
+    }
+
+    private static void ShowError(string message)
+    {
+        int result = User32.MessageBoxW(
+            IntPtr.Zero,
+            message,
+            Strings.NotifyTitle,
+            WindowStyles.MB_OK | WindowStyles.MB_ICONERROR);
+        if (result == 0)
+            Logger.Error("MessageBoxW failed for a startup failure notification");
     }
 
     private static nint MessageWndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
@@ -131,18 +154,17 @@ internal static class Program
                 return 0;
 
             case WindowStyles.WM_DISPLAYCHANGE:
-                nuint timerId = User32.SetTimer(hWnd, WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID,
-                    WindowStyles.DISPLAYCHANGE_DEBOUNCE_MS, IntPtr.Zero);
+                nuint timerId = User32.SetTimer(hWnd, DisplayChangeDebounceTimerId,
+                    DisplayChangeDebounceMs, IntPtr.Zero);
                 if (timerId == 0)
                     Logger.Warn($"SetTimer failed for display-change debounce (Win32 error: {Marshal.GetLastWin32Error()})");
                 return 0;
 
-            case WindowStyles.WM_TIMER when wParam == WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID:
-                if (!User32.KillTimer(hWnd, WindowStyles.DISPLAYCHANGE_DEBOUNCE_TIMER_ID))
+            case WindowStyles.WM_TIMER when wParam == DisplayChangeDebounceTimerId:
+                if (!User32.KillTimer(hWnd, DisplayChangeDebounceTimerId))
                     Logger.Warn($"KillTimer failed for display-change debounce (Win32 error: {Marshal.GetLastWin32Error()})");
                 Logger.Info("Display configuration changed (debounced)");
-                var monitors = MonitorEnumerator.EnumerateMonitors();
-                s_blackoutManager?.Reconcile(monitors);
+                s_blackoutManager?.Reconcile(MonitorEnumerator.EnumerateMonitors());
                 return 0;
 
             case WindowStyles.WM_DESTROY:

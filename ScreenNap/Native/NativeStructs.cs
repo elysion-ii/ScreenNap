@@ -5,78 +5,78 @@ namespace ScreenNap.Native;
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal struct WNDCLASSEXW
 {
-    public uint cbSize;
-    public uint style;
-    public IntPtr lpfnWndProc;
-    public int cbClsExtra;
-    public int cbWndExtra;
-    public IntPtr hInstance;
-    public IntPtr hIcon;
-    public IntPtr hCursor;
-    public IntPtr hbrBackground;
-    public IntPtr lpszMenuName;
-    public IntPtr lpszClassName;
-    public IntPtr hIconSm;
+    internal uint cbSize;
+    internal uint style;
+    internal IntPtr lpfnWndProc;
+    internal int cbClsExtra;
+    internal int cbWndExtra;
+    internal IntPtr hInstance;
+    internal IntPtr hIcon;
+    internal IntPtr hCursor;
+    internal IntPtr hbrBackground;
+    internal IntPtr lpszMenuName;
+    internal IntPtr lpszClassName;
+    internal IntPtr hIconSm;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct MSG
 {
-    public IntPtr hwnd;
-    public uint message;
-    public nuint wParam;
-    public nint lParam;
-    public uint time;
-    public POINT pt;
+    internal IntPtr hwnd;
+    internal uint message;
+    internal nuint wParam;
+    internal nint lParam;
+    internal uint time;
+    internal POINT pt;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct RECT
 {
-    public int Left;
-    public int Top;
-    public int Right;
-    public int Bottom;
+    internal int Left;
+    internal int Top;
+    internal int Right;
+    internal int Bottom;
 
-    public int Width => Right - Left;
-    public int Height => Bottom - Top;
+    internal int Width => Right - Left;
+    internal int Height => Bottom - Top;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct POINT
 {
-    public int X;
-    public int Y;
+    internal int X;
+    internal int Y;
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal unsafe struct NOTIFYICONDATAW
 {
-    public uint cbSize;
-    public IntPtr hWnd;
-    public uint uID;
-    public uint uFlags;
-    public uint uCallbackMessage;
-    public IntPtr hIcon;
-    public fixed char szTip[128];
-    public uint dwState;
-    public uint dwStateMask;
-    public fixed char szInfo[256];
-    public uint uVersion;
-    public fixed char szInfoTitle[64];
-    public uint dwInfoFlags;
-    public Guid guidItem;
-    public IntPtr hBalloonIcon;
+    internal uint cbSize;
+    internal IntPtr hWnd;
+    internal uint uID;
+    internal uint uFlags;
+    internal uint uCallbackMessage;
+    internal IntPtr hIcon;
+    internal fixed char szTip[128];
+    internal uint dwState;
+    internal uint dwStateMask;
+    internal fixed char szInfo[256];
+    internal uint uVersion;
+    internal fixed char szInfoTitle[64];
+    internal uint dwInfoFlags;
+    internal Guid guidItem;
+    internal IntPtr hBalloonIcon;
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal unsafe struct MONITORINFOEXW
 {
-    public uint cbSize;
-    public RECT rcMonitor;
-    public RECT rcWork;
-    public uint dwFlags;
-    public fixed char szDevice[32];
+    internal uint cbSize;
+    internal RECT rcMonitor;
+    internal RECT rcWork;
+    internal uint dwFlags;
+    internal fixed char szDevice[32];
 
     internal const uint MONITORINFOF_PRIMARY = 0x00000001;
 }
@@ -84,78 +84,78 @@ internal unsafe struct MONITORINFOEXW
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal unsafe struct DISPLAY_DEVICEW
 {
-    public uint cb;
-    public fixed char DeviceName[32];
-    public fixed char DeviceString[128];
-    public uint StateFlags;
-    public fixed char DeviceID[128];
-    public fixed char DeviceKey[128];
+    internal uint cb;
+    internal fixed char DeviceName[32];
+    internal fixed char DeviceString[128];
+    internal uint StateFlags;
+    internal fixed char DeviceID[128];
+    internal fixed char DeviceKey[128];
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct PAINTSTRUCT
 {
-    public IntPtr hdc;
-    public int fErase;
-    public RECT rcPaint;
-    public int fRestore;
-    public int fIncUpdate;
+    internal IntPtr hdc;
+    internal int fErase;
+    internal RECT rcPaint;
+    internal int fRestore;
+    internal int fIncUpdate;
     private unsafe fixed byte rgbReserved[32];
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_PATH_INFO
 {
-    public DISPLAYCONFIG_PATH_SOURCE_INFO sourceInfo;
-    public DISPLAYCONFIG_PATH_TARGET_INFO targetInfo;
-    public uint flags;
+    internal DISPLAYCONFIG_PATH_SOURCE_INFO sourceInfo;
+    internal DISPLAYCONFIG_PATH_TARGET_INFO targetInfo;
+    internal uint flags;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_PATH_SOURCE_INFO
 {
-    public LUID adapterId;
-    public uint id;
-    public uint modeInfoIdx;
-    public uint statusFlags;
+    internal LUID adapterId;
+    internal uint id;
+    internal uint modeInfoIdx;
+    internal uint statusFlags;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_PATH_TARGET_INFO
 {
-    public LUID adapterId;
-    public uint id;
-    public uint modeInfoIdx;
-    public uint outputTechnology;
-    public uint rotation;
-    public uint scaling;
-    public DISPLAYCONFIG_RATIONAL refreshRate;
-    public uint scanLineOrdering;
-    public int targetAvailable;
-    public uint statusFlags;
+    internal LUID adapterId;
+    internal uint id;
+    internal uint modeInfoIdx;
+    internal uint outputTechnology;
+    internal uint rotation;
+    internal uint scaling;
+    internal DISPLAYCONFIG_RATIONAL refreshRate;
+    internal uint scanLineOrdering;
+    internal int targetAvailable;
+    internal uint statusFlags;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_RATIONAL
 {
-    public uint Numerator;
-    public uint Denominator;
+    internal uint Numerator;
+    internal uint Denominator;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct LUID
 {
-    public uint LowPart;
-    public int HighPart;
+    internal uint LowPart;
+    internal int HighPart;
 }
 
 // DISPLAYCONFIG_MODE_INFO is a union; we only need the size for buffer allocation
 [StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_MODE_INFO
 {
-    public uint infoType;
-    public uint id;
-    public LUID adapterId;
+    internal uint infoType;
+    internal uint id;
+    internal LUID adapterId;
     // Union of target/source mode - pad to full struct size
     private unsafe fixed byte modeInfo[64];
 }
@@ -163,28 +163,28 @@ internal struct DISPLAYCONFIG_MODE_INFO
 [StructLayout(LayoutKind.Sequential)]
 internal struct DISPLAYCONFIG_DEVICE_INFO_HEADER
 {
-    public uint type;
-    public uint size;
-    public LUID adapterId;
-    public uint id;
+    internal uint type;
+    internal uint size;
+    internal LUID adapterId;
+    internal uint id;
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal unsafe struct DISPLAYCONFIG_TARGET_DEVICE_NAME
 {
-    public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
-    public uint flags;
-    public uint outputTechnology;
-    public ushort edidManufactureId;
-    public ushort edidProductCodeId;
-    public uint connectorInstance;
-    public fixed char monitorFriendlyDeviceName[64];
-    public fixed char monitorDevicePath[128];
+    internal DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+    internal uint flags;
+    internal uint outputTechnology;
+    internal ushort edidManufactureId;
+    internal ushort edidProductCodeId;
+    internal uint connectorInstance;
+    internal fixed char monitorFriendlyDeviceName[64];
+    internal fixed char monitorDevicePath[128];
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal unsafe struct DISPLAYCONFIG_SOURCE_DEVICE_NAME
 {
-    public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
-    public fixed char viewGdiDeviceName[32];
+    internal DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+    internal fixed char viewGdiDeviceName[32];
 }

@@ -9,7 +9,7 @@ internal sealed class CultureScope : IDisposable
 
     internal CultureScope(string cultureName)
     {
-        var culture = CultureInfo.GetCultureInfo(cultureName);
+        CultureInfo culture = CultureInfo.GetCultureInfo(cultureName);
         CultureInfo.CurrentCulture = culture;
         CultureInfo.CurrentUICulture = culture;
     }

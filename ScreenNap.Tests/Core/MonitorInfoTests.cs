@@ -16,7 +16,10 @@ public sealed class MonitorInfoTests
     [InlineData("ja-JP", 2, true, false, "&2  Display  1920x1080  [メイン]")]
     [InlineData("ja-JP", 3, false, true, "&3  Display  1920x1080  (暗転中)")]
     [InlineData("ja-JP", 4, true, true, "&4  Display  1920x1080  [メイン]  (暗転中)")]
-    public void BuildMenuLabel_AnyCultureAndState_FormatsLocalizedLabel(
+    [Trait("Requirement", "MENU-4")]
+    [Trait("Requirement", "MON-4")]
+    [Trait("Requirement", "L10N-1")]
+    internal void BuildMenuLabel_AnyCultureAndState_FormatsLocalizedLabel(
         string culture,
         int index,
         bool isPrimary,
@@ -35,7 +38,7 @@ public sealed class MonitorInfoTests
     }
 
     [Fact]
-    public void MonitorIdentity_DefaultValue_HasAllZeroFields()
+    internal void MonitorIdentity_DefaultValue_HasAllZeroFields()
     {
         MonitorIdentity identity = default;
 
@@ -47,7 +50,7 @@ public sealed class MonitorInfoTests
     [Theory]
     [InlineData(1, 2, 3, 1, 2, 3, true)]
     [InlineData(1, 2, 3, 1, 2, 4, false)]
-    public void MonitorIdentity_AnyFieldValues_ComparesByValue(
+    internal void MonitorIdentity_AnyFieldValues_ComparesByValue(
         ushort manufacturer1,
         ushort product1,
         uint connector1,

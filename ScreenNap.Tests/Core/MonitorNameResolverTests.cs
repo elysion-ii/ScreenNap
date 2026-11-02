@@ -6,11 +6,13 @@ namespace ScreenNap.Tests.Core;
 public sealed class MonitorNameResolverTests
 {
     [Fact]
-    public void Resolve_QdcNameAvailable_UsesQdcNameAndIdentity()
+    [Trait("Requirement", "MON-3")]
+    [Trait("Requirement", "MON-4")]
+    internal void Resolve_QdcNameAvailable_UsesQdcNameAndIdentity()
     {
         var identity = new MonitorIdentity(1, 2, 3);
 
-        var result = MonitorNameResolver.Resolve("path", new MonitorDisplayInfo("Dell", identity), "Fallback");
+        (string FriendlyName, MonitorIdentity Identity) result = MonitorNameResolver.Resolve("path", new MonitorDisplayInfo("Dell", identity), "Fallback");
 
         Assert.Equal(("Dell", identity), result);
     }
@@ -19,11 +21,12 @@ public sealed class MonitorNameResolverTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData(" ")]
-    public void Resolve_BlankQdcName_UsesEnumDisplayDeviceName(string? qdcName)
+    [Trait("Requirement", "MON-3")]
+    internal void Resolve_BlankQdcName_UsesEnumDisplayDeviceName(string? qdcName)
     {
         MonitorDisplayInfo? qdc = qdcName is null ? null : new MonitorDisplayInfo(qdcName, new MonitorIdentity(1, 2, 3));
 
-        var result = MonitorNameResolver.Resolve("path", qdc, "Fallback");
+        (string FriendlyName, MonitorIdentity Identity) result = MonitorNameResolver.Resolve("path", qdc, "Fallback");
 
         Assert.Equal("Fallback", result.FriendlyName);
         Assert.Equal(default, result.Identity);
@@ -33,9 +36,10 @@ public sealed class MonitorNameResolverTests
     [InlineData(null, @"\\.\DISPLAY1", "DISPLAY1")]
     [InlineData("", @"\\.\DISPLAY1", "DISPLAY1")]
     [InlineData(" ", "DISPLAY1", "DISPLAY1")]
-    public void Resolve_NoNamesAvailable_UsesDevicePath(string? fallback, string path, string expected)
+    [Trait("Requirement", "MON-3")]
+    internal void Resolve_NoNamesAvailable_UsesDevicePath(string? fallback, string path, string expected)
     {
-        var result = MonitorNameResolver.Resolve(path, null, fallback);
+        (string FriendlyName, MonitorIdentity Identity) result = MonitorNameResolver.Resolve(path, null, fallback);
 
         Assert.Equal(expected, result.FriendlyName);
         Assert.Equal(default, result.Identity);

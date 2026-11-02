@@ -12,9 +12,9 @@ internal sealed class FakeBlackoutWindow : IBlackoutWindow
 
     public string DevicePath { get; }
     public MonitorIdentity Identity { get; }
-    public bool UserDismissed { get; set; }
-    public bool IsAlive { get; set; } = true;
-    public bool DestroySucceeds { get; set; } = true;
+    public bool UserDismissed { get; internal set; }
+    public bool IsAlive { get; internal set; } = true;
+    internal bool DestroySucceeds { get; set; } = true;
     public Action<IBlackoutWindow>? OnDestroyed { get; set; }
     internal int DestroyCalls { get; private set; }
 

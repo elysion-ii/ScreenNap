@@ -10,13 +10,16 @@ internal static class MonitorEnumerator
     internal static List<MonitorInfo> EnumerateMonitors()
     {
         var monitors = new List<MonitorInfo>();
-        var displayInfo = GetDisplayInfo();
+        Dictionary<string, MonitorDisplayInfo> displayInfo = GetDisplayInfo();
 
         bool enumerated = User32.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr hMonitor, IntPtr _, ref RECT _, nint _) =>
         {
             var info = new MONITORINFOEXW { cbSize = (uint)Marshal.SizeOf<MONITORINFOEXW>() };
             if (!User32.GetMonitorInfoW(hMonitor, ref info))
+            {
+                Logger.Warn($"GetMonitorInfoW failed; skipping the monitor (Win32 error: {Marshal.GetLastWin32Error()})");
                 return true;
+            }
 
             string devicePath;
             unsafe
@@ -27,7 +30,7 @@ internal static class MonitorEnumerator
             bool isPrimary = (info.dwFlags & MONITORINFOEXW.MONITORINFOF_PRIMARY) != 0;
             displayInfo.TryGetValue(devicePath, out MonitorDisplayInfo qdcInfo);
             string? fallbackName = GetDisplayDeviceFriendlyName(devicePath);
-            var (friendlyName, identity) = MonitorNameResolver.Resolve(
+            (string friendlyName, MonitorIdentity identity) = MonitorNameResolver.Resolve(
                 devicePath,
                 displayInfo.ContainsKey(devicePath) ? qdcInfo : null,
                 fallbackName);
@@ -59,7 +62,10 @@ internal static class MonitorEnumerator
             out uint modeCount);
 
         if (status != 0)
+        {
+            Logger.Warn($"GetDisplayConfigBufferSizes failed; friendly monitor names are unavailable (Win32 error: {status})");
             return result;
+        }
 
         var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
         var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
@@ -71,7 +77,10 @@ internal static class MonitorEnumerator
             IntPtr.Zero);
 
         if (status != 0)
+        {
+            Logger.Warn($"QueryDisplayConfig failed; friendly monitor names are unavailable (Win32 error: {status})");
             return result;
+        }
 
         for (int i = 0; i < pathCount; i++)
         {
@@ -83,7 +92,10 @@ internal static class MonitorEnumerator
 
             status = DisplayConfigApi.DisplayConfigGetDeviceInfo(ref deviceName);
             if (status != 0)
+            {
+                Logger.Warn($"DisplayConfigGetDeviceInfo failed for a target name (Win32 error: {status})");
                 continue;
+            }
 
             var sourceName = new DISPLAYCONFIG_SOURCE_DEVICE_NAME();
             sourceName.header.type = DisplayConfigApi.DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
@@ -93,7 +105,10 @@ internal static class MonitorEnumerator
 
             int sourceStatus = DisplayConfigApi.DisplayConfigGetSourceDeviceInfo(ref sourceName);
             if (sourceStatus != 0)
+            {
+                Logger.Warn($"DisplayConfigGetDeviceInfo failed for a source name (Win32 error: {sourceStatus})");
                 continue;
+            }
 
             string friendlyName;
             string gdiDeviceName;
@@ -121,7 +136,10 @@ internal static class MonitorEnumerator
     {
         var device = new DISPLAY_DEVICEW { cb = (uint)Marshal.SizeOf<DISPLAY_DEVICEW>() };
         if (!User32.EnumDisplayDevicesW(devicePath, 0, ref device, 0))
+        {
+            Logger.Warn($"EnumDisplayDevicesW failed for {devicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
             return null;
+        }
 
         unsafe
         {

@@ -1,9 +1,8 @@
 # .NET Standards
 
-Language rules file for .NET. Read together with `standard.md` (the language-agnostic
-core) in the same directory. This file is token-free by design: concrete commands with
-real project names (`dotnet format <App>.slnx`, ...) live in each repository's
-`AGENTS.md`.
+Stack rules file for .NET, refining the shared core rules (`docs/rules/`) for the
+.NET platform. Concrete commands with real project names (`dotnet format <App>.slnx`, ...)
+live in each repository's `AGENTS.md`.
 
 ## Enforcement matrix
 
@@ -17,9 +16,11 @@ mechanism is added.
 |----|------|-----------|-------|
 | FORMAT | Formatting follows `.editorconfig` | `dotnet format --verify-no-changes` gate in `Build.ps1` | Enforced — but run the formatter before completion (command in `AGENTS.md`) |
 | ANALYZERS | Static analysis, warnings are errors | `Directory.Build.props`: `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`, `TreatWarningsAsErrors` | Enforced |
+| UNUSED | A member, parameter, or local the change stopped reaching is removed rather than left behind | `.editorconfig` sets `IDE0051`, `IDE0052`, and `IDE0060` to warning, which `TreatWarningsAsErrors` turns into build errors; the compiler reports an unused local as CS0168/CS0219 without any configuration | Enforced for what an analyzer can see — code still referenced but dead, and a name that outlived its replacement, stay AUDIT |
 | NAMESPACE | File-scoped namespaces only | `.editorconfig` (`csharp_style_namespace_declarations=file_scoped:warning`) + warnings-as-errors | Enforced |
-| ASYNC | No blocking on async code; no async without await | VSTHRD analyzers (`Microsoft.VisualStudio.Threading.Analyzers`); CS1998 as error | Enforced |
+| ASYNC | No blocking on async code; no async without asynchronous work to await | VSTHRD analyzers (`Microsoft.VisualStudio.Threading.Analyzers`); CS1998 as error | Enforced for a method with no `await` — awaiting an already-completed task (`Task.FromResult`) stays AUDIT |
 | DEFERRED | A LINQ query is deferred: no side effects inside a query, enumerate once, exceptions surface at enumeration | `.editorconfig` sets `dotnet_diagnostic.CA1851.severity = warning`, which `TreatWarningsAsErrors` turns into a build error | Enforced for multiple enumeration — side effects inside a query and the placement of `try` have no analyzer and stay AUDIT |
+| VISIBILITY | Types and members are visible only as widely as their callers; every declaration except an interface member writes its modifier | `.editorconfig` sets `CA1515` and `IDE0040` to warning, which `TreatWarningsAsErrors` turns into build errors; the application csproj grants the test project `InternalsVisibleTo` | Enforced for a `public` type in an application and for an omitted modifier — a `public` member of an `internal` type and the visibility of test methods stay AUDIT |
 | VAR | Type inference usage | `.editorconfig` suggestions only | AUDIT |
 | STRING | Explicit `StringComparison` | — | AUDIT |
 | ERROR | Error handling | — | AUDIT |
@@ -30,6 +31,7 @@ mechanism is added.
 | CONSTANTS | No magic numbers/strings | — | AUDIT |
 | COMMENTS | C# comment style | — | AUDIT |
 | TESTNAME | xUnit test naming | — | AUDIT |
+| REQCOV | Every requirement in `docs/specs/` is verified by a test, and no test names a missing requirement (`testing.md` Requirement Coverage) | `Build.ps1` fails when a requirement ID from a specification heading appears in no `.cs` file under a `*Tests` directory, and when a `[Trait("Requirement", ...)]` names an ID no specification states | Enforced for those two checks only — whether the test verifies the requirement, and whether an observable requirement has an end-to-end test, stay AUDIT |
 | VERSION | Single version definition + CHANGELOG release gate + clean displayed version | Installer script `#ifndef MyAppVersion → #error` guard; the installer build injects the version and gates on a CHANGELOG heading; `Directory.Build.props` sets `IncludeSourceRevisionInInformationalVersion=false` | AUDIT — the gates cover only the installer path; "no `<Version>` in a csproj" has no guard, and a deleted `<Version>` in `Directory.Build.props` falls back to the SDK default (1.0.0) unguarded |
 | OUTPUT | Build outputs come only from the build scripts; never manual, never committed | Output directories are gitignored by the scaffold; `Build.ps1` gates publishing on the format check and the test suite | AUDIT — gitignore keeps outputs out of normal staging; it does not stop forced adds, manual additions, or hand-run publishing |
 | CONFIGFILE | Only the placeholder template of a configuration file is tracked; the file the application reads is never committed | `Build.ps1` derives the real name of every tracked `*.template.*` configuration file and fails when git tracks it; the scaffold gitignores `appsettings.json` | Enforced for the commit — deriving the shipped file and the installer's no-overwrite entry stay AUDIT items |
@@ -52,18 +54,36 @@ mechanism is added.
 
 | Scope | Mechanism |
 |---|---|
+| A specific declaration (type or member) | `[SuppressMessage("<Category>", "<ID>", Justification = "<reason>")]` on the declaration. The `Justification` is the reason |
 | A specific line | `#pragma warning disable <ID>` followed by `restore`. Reason comment required |
-| A specific file/folder | `.editorconfig` section with `dotnet_diagnostic.<ID>.severity = none`. Reason comment required |
+| A specific file/folder | `.editorconfig` section with `dotnet_diagnostic.<ID>.severity = none`, whose glob matches files of one project only. Reason comment required |
 | A whole project | Add the ID to `<NoWarn>` in that csproj. Reason comment required |
 
-- The reason comment states why this warning is acceptable here as a current constraint ("for now" or "fix later" is not a reason)
+- The table lists every permitted scope: a suppression wider than one project (e.g., a repository-wide `.editorconfig` severity of `none`) is never used
+- A diagnostic reported on a declaration is suppressed on that declaration, so the suppression stays attached to it when code around it moves. Code the project does not author (e.g., a generator's output that is regenerated) cannot keep an attribute, so its diagnostics are suppressed by file or folder
+- The reason (the comment, or the `Justification`) states why this warning is acceptable here as a current constraint ("for now" or "fix later" is not a reason)
+
+## UNUSED: Code the Change Stopped Reaching
+
+`standard.md` Leave No Vestiges requires the replaced code to go. `.editorconfig` raises
+the diagnostics that can see the part of that requirement a compiler can decide:
+
+| Diagnostic | What the diagnostic reports |
+|---|---|
+| CS0168 / CS0219 | A local declared, or assigned, and never read — a compiler warning already, needing no configuration |
+| IDE0051 / IDE0052 | A private member nothing references, and a private field nothing reads |
+| IDE0060 | A parameter the method body never uses |
+
+- Remove the member, parameter, or local the diagnostic names. A parameter still passed by a caller makes the caller the thing to change, not a reason to keep the parameter
+- Where something outside the method fixes the signature — a delegate shape, an interface implementation, a framework-invoked handler — suppress `IDE0060` at the narrowest scope in the ANALYZERS table, with the reason naming what fixes the signature. Never lower the severity repository-wide
+- What no diagnostic can see stays an AUDIT item: a branch still called but never taken, a wrapper retained for an old call shape, and a name that outlived the thing the name was distinguished from
 
 ## ASYNC: Asynchronous Code
 
-Refines the core's Synchronous vs Asynchronous section for .NET:
+Refines the core's Synchronous vs Asynchronous section for .NET; the core bullets this section does not restate apply unchanged. .NET offers asynchronous APIs for network, database, and most file I/O (e.g., `File.ReadAllTextAsync`), so that I/O is async:
 
 - **Never block on async code** (`.Result`, `.Wait()`, `GetAwaiter().GetResult()`) — enforced by the VSTHRD analyzers (`Microsoft.VisualStudio.Threading.Analyzers` in `Directory.Build.props`)
-- **Do not mark a method async when nothing in it awaits** — CS1998 is an error under warnings-as-errors
+- **Do not mark a method async when it has no asynchronous work to await** — CS1998 makes a method with no `await` an error under warnings-as-errors; a method that awaits only `Task.FromResult` passes CS1998 and is checked in AUDIT
 - When a suppression is genuinely justified (e.g., a synchronous entry point mandated by a framework), follow the ANALYZERS suppression tiers with a reason comment
 
 ## DEFERRED: Deferred Execution (LINQ)
@@ -80,6 +100,37 @@ announces itself.
 ## NAMESPACE: Namespaces
 
 - **File-scoped namespaces only** (`namespace X;`) — enforced via `.editorconfig` + warnings-as-errors
+
+## VISIBILITY: Accessibility Modifiers
+
+The principle is Minimal Visibility in `standard.md`. Its .NET form:
+
+- **No type in an application is `public`.** Nothing outside an application assembly calls into it, so its types are `internal` or narrower. CA1515 makes a `public` type in an `Exe` or `WinExe` project a build error. The one type a framework forces `public` is the WinUI 3 `App` (XAML entry points below)
+- **Every declaration except an interface member writes its modifier.** The visibility is a decision written on the declaration, never the language default left unstated. IDE0040 (`dotnet_style_require_accessibility_modifiers = for_non_interface_members`) makes an omitted modifier a build error
+- **A member of an `internal` type is declared `internal` or narrower.** `public` on it reaches no further than `internal` does, and claims that it does. `public` is written only where the caller that reaches the member requires it:
+
+| Caller | What requires `public` |
+|---|---|
+| The C# language | An implicit interface implementation, and an override of a `public` member |
+| `ConfigurationBinder` | It binds only `public` properties, and it skips a non-public property without an error — the setting silently keeps its default |
+| The DI container (`Microsoft.Extensions.DependencyInjection`) | It creates a registered type only through a `public` constructor. A type whose constructors are all `internal` builds, then fails when it is resolved with `InvalidOperationException` (no suitable constructor) |
+| The WPF XAML loader | It creates what XAML instantiates — the window `StartupUri` names, for one — through `Activator.CreateInstance`, which finds only a `public` parameterless constructor. An `internal` one builds, then fails at startup with `MissingMethodException` |
+
+- **Never widen a framework's reach to avoid `public`.** `BinderOptions.BindNonPublicProperties` and its equivalents open every non-public member of the type to the framework, not only the ones it is meant to set
+
+### Tests
+
+- **The application csproj grants the test project access** with `<InternalsVisibleTo Include="<App>.Tests" />`. The test project reaches `internal` code through it; an application type is never made `public` for a test
+- **Test classes are `public`.** xUnit requires it (xUnit1000)
+- **Test methods are `internal`.** The test runner, their only caller, finds them by reflection. `private` is reported by IDE0051 (UNUSED), and `public` claims callers that do not exist. An `internal` method also accepts an `internal` type as a `[Theory]` parameter, where a `public` method fails with CS0051
+
+### XAML entry points
+
+The XAML compiler generates the other half of `App` and of each window, and the two halves must declare the same modifier (CS0262).
+
+- **WPF:** `x:ClassModifier="internal"` on the root element of `App.xaml` and of each window's XAML makes the generated half `internal`, matching `internal sealed partial class` in the code-behind
+- **WinUI 3:** a window's generated half carries no modifier, so `internal sealed partial class` in the code-behind decides it. `App` is the one `public` type: the XAML compiler generates `public partial class App` in `XamlTypeInfo.g.cs` and supports no `x:ClassModifier`. The template suppresses CA1515 on `App` with `[SuppressMessage]` naming that reason
+- **Never stop the type-information generation to make `App` `internal`.** The flag that removes it (`NoTypeInfoCodeGen`) also removes the provider through which WinUI 3 resolves the application's own types in XAML
 
 ## VAR: Type Inference
 
@@ -104,7 +155,7 @@ which semantics were meant. Naming it settles that where the code is written.
 
 ## CANCEL: Cancellation Token Propagation
 
-- Every async method that performs potentially long I/O (DB, file, network, external process) MUST accept `CancellationToken ct = default` and pass it to every cancellable await — including static helpers and feature-internal classes, not only service entry points
+- Every async method that performs I/O (DB, file, network, external process) MUST accept `CancellationToken ct = default` and pass it to every cancellable await — including static helpers and feature-internal classes, not only service entry points
 - This applies even when no caller currently supplies a real token
 - Do NOT pass `CancellationToken.None` where a `ct` variable is in scope
 - Rationale: the project's `docs/adr/0001-cancellation-token-plumbing.md` (scaffolded into every project)
@@ -152,12 +203,12 @@ When I/O targets may be network paths, perform all file reads/writes in local `%
 
 - **Input**: Copy source files from network to `%TEMP%` before processing
 - **Output**: Create artifacts in `%TEMP%`, then `File.Copy` / `File.Move` to the final destination
-- **Naming**: Flat under `Path.GetTempPath()` as `{FeatureName}_{Guid.NewGuid():N}.{ext}`
+- **Naming**: Flat under `Path.GetTempPath()` as `{FeatureName}_{Guid.NewGuid():N}.{ext}`. Every cleanup below deletes only files matching this application's own pattern, never by sweeping `%TEMP%`, which holds other programs' files
 - **Cleanup**: Always delete in `finally`. Deletion failure is best-effort (log and continue)
-- **Recleanup of leftover files**: Don't rely on the `finally` deletion alone — a killed process or crash can skip it, so retry cleanup elsewhere too
+- **Recleanup of leftover files**: a killed process or crash skips `finally`, so leftovers are also deleted at a point that runs even after a run was killed — never only in `finally`
   - **Default policy: delete leftover files older than 24 hours.** An application whose run interval makes 24 the wrong number picks its own limit and states the value and the reason in its application rules file
   - **Desktop apps**: On next startup, retry deleting leftover temp files past that age
-  - **Console/long-running apps**: On startup, or at a suitable point within the processing loop (start, end, etc. — whatever fits the app's structure), retry the same way
+  - **Console/long-running apps**: On startup, or at a point in the processing loop that every iteration reaches outside `finally` (e.g., the start of each iteration), retry the same way
 
 ## CONSTANTS: Constants
 
@@ -177,7 +228,13 @@ C# specifics:
 
 - Test method names use `Method_Scenario_ExpectedResult` (e.g. `Merge_EmptyInput_ReturnsEmpty`)
 - Underscore separation is the official convention; for this reason CA1707 is suppressed via `<NoWarn>` in the test project's csproj
-- Test row ordering and the other testing principles are in the `standard.md` Testing section
+- Test row ordering and the other testing principles are in `testing.md`
+
+## REQCOV: Requirement Coverage
+
+- **Test projects live in directories whose names end in `Tests`** (e.g., `<App>.Tests`, `<App>.E2ETests`); the build looks for requirement IDs there
+- **A test names a requirement with `[Trait("Requirement", "<ID>")]`** on the test method, or with a `//` comment on the line directly above the method or its first attribute. A method name cannot hold the ID, because a C# identifier cannot contain its hyphen. The trait is preferred: `dotnet test --filter "Requirement=<ID>"` then runs every test of one requirement
+- **`Build.ps1` checks the references**: it collects every requirement ID from the headings under `docs/specs/` and fails, naming the IDs, when an ID appears in no `.cs` file under a `*Tests` directory, or when a trait names an ID no specification states. The match is exact, so `ORD-10` does not count as a reference to `ORD-1`
 
 ## VERSION: Version Management
 

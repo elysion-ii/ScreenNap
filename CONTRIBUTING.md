@@ -18,18 +18,17 @@ dotnet build ScreenNap/ScreenNap.csproj -c Release
 
 ## Architecture Constraints
 
-This project follows strict rules — please review before making changes:
-
-- **No UI frameworks** — Raw Win32 API via P/Invoke only. No WinForms, WPF, or WinUI.
-- **No NuGet packages** — All functionality through .NET BCL and Win32 P/Invoke.
-- **Dependency direction** — `Program.cs → App/, Blackout/, Logging/, Native/, Resources/`; `App/ → Core/, Logging/, Native/, Resources/`; `Blackout/ → Core/, Logging/, Native/`; `Core/ → Native/, Resources/`. Never reverse.
+ScreenNap's architecture constraints (raw Win32 only, no runtime NuGet packages, the
+layer dependency directions) are stated in `docs/rules/ScreenNap.md`. Read
+`AGENTS.md` first: it lists every rule file under `docs/rules/` and the commands that
+verify a change.
 
 ## Submitting Changes
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/your-feature`)
 3. Make your changes
-4. Verify the build passes: `dotnet build ScreenNap/ScreenNap.csproj -c Release`
+4. Verify the full build passes: `powershell -ExecutionPolicy Bypass -File build/Build.ps1` (format check, requirement coverage, and tests run before publishing)
 5. Commit with a clear message using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, etc.)
 6. Open a Pull Request against `main`
 

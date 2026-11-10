@@ -87,6 +87,7 @@ Native/ → no project dependencies
 
 - This section overrides `dotnet.md` LOGGING: the default log directory is `{Environment.GetFolderPath(SpecialFolder.LocalApplicationData)}\ScreenNap\Logs\`, not `AppContext.BaseDirectory`, and the `SCREENNAP_LOG_DIR` environment variable replaces it as the specification states (LOG-1, LOG-2)
 - **Retention**: this section overrides the `dotnet.md` LOGGING default of 30 files. ScreenNap deletes its log files whose last write is older than 7 days, because ScreenNap is resident and writes a log file on every day it runs: the last 7 days cover the period in which a reported problem is investigated, and older files only occupy the user's disk
+- **Synchronous log I/O**: this section overrides `standard.md` Synchronous vs Asynchronous and `dotnet.md` ASYNC for `Logging/Logger.cs`. Log writes, the retention scan, and log deletion are synchronous, because their callers run on the UI thread inside a window procedure or the message loop, where Window Procedures in this file prohibits `async` and `await`
 - **The logger's own write failures**: this section overrides `dotnet.md` ERROR for the `catch` around a log-line write in `Logging/Logger.cs`. The `catch` swallows the failure, because the logger has no other channel to report its own failure, and the specification requires a logging failure to stay silent to the user
 
 ## Documentation Override

@@ -45,13 +45,24 @@ internal sealed class BlackoutWindow : IBlackoutWindow
             WindowStyles.WS_EX_TOOLWINDOW | WindowStyles.WS_EX_TOPMOST | WindowStyles.WS_EX_NOACTIVATE,
             s_windowClass.Name,
             "ScreenNap Blackout",
-            WindowStyles.WS_POPUP | WindowStyles.WS_VISIBLE,
+            WindowStyles.WS_POPUP,
             bounds.Left, bounds.Top, bounds.Width, bounds.Height,
             IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
         if (Handle == IntPtr.Zero)
         {
             Logger.Error($"CreateWindowExW failed for blackout window on {devicePath}", Marshal.GetLastWin32Error());
+            return;
+        }
+
+        if (!User32.SetWindowPos(Handle, WindowStyles.HWND_TOPMOST,
+            0, 0, 0, 0,
+            WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE | WindowStyles.SWP_SHOWWINDOW))
+        {
+            Logger.Error($"SetWindowPos failed to show blackout window on {devicePath}", Marshal.GetLastWin32Error());
+            if (!User32.DestroyWindow(Handle))
+                Logger.Warn($"DestroyWindow failed for unshown blackout window on {devicePath}", Marshal.GetLastWin32Error());
+            Handle = IntPtr.Zero;
             return;
         }
         Logger.Info($"Blackout window created: {devicePath} ({bounds.Left},{bounds.Top} {bounds.Width}x{bounds.Height})");

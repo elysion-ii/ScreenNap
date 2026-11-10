@@ -46,13 +46,23 @@ internal sealed class IdentifyOverlay : IIdentifyOverlays
             WindowStyles.WS_EX_TOOLWINDOW | WindowStyles.WS_EX_TOPMOST | WindowStyles.WS_EX_NOACTIVATE,
             s_windowClass.Name,
             string.Empty,
-            WindowStyles.WS_POPUP | WindowStyles.WS_VISIBLE,
+            WindowStyles.WS_POPUP,
             x, y, OverlayWidth, OverlayHeight,
             IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
         if (hwnd == IntPtr.Zero)
         {
             Logger.Warn($"Failed to create identify overlay for monitor {displayNumber}", Marshal.GetLastWin32Error());
+            return false;
+        }
+
+        if (!User32.SetWindowPos(hwnd, WindowStyles.HWND_TOPMOST,
+            0, 0, 0, 0,
+            WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE | WindowStyles.SWP_SHOWWINDOW))
+        {
+            Logger.Warn($"SetWindowPos failed to show identify overlay for monitor {displayNumber}", Marshal.GetLastWin32Error());
+            if (!User32.DestroyWindow(hwnd))
+                Logger.Warn($"DestroyWindow failed for unshown identify overlay on monitor {displayNumber}", Marshal.GetLastWin32Error());
             return false;
         }
 

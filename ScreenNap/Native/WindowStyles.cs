@@ -4,7 +4,6 @@ internal static class WindowStyles
 {
     // Window styles
     internal const uint WS_POPUP = 0x80000000;
-    internal const uint WS_VISIBLE = 0x10000000;
 
     // Extended window styles
     internal const uint WS_EX_TOOLWINDOW = 0x00000080;
@@ -71,6 +70,7 @@ internal static class WindowStyles
     internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOSIZE = 0x0001;
     internal const uint SWP_NOACTIVATE = 0x0010;
+    internal const uint SWP_SHOWWINDOW = 0x0040;
 
     // Icons
     internal const uint LR_DEFAULTCOLOR = 0x00000000;

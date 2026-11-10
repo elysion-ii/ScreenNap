@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Converged the repository onto dev-standards v4.31.0, including the specification rules, the shared-knowledge table, and a build error for APIs that resolve paths against the working directory
 
 ### Fixed
+- A blackout window no longer takes the keyboard focus from the active window when it appears, and neither does an identification overlay
 - Pressing the identify hotkey now reports every monitor whose identification number cannot be shown, also when no overlay can be created at all
 
 ## [1.7.0] - 2026-11-02

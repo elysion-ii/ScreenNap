@@ -65,7 +65,8 @@ Native/ → no project dependencies
 
 ## Blackout Window Implementation
 
-- Use `WS_POPUP | WS_VISIBLE` with `WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE`
+- Use `WS_POPUP` with `WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE`
+- **Shown without activation**: the blackout window and the identify overlay are created without `WS_VISIBLE` and shown with `SetWindowPos(HWND_TOPMOST, ...)` carrying `SWP_SHOWWINDOW | SWP_NOACTIVATE`, because a window created with `WS_VISIBLE` becomes the foreground window whenever ScreenNap owns the foreground at that moment (specification WIN-2, NFR-3)
 - Include `CS_DBLCLKS` in the class style
 - Use `GetStockObject(BLACK_BRUSH)` for the class background and let `DefWindowProc` handle `WM_ERASEBKGND`
 - Use a one-second `SetTimer` interval to reapply `SetWindowPos(HWND_TOPMOST, ...)`

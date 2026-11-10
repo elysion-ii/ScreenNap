@@ -24,6 +24,16 @@ public sealed class LoggerTests
     }
 
     [Theory]
+    [InlineData("en-US")]
+    [InlineData("ja-JP")]
+    internal void WithWin32Error_AnyCulture_AppendsTheErrorCode(string culture)
+    {
+        using var scope = new CultureScope(culture);
+
+        Assert.Equal("SetTimer failed (Win32 error: 1400)", Logger.WithWin32Error("SetTimer failed", 1400));
+    }
+
+    [Theory]
     [Trait("Requirement", "LOG-3")]
     [InlineData("en-US")]
     [InlineData("ja-JP")]

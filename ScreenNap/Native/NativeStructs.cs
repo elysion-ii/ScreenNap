@@ -58,12 +58,12 @@ internal unsafe struct NOTIFYICONDATAW
     internal uint uFlags;
     internal uint uCallbackMessage;
     internal IntPtr hIcon;
-    internal fixed char szTip[128];
+    internal fixed char szTip[WindowStyles.NotifyIconTipCapacity];
     internal uint dwState;
     internal uint dwStateMask;
-    internal fixed char szInfo[256];
+    internal fixed char szInfo[WindowStyles.NotifyIconInfoCapacity];
     internal uint uVersion;
-    internal fixed char szInfoTitle[64];
+    internal fixed char szInfoTitle[WindowStyles.NotifyIconInfoTitleCapacity];
     internal uint dwInfoFlags;
     internal Guid guidItem;
     internal IntPtr hBalloonIcon;
@@ -77,8 +77,6 @@ internal unsafe struct MONITORINFOEXW
     internal RECT rcWork;
     internal uint dwFlags;
     internal fixed char szDevice[32];
-
-    internal const uint MONITORINFOF_PRIMARY = 0x00000001;
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

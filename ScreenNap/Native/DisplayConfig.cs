@@ -4,10 +4,6 @@ namespace ScreenNap.Native;
 
 internal static partial class DisplayConfigApi
 {
-    internal const uint QDC_ONLY_ACTIVE_PATHS = 0x00000002;
-    internal const uint DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME = 1;
-    internal const uint DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME = 2;
-
     [LibraryImport("user32.dll", EntryPoint = "GetDisplayConfigBufferSizes", SetLastError = true)]
     internal static partial int GetDisplayConfigBufferSizes(uint flags, out uint numPathArrayElements, out uint numModeInfoArrayElements);
 

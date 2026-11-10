@@ -84,22 +84,22 @@ public sealed class StringsTests
 
     [Fact]
     [Trait("Requirement", "L10N-4")]
-    internal void Lookup_MissingResourceSet_ReturnsFallback()
+    internal void Lookup_MissingResourceSet_ReturnsTheKey()
     {
         using var scope = new CultureScope("ja-JP");
         var missing = new ResourceManager("ScreenNap.Resources.Missing", typeof(Strings).Assembly);
 
-        Assert.Equal("Exit", Strings.Lookup(missing, "MenuExit", "Exit"));
+        Assert.Equal("MenuExit", Strings.Lookup(missing, "MenuExit"));
     }
 
     [Fact]
     [Trait("Requirement", "L10N-4")]
-    internal void Lookup_MissingKey_ReturnsFallback()
+    internal void Lookup_MissingKey_ReturnsTheKey()
     {
         using var scope = new CultureScope("ja-JP");
         var resources = new ResourceManager("ScreenNap.Resources.Strings", typeof(Strings).Assembly);
 
-        Assert.Equal("Fallback", Strings.Lookup(resources, "NoSuchKey", "Fallback"));
+        Assert.Equal("NoSuchKey", Strings.Lookup(resources, "NoSuchKey"));
     }
 
     private static string Value(string key) => key switch

@@ -4,7 +4,6 @@ internal static class WindowStyles
 {
     // Window styles
     internal const uint WS_POPUP = 0x80000000;
-    internal const uint WS_VISIBLE = 0x10000000;
 
     // Extended window styles
     internal const uint WS_EX_TOOLWINDOW = 0x00000080;
@@ -46,6 +45,19 @@ internal static class WindowStyles
     internal const uint NIIF_WARNING = 0x00000002;
     internal const uint NOTIFYICON_VERSION_4 = 4;
 
+    // NOTIFYICONDATAW text buffers, in characters including the terminating null
+    internal const int NotifyIconTipCapacity = 128;
+    internal const int NotifyIconInfoCapacity = 256;
+    internal const int NotifyIconInfoTitleCapacity = 64;
+
+    // Monitor information
+    internal const uint MONITORINFOF_PRIMARY = 0x00000001;
+
+    // QueryDisplayConfig and DisplayConfigGetDeviceInfo
+    internal const uint QDC_ONLY_ACTIVE_PATHS = 0x00000002;
+    internal const uint DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME = 1;
+    internal const uint DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME = 2;
+
     // Menu flags
     internal const uint MF_STRING = 0x00000000;
     internal const uint MF_SEPARATOR = 0x00000800;
@@ -58,6 +70,7 @@ internal static class WindowStyles
     internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOSIZE = 0x0001;
     internal const uint SWP_NOACTIVATE = 0x0010;
+    internal const uint SWP_SHOWWINDOW = 0x0040;
 
     // Icons
     internal const uint LR_DEFAULTCOLOR = 0x00000000;
@@ -88,6 +101,7 @@ internal static class WindowStyles
     internal const uint DT_SINGLELINE = 0x20;
 
     // GDI
+    internal const uint CLR_INVALID = 0xFFFFFFFF;
     internal const int TRANSPARENT_BK = 1;
     internal const int FW_BOLD = 700;
 }

@@ -1,4 +1,5 @@
-using System.Globalization;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.RegularExpressions;
 using ScreenNap.E2ETests.Infrastructure;
 using Xunit;
@@ -7,6 +8,9 @@ namespace ScreenNap.E2ETests;
 
 public sealed partial class LoggingTests
 {
+    private static readonly DateTime s_longAgo = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Local);
+    private static readonly DateTime s_farFuture = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Local);
+
     public LoggingTests() => TestAssets.RequireNoRunningScreenNap();
 
     [Fact]
@@ -20,15 +24,12 @@ public sealed partial class LoggingTests
         using ScreenNapApp app = ScreenNapApp.Start();
         app.WaitForLog($"Application started (v{TestAssets.Version})");
 
-        string expectedFile = $"ScreenNap_{DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}.log";
-        Assert.True(File.Exists(Path.Combine(app.LogDirectory, expectedFile)), $"{expectedFile} is missing from the log directory");
-        string offset = DateTimeOffset.Now.ToString("zzz", CultureInfo.InvariantCulture);
-        Assert.All(app.LogLines(), line =>
-        {
-            Match match = LogLine().Match(line);
-            Assert.True(match.Success, $"Malformed log line: {line}");
-            Assert.Equal(offset, match.Groups["offset"].Value);
-        });
+        // The date and the offset come from a clock and a time zone this test does not set;
+        // LoggerTests checks their values
+        string[] logFiles = Directory.GetFiles(app.LogDirectory, "ScreenNap_*.log");
+        Assert.NotEmpty(logFiles);
+        Assert.All(logFiles, file => Assert.Matches(LogFileName(), Path.GetFileName(file)));
+        Assert.All(app.LogLines(), line => Assert.Matches(LogLine(), line));
     }
 
     [Fact]
@@ -38,9 +39,10 @@ public sealed partial class LoggingTests
         string logDirectory = TestAssets.CreateScratchDirectory();
         try
         {
-            string expired = WriteFile(logDirectory, "ScreenNap_20200101.log", DateTime.Now.AddDays(-8));
-            string retained = WriteFile(logDirectory, "ScreenNap_20200102.log", DateTime.Now.AddDays(-6));
-            string foreign = WriteFile(logDirectory, "Other_20200101.log", DateTime.Now.AddDays(-30));
+            // Last-write times far from any date the test runs on keep the outcome off the clock
+            string expired = WriteFile(logDirectory, "ScreenNap_20200101.log", s_longAgo);
+            string retained = WriteFile(logDirectory, "ScreenNap_20200102.log", s_farFuture);
+            string foreign = WriteFile(logDirectory, "Other_20200101.log", s_longAgo);
 
             using ScreenNapApp app = ScreenNapApp.Start(logDirectory: logDirectory);
 
@@ -62,15 +64,22 @@ public sealed partial class LoggingTests
         string logDirectory = TestAssets.CreateScratchDirectory();
         try
         {
-            // A directory with the log file's name makes every log write fail
-            Directory.CreateDirectory(Path.Combine(logDirectory, $"ScreenNap_{DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}.log"));
+            // Denying file creation in the log directory makes every log write fail
+            SetFileCreationDenied(logDirectory, true);
+            try
+            {
+                using ScreenNapApp app = ScreenNapApp.Start(logDirectory: logDirectory);
+                app.Select(ScreenNapApp.MonitorCommandBase);
+                app.WaitForBlackoutCount(1);
 
-            using ScreenNapApp app = ScreenNapApp.Start(logDirectory: logDirectory);
-            app.Select(ScreenNapApp.MonitorCommandBase);
-            app.WaitForBlackoutCount(1);
-
-            Assert.False(app.Process.HasExited);
-            Assert.Empty(Desktop.VisibleTopLevelWindows(app.Process.Id, "#32770"));
+                Assert.False(app.Process.HasExited);
+                Assert.Empty(Directory.GetFiles(logDirectory));
+                Assert.Empty(Desktop.VisibleTopLevelWindows(app.Process.Id, "#32770"));
+            }
+            finally
+            {
+                SetFileCreationDenied(logDirectory, false);
+            }
         }
         finally
         {
@@ -78,8 +87,24 @@ public sealed partial class LoggingTests
         }
     }
 
-    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} (?<offset>[+-]\d{2}:\d{2}) \[(INFO|WARN|ERROR)\] .+$")]
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} [+-]\d{2}:\d{2} \[(INFO|WARN|ERROR)\] .+$")]
     private static partial Regex LogLine();
+
+    [GeneratedRegex(@"^ScreenNap_\d{8}\.log$")]
+    private static partial Regex LogFileName();
+
+    private static void SetFileCreationDenied(string directory, bool denied)
+    {
+        using WindowsIdentity user = WindowsIdentity.GetCurrent();
+        var rule = new FileSystemAccessRule(user.User!, FileSystemRights.CreateFiles, AccessControlType.Deny);
+        var info = new DirectoryInfo(directory);
+        DirectorySecurity security = info.GetAccessControl();
+        if (denied)
+            security.AddAccessRule(rule);
+        else
+            security.RemoveAccessRule(rule);
+        info.SetAccessControl(security);
+    }
 
     private static string WriteFile(string directory, string name, DateTime lastWrite)
     {

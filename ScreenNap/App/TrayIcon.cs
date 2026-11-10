@@ -33,7 +33,7 @@ internal sealed class TrayIcon : IUserNotifier
         _created = Shell32.Shell_NotifyIconW(WindowStyles.NIM_ADD, ref nid);
         if (!_created)
         {
-            Logger.Error($"Shell_NotifyIconW(NIM_ADD) failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Error("Shell_NotifyIconW(NIM_ADD) failed", Marshal.GetLastWin32Error());
             DestroyIcons();
             return false;
         }
@@ -42,7 +42,7 @@ internal sealed class TrayIcon : IUserNotifier
         NOTIFYICONDATAW versionData = CreateBaseData();
         versionData.uVersion = WindowStyles.NOTIFYICON_VERSION_4;
         if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_SETVERSION, ref versionData))
-            Logger.Warn($"Shell_NotifyIconW(NIM_SETVERSION) failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("Shell_NotifyIconW(NIM_SETVERSION) failed", Marshal.GetLastWin32Error());
         return true;
     }
 
@@ -60,7 +60,7 @@ internal sealed class TrayIcon : IUserNotifier
         SetInfoText(ref nid, Strings.NotifyTitle, TrayState.TruncateInfo(message));
 
         if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_MODIFY, ref nid))
-            Logger.Warn($"Shell_NotifyIconW(NIM_MODIFY) failed for a tray notification (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed for a tray notification", Marshal.GetLastWin32Error());
     }
 
     internal void Remove()
@@ -69,7 +69,7 @@ internal sealed class TrayIcon : IUserNotifier
         {
             NOTIFYICONDATAW nid = CreateBaseData();
             if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_DELETE, ref nid))
-                Logger.Warn($"Shell_NotifyIconW(NIM_DELETE) failed (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn("Shell_NotifyIconW(NIM_DELETE) failed", Marshal.GetLastWin32Error());
             _created = false;
             Logger.Info("Tray icon removed");
         }
@@ -84,14 +84,14 @@ internal sealed class TrayIcon : IUserNotifier
             if (User32.DestroyIcon(_iconNormal))
                 _iconNormal = IntPtr.Zero;
             else
-                Logger.Warn($"DestroyIcon failed for normal tray icon (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn("DestroyIcon failed for normal tray icon", Marshal.GetLastWin32Error());
         }
         if (_iconActive != IntPtr.Zero)
         {
             if (User32.DestroyIcon(_iconActive))
                 _iconActive = IntPtr.Zero;
             else
-                Logger.Warn($"DestroyIcon failed for active tray icon (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn("DestroyIcon failed for active tray icon", Marshal.GetLastWin32Error());
         }
     }
 
@@ -108,7 +108,7 @@ internal sealed class TrayIcon : IUserNotifier
         SetTipText(ref nid, state.TipText);
 
         if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_MODIFY, ref nid))
-            Logger.Warn($"Shell_NotifyIconW(NIM_MODIFY) failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed", Marshal.GetLastWin32Error());
     }
 
     private NOTIFYICONDATAW CreateBaseData()
@@ -133,8 +133,7 @@ internal sealed class TrayIcon : IUserNotifier
 
     private static unsafe void SetInfoText(ref NOTIFYICONDATAW nid, string title, string truncatedText)
     {
-        const int TitleCapacity = 64;
-        int titleLength = Math.Min(title.Length, TitleCapacity - 1);
+        int titleLength = Math.Min(title.Length, WindowStyles.NotifyIconInfoTitleCapacity - 1);
         for (int i = 0; i < titleLength; i++)
             nid.szInfoTitle[i] = title[i];
         nid.szInfoTitle[titleLength] = '\0';

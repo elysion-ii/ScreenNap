@@ -47,6 +47,13 @@ internal static class Logger
 
     internal static void Error(string message) => Write("ERROR", message);
 
+    internal static void Warn(string message, int win32Error) => Write("WARN", WithWin32Error(message, win32Error));
+
+    internal static void Error(string message, int win32Error) => Write("ERROR", WithWin32Error(message, win32Error));
+
+    internal static string WithWin32Error(string message, int win32Error)
+        => string.Create(CultureInfo.InvariantCulture, $"{message} (Win32 error: {win32Error})");
+
     internal static bool IsUsableDirectorySetting(string value) => Path.IsPathFullyQualified(value);
 
     internal static string FormatLine(DateTimeOffset timestamp, string level, string message)

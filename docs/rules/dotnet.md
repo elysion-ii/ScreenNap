@@ -25,7 +25,7 @@ mechanism is added.
 | STRING | Explicit `StringComparison` | — | AUDIT |
 | ERROR | Error handling | — | AUDIT |
 | CANCEL | CancellationToken plumbing | — | AUDIT |
-| FILEPATH | Paths relative to the executable | — | AUDIT |
+| FILEPATH | Paths anchored to a folder the application resolves, never to the working directory | `Microsoft.CodeAnalysis.BannedApiAnalyzers` in `Directory.Build.props` reads `BannedSymbols.txt`, which bans `Directory.GetCurrentDirectory()` and `Environment.CurrentDirectory`; RS0030 + warnings-as-errors (ANALYZERS) | Enforced for those two APIs — bare relative paths stay AUDIT |
 | LOGGING | Log location, rotation, retention, language | — | AUDIT |
 | TEMPWORK | File operations via `%TEMP%` | — | AUDIT |
 | CONSTANTS | No magic numbers/strings | — | AUDIT |
@@ -62,6 +62,8 @@ mechanism is added.
 - The table lists every permitted scope: a suppression wider than one project (e.g., a repository-wide `.editorconfig` severity of `none`) is never used
 - A diagnostic reported on a declaration is suppressed on that declaration, so the suppression stays attached to it when code around it moves. Code the project does not author (e.g., a generator's output that is regenerated) cannot keep an attribute, so its diagnostics are suppressed by file or folder
 - The reason (the comment, or the `Justification`) states why this warning is acceptable here as a current constraint ("for now" or "fix later" is not a reason)
+- **`BannedSymbols.txt` lists the APIs no code may call**: `Microsoft.CodeAnalysis.BannedApiAnalyzers` reads `BannedSymbols.txt` at the repository root and reports every use of a listed API as RS0030, a build error that carries the message written beside the API. Each line is a documentation comment ID (`T:` a type, `M:` a method, `P:` a property), `;`, and a message naming what to use instead; a line starting with `//` is a comment. The scaffold lists the APIs FILEPATH prohibits
+- **RS0030 is never suppressed**: an API that some code in the repository calls for a legitimate purpose stays off `BannedSymbols.txt`. Whether code repeats knowledge is judged by `standard.md` One Home per Piece of Knowledge, never by `BannedSymbols.txt`
 
 ## UNUSED: Code the Change Stopped Reaching
 
@@ -171,8 +173,8 @@ which semantics were meant. Naming it settles that where the code is written.
 
 ## FILEPATH: File Paths
 
-- **Anchor every path to the executable's own location** — the application's files sit beside the executable, never wherever it happened to be started from. In .NET that anchor is `AppContext.BaseDirectory`
-- **Do NOT use `Directory.GetCurrentDirectory()` or bare relative paths** — both resolve against the working directory, which changes with how the application is launched (shell, shortcut, scheduled task, another process)
+- **Anchor every path to a folder the application resolves itself** — the executable's own location, where the application's installed files sit (in .NET, `AppContext.BaseDirectory`), or a folder the platform names (e.g., the user's local application data, in .NET `Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)`). A path is never anchored to wherever the application happened to be started from
+- **Do NOT use `Directory.GetCurrentDirectory()` or bare relative paths** — both resolve against the working directory, which changes with how the application is launched (shell, shortcut, scheduled task, another process). `BannedSymbols.txt` makes `Directory.GetCurrentDirectory()` and `Environment.CurrentDirectory` build errors (ANALYZERS)
 
 ## LOGGING: Log Output and Retention
 

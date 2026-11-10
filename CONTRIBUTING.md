@@ -4,9 +4,9 @@ Thank you for your interest in contributing!
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Windows 10 or later (x64)
-- (Optional) [Inno Setup 6](https://jrsoftware.org/isdl.php) for building the installer
+Windows 10 or later (x64) with the tools listed under Building from Source → Prerequisites
+in [README.md](README.md#prerequisites). The full build in step 4 of Submitting Changes
+publishes a Native AOT executable, which needs the MSVC tools listed there.
 
 ## Getting Started
 

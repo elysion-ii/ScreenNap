@@ -319,9 +319,11 @@ A UI culture with no resources of its own receives the English default resources
 Localized text covers menu actions, primary and active monitor markers, tray tooltips,
 the duplicate-instance notification, and every failure notification.
 
-#### L10N-4: A failed resource lookup falls back to English
+#### L10N-4: A failed resource lookup shows the resource key
 
-If a resource lookup fails, ScreenNap uses its built-in English fallback text.
+When the lookup of a localized text fails — no resource set for the UI culture or its
+parents can be loaded, or the resource set found holds no value for the text's key —
+ScreenNap shows the text's resource key in its place.
 
 #### L10N-5: Numbers, hotkeys, versions, and logs are language-independent
 

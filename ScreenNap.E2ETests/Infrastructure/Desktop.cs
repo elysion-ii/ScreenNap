@@ -4,7 +4,7 @@ namespace ScreenNap.E2ETests.Infrastructure;
 
 internal static class Desktop
 {
-    private const int ClassNameCapacity = 256;
+    private const int WindowStringCapacity = 256;
 
     // Rectangles and pixels are read in the DPI awareness of the window they belong to, so they
     // compare with the coordinates that window's process used to place it
@@ -87,8 +87,8 @@ internal static class Desktop
 
     internal static unsafe string Text(IntPtr hWnd)
     {
-        char* buffer = stackalloc char[ClassNameCapacity];
-        int length = Win32.GetWindowTextW(hWnd, buffer, ClassNameCapacity);
+        char* buffer = stackalloc char[WindowStringCapacity];
+        int length = Win32.GetWindowTextW(hWnd, buffer, WindowStringCapacity);
         return new string(buffer, 0, length);
     }
 
@@ -125,8 +125,8 @@ internal static class Desktop
 
     private static unsafe string ClassName(IntPtr hWnd)
     {
-        char* buffer = stackalloc char[ClassNameCapacity];
-        int length = Win32.GetClassNameW(hWnd, buffer, ClassNameCapacity);
+        char* buffer = stackalloc char[WindowStringCapacity];
+        int length = Win32.GetClassNameW(hWnd, buffer, WindowStringCapacity);
         return new string(buffer, 0, length);
     }
 }

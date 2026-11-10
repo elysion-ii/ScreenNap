@@ -6,9 +6,8 @@ using ScreenNap.Native;
 
 namespace ScreenNap.App;
 
-internal sealed class IdentifyOverlay
+internal sealed class IdentifyOverlay : IIdentifyOverlays
 {
-    private const string WindowClassName = "ScreenNap_Identify";
     private const int OverlayWidth = 200;
     private const int OverlayHeight = 150;
     private const int FontHeight = 96;
@@ -19,123 +18,107 @@ internal sealed class IdentifyOverlay
     private const uint DismissDelayMs = 3000;
     private const uint TopmostIntervalMs = 250;
 
+    // Pin delegate to prevent GC collection
     private static readonly WNDPROC s_wndProc = WndProc;
-    private static bool s_classRegistered;
-    private static readonly Dictionary<IntPtr, IdentifyOverlay> s_instances = [];
+    private static readonly WindowClass s_windowClass = new(
+        "ScreenNap_Identify",
+        WindowStyles.CS_HREDRAW | WindowStyles.CS_VREDRAW,
+        s_wndProc);
+    private static readonly Dictionary<IntPtr, OverlayWindow> s_windows = [];
 
-    private readonly int _displayNumber;
-    private bool _hasTopmostTimer;
-    private bool _hasDismissTimer;
+    public bool AnyShown => s_windows.Count > 0;
 
-    private IdentifyOverlay(int displayNumber)
+    public bool Show(int displayNumber, RECT bounds, bool closesAllAfterDelay)
     {
-        _displayNumber = displayNumber;
-    }
-
-    internal static void Toggle(IUserNotifier notifier)
-    {
-        if (s_instances.Count > 0)
-        {
-            DismissAll();
-            return;
-        }
-
-        List<MonitorInfo> monitors = MonitorEnumerator.EnumerateMonitors();
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
         if (hInstance == IntPtr.Zero)
         {
-            Logger.Error($"GetModuleHandleW failed for identify overlay (Win32 error: {Marshal.GetLastWin32Error()})");
-            return;
+            Logger.Error($"GetModuleHandleW failed for the identify overlay on monitor {displayNumber}", Marshal.GetLastWin32Error());
+            return false;
         }
 
-        RegisterClassOnce(hInstance);
+        if (!RegisterClassOnce(hInstance))
+            return false;
 
-        var failedNumbers = new List<int>();
-        for (int i = 0; i < monitors.Count; i++)
+        int x = bounds.Left + (bounds.Width - OverlayWidth) / 2;
+        int y = bounds.Top + (bounds.Height - OverlayHeight) / 2;
+        IntPtr hwnd = User32.CreateWindowExW(
+            WindowStyles.WS_EX_TOOLWINDOW | WindowStyles.WS_EX_TOPMOST | WindowStyles.WS_EX_NOACTIVATE,
+            s_windowClass.Name,
+            string.Empty,
+            WindowStyles.WS_POPUP,
+            x, y, OverlayWidth, OverlayHeight,
+            IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
+
+        if (hwnd == IntPtr.Zero)
         {
-            var overlay = new IdentifyOverlay(i + 1);
-            RECT bounds = monitors[i].Bounds;
-            int x = bounds.Left + (bounds.Width - OverlayWidth) / 2;
-            int y = bounds.Top + (bounds.Height - OverlayHeight) / 2;
-
-            IntPtr hwnd = User32.CreateWindowExW(
-                WindowStyles.WS_EX_TOOLWINDOW | WindowStyles.WS_EX_TOPMOST | WindowStyles.WS_EX_NOACTIVATE,
-                WindowClassName,
-                string.Empty,
-                WindowStyles.WS_POPUP | WindowStyles.WS_VISIBLE,
-                x, y, OverlayWidth, OverlayHeight,
-                IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
-
-            if (hwnd == IntPtr.Zero)
-            {
-                Logger.Warn($"Failed to create identify overlay for monitor {i + 1} (Win32 error: {Marshal.GetLastWin32Error()})");
-                failedNumbers.Add(i + 1);
-                continue;
-            }
-
-            s_instances[hwnd] = overlay;
-
-            overlay._hasTopmostTimer = User32.SetTimer(hwnd, TopmostTimerId, TopmostIntervalMs, IntPtr.Zero) != 0;
-            if (!overlay._hasTopmostTimer)
-                Logger.Warn($"SetTimer failed for identify overlay topmost maintenance on monitor {i + 1} (Win32 error: {Marshal.GetLastWin32Error()})");
-
-            if (i == 0)
-            {
-                overlay._hasDismissTimer = User32.SetTimer(hwnd, DismissTimerId, DismissDelayMs, IntPtr.Zero) != 0;
-                if (!overlay._hasDismissTimer)
-                    Logger.Warn($"SetTimer failed for identify overlay dismissal (Win32 error: {Marshal.GetLastWin32Error()})");
-            }
+            Logger.Warn($"Failed to create identify overlay for monitor {displayNumber}", Marshal.GetLastWin32Error());
+            return false;
         }
 
-        if (failedNumbers.Count > 0)
-            notifier.Notify(FailureNotices.OverlaysNotCreated(failedNumbers));
-    }
-
-    internal static void DismissAll()
-    {
-        foreach (IntPtr hwnd in s_instances.Keys.ToArray())
+        if (!User32.SetWindowPos(hwnd, WindowStyles.HWND_TOPMOST,
+            0, 0, 0, 0,
+            WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE | WindowStyles.SWP_SHOWWINDOW))
         {
+            Logger.Warn($"SetWindowPos failed to show identify overlay for monitor {displayNumber}", Marshal.GetLastWin32Error());
             if (!User32.DestroyWindow(hwnd))
-                Logger.Warn($"DestroyWindow failed for identify overlay (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn($"DestroyWindow failed for unshown identify overlay on monitor {displayNumber}", Marshal.GetLastWin32Error());
+            return false;
         }
+
+        bool hasTopmostTimer = User32.SetTimer(hwnd, TopmostTimerId, TopmostIntervalMs, IntPtr.Zero) != 0;
+        if (!hasTopmostTimer)
+            Logger.Warn($"SetTimer failed for identify overlay topmost maintenance on monitor {displayNumber}", Marshal.GetLastWin32Error());
+
+        bool hasDismissTimer = false;
+        if (closesAllAfterDelay)
+        {
+            hasDismissTimer = User32.SetTimer(hwnd, DismissTimerId, DismissDelayMs, IntPtr.Zero) != 0;
+            if (!hasDismissTimer)
+                Logger.Warn("SetTimer failed for identify overlay dismissal", Marshal.GetLastWin32Error());
+        }
+
+        s_windows[hwnd] = new OverlayWindow(displayNumber, hasTopmostTimer, hasDismissTimer);
+        return true;
     }
+
+    public void DismissAll() => DestroyAll();
 
     internal static void UnregisterClass(IntPtr hInstance)
     {
-        if (s_classRegistered)
+        if (!s_windowClass.Unregister(hInstance))
+            Logger.Warn("UnregisterClassW failed for identify overlay", Marshal.GetLastWin32Error());
+    }
+
+    private static bool RegisterClassOnce(IntPtr hInstance)
+    {
+        if (s_windowClass.IsRegistered)
+            return true;
+
+        IntPtr background = Gdi32.GetStockObject(WindowStyles.BLACK_BRUSH);
+        if (background == IntPtr.Zero)
         {
-            if (User32.UnregisterClassW(WindowClassName, hInstance))
-                s_classRegistered = false;
-            else
-                Logger.Warn($"UnregisterClassW failed for identify overlay (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Error("GetStockObject(BLACK_BRUSH) failed for identify overlay class");
+            return false;
+        }
+
+        if (s_windowClass.Register(hInstance, background, IntPtr.Zero))
+            return true;
+
+        Logger.Error("RegisterClassExW failed for identify overlay", Marshal.GetLastWin32Error());
+        return false;
+    }
+
+    private static void DestroyAll()
+    {
+        foreach (IntPtr hwnd in s_windows.Keys.ToArray())
+        {
+            if (!User32.DestroyWindow(hwnd))
+                Logger.Warn("DestroyWindow failed for identify overlay", Marshal.GetLastWin32Error());
         }
     }
 
-    private static void RegisterClassOnce(IntPtr hInstance)
-    {
-        if (s_classRegistered)
-            return;
-
-        var wc = new WNDCLASSEXW
-        {
-            cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
-            style = WindowStyles.CS_HREDRAW | WindowStyles.CS_VREDRAW,
-            lpfnWndProc = Marshal.GetFunctionPointerForDelegate(s_wndProc),
-            hInstance = hInstance,
-            hbrBackground = Gdi32.GetStockObject(WindowStyles.BLACK_BRUSH),
-            lpszClassName = Marshal.StringToHGlobalUni(WindowClassName)
-        };
-
-        ushort atom = User32.RegisterClassExW(ref wc);
-        Marshal.FreeHGlobal(wc.lpszClassName);
-
-        if (atom != 0)
-            s_classRegistered = true;
-        else
-            Logger.Error($"RegisterClassExW failed for identify overlay (Win32 error: {Marshal.GetLastWin32Error()})");
-    }
-
-    private void Paint(IntPtr hWnd)
+    private static void Paint(IntPtr hWnd, OverlayWindow window)
     {
         IntPtr hdc = User32.BeginPaint(hWnd, out PAINTSTRUCT ps);
         if (hdc == IntPtr.Zero)
@@ -152,13 +135,13 @@ internal sealed class IdentifyOverlay
         else if (oldFont == IntPtr.Zero)
             Logger.Warn("SelectObject failed for identify overlay font");
 
-        // Failure leaves default text attributes; the paint proceeds either way and
-        // logging here would spam on every WM_PAINT
-        _ = Gdi32.SetTextColor(hdc, White);
-        _ = Gdi32.SetBkMode(hdc, WindowStyles.TRANSPARENT_BK);
+        if (Gdi32.SetTextColor(hdc, White) == WindowStyles.CLR_INVALID)
+            Logger.Warn("SetTextColor failed for identify overlay");
+        if (Gdi32.SetBkMode(hdc, WindowStyles.TRANSPARENT_BK) == 0)
+            Logger.Warn("SetBkMode failed for identify overlay");
 
         var rect = new RECT { Left = 0, Top = 0, Right = OverlayWidth, Bottom = OverlayHeight };
-        string text = _displayNumber.ToString(CultureInfo.InvariantCulture);
+        string text = window.DisplayNumber.ToString(CultureInfo.InvariantCulture);
         if (User32.DrawTextW(hdc, text, -1, ref rect,
             WindowStyles.DT_CENTER | WindowStyles.DT_VCENTER | WindowStyles.DT_SINGLELINE) == 0)
         {
@@ -179,13 +162,13 @@ internal sealed class IdentifyOverlay
         switch (msg)
         {
             case WindowStyles.WM_PAINT:
-                if (!s_instances.TryGetValue(hWnd, out IdentifyOverlay? paintInstance))
+                if (!s_windows.TryGetValue(hWnd, out OverlayWindow? paintWindow))
                     break;
-                paintInstance.Paint(hWnd);
+                Paint(hWnd, paintWindow);
                 return 0;
 
             case WindowStyles.WM_TIMER when wParam == DismissTimerId:
-                DismissAll();
+                DestroyAll();
                 return 0;
 
             case WindowStyles.WM_TIMER when wParam == TopmostTimerId:
@@ -193,21 +176,23 @@ internal sealed class IdentifyOverlay
                     0, 0, 0, 0,
                     WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
                 {
-                    Logger.Warn($"SetWindowPos failed for identify overlay (Win32 error: {Marshal.GetLastWin32Error()})");
+                    Logger.Warn("SetWindowPos failed for identify overlay", Marshal.GetLastWin32Error());
                 }
                 return 0;
 
             case WindowStyles.WM_DESTROY:
-                if (s_instances.Remove(hWnd, out IdentifyOverlay? destroyedInstance))
+                if (s_windows.Remove(hWnd, out OverlayWindow? destroyedWindow))
                 {
-                    if (destroyedInstance._hasDismissTimer && !User32.KillTimer(hWnd, DismissTimerId))
-                        Logger.Warn($"KillTimer failed for identify overlay dismissal (Win32 error: {Marshal.GetLastWin32Error()})");
-                    if (destroyedInstance._hasTopmostTimer && !User32.KillTimer(hWnd, TopmostTimerId))
-                        Logger.Warn($"KillTimer failed for identify overlay topmost maintenance (Win32 error: {Marshal.GetLastWin32Error()})");
+                    if (destroyedWindow.HasDismissTimer && !User32.KillTimer(hWnd, DismissTimerId))
+                        Logger.Warn("KillTimer failed for identify overlay dismissal", Marshal.GetLastWin32Error());
+                    if (destroyedWindow.HasTopmostTimer && !User32.KillTimer(hWnd, TopmostTimerId))
+                        Logger.Warn("KillTimer failed for identify overlay topmost maintenance", Marshal.GetLastWin32Error());
                 }
                 return 0;
         }
 
         return User32.DefWindowProcW(hWnd, msg, wParam, lParam);
     }
+
+    private sealed record OverlayWindow(int DisplayNumber, bool HasTopmostTimer, bool HasDismissTimer);
 }

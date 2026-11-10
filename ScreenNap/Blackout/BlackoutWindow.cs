@@ -7,13 +7,15 @@ namespace ScreenNap.Blackout;
 
 internal sealed class BlackoutWindow : IBlackoutWindow
 {
-    private const string WindowClassName = "ScreenNap_Blackout";
     private const nuint TopmostTimerId = 1;
     private const uint TopmostIntervalMs = 1000;
 
     // Pin delegate to prevent GC collection
     private static readonly WNDPROC s_wndProc = WndProc;
-    private static bool s_classRegistered;
+    private static readonly WindowClass s_windowClass = new(
+        "ScreenNap_Blackout",
+        WindowStyles.CS_DBLCLKS | WindowStyles.CS_HREDRAW | WindowStyles.CS_VREDRAW,
+        s_wndProc);
     private static readonly Dictionary<IntPtr, BlackoutWindow> s_instances = [];
 
     internal IntPtr Handle { get; private set; }
@@ -33,7 +35,7 @@ internal sealed class BlackoutWindow : IBlackoutWindow
         IntPtr hInstance = Kernel32.GetModuleHandleW(null);
         if (hInstance == IntPtr.Zero)
         {
-            Logger.Error($"GetModuleHandleW failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Error("GetModuleHandleW failed for blackout window", Marshal.GetLastWin32Error());
             return;
         }
 
@@ -41,15 +43,26 @@ internal sealed class BlackoutWindow : IBlackoutWindow
 
         Handle = User32.CreateWindowExW(
             WindowStyles.WS_EX_TOOLWINDOW | WindowStyles.WS_EX_TOPMOST | WindowStyles.WS_EX_NOACTIVATE,
-            WindowClassName,
+            s_windowClass.Name,
             "ScreenNap Blackout",
-            WindowStyles.WS_POPUP | WindowStyles.WS_VISIBLE,
+            WindowStyles.WS_POPUP,
             bounds.Left, bounds.Top, bounds.Width, bounds.Height,
             IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
         if (Handle == IntPtr.Zero)
         {
-            Logger.Error($"CreateWindowExW failed for blackout window on {devicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Error($"CreateWindowExW failed for blackout window on {devicePath}", Marshal.GetLastWin32Error());
+            return;
+        }
+
+        if (!User32.SetWindowPos(Handle, WindowStyles.HWND_TOPMOST,
+            0, 0, 0, 0,
+            WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE | WindowStyles.SWP_SHOWWINDOW))
+        {
+            Logger.Error($"SetWindowPos failed to show blackout window on {devicePath}", Marshal.GetLastWin32Error());
+            if (!User32.DestroyWindow(Handle))
+                Logger.Warn($"DestroyWindow failed for unshown blackout window on {devicePath}", Marshal.GetLastWin32Error());
+            Handle = IntPtr.Zero;
             return;
         }
         Logger.Info($"Blackout window created: {devicePath} ({bounds.Left},{bounds.Top} {bounds.Width}x{bounds.Height})");
@@ -62,7 +75,7 @@ internal sealed class BlackoutWindow : IBlackoutWindow
             TopmostIntervalMs,
             IntPtr.Zero);
         if (timerId == 0)
-            Logger.Warn($"SetTimer failed for blackout window {devicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn($"SetTimer failed for blackout window {devicePath}", Marshal.GetLastWin32Error());
     }
 
     public bool Destroy()
@@ -73,24 +86,19 @@ internal sealed class BlackoutWindow : IBlackoutWindow
         if (User32.DestroyWindow(Handle))
             return true;
 
-        Logger.Warn($"DestroyWindow failed for blackout window {DevicePath} (Win32 error: {Marshal.GetLastWin32Error()})");
+        Logger.Warn($"DestroyWindow failed for blackout window {DevicePath}", Marshal.GetLastWin32Error());
         return false;
     }
 
     internal static void UnregisterClass(IntPtr hInstance)
     {
-        if (s_classRegistered)
-        {
-            if (User32.UnregisterClassW(WindowClassName, hInstance))
-                s_classRegistered = false;
-            else
-                Logger.Warn($"UnregisterClassW failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
-        }
+        if (!s_windowClass.Unregister(hInstance))
+            Logger.Warn("UnregisterClassW failed for blackout window", Marshal.GetLastWin32Error());
     }
 
     private static void RegisterClassOnce(IntPtr hInstance)
     {
-        if (s_classRegistered)
+        if (s_windowClass.IsRegistered)
             return;
 
         IntPtr backgroundBrush = Gdi32.GetStockObject(WindowStyles.BLACK_BRUSH);
@@ -103,28 +111,12 @@ internal sealed class BlackoutWindow : IBlackoutWindow
         IntPtr cursor = User32.LoadCursorW(IntPtr.Zero, WindowStyles.IDC_ARROW);
         if (cursor == IntPtr.Zero)
         {
-            Logger.Error($"LoadCursorW failed for blackout window class (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Error("LoadCursorW failed for blackout window class", Marshal.GetLastWin32Error());
             return;
         }
 
-        var wc = new WNDCLASSEXW
-        {
-            cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
-            style = WindowStyles.CS_DBLCLKS | WindowStyles.CS_HREDRAW | WindowStyles.CS_VREDRAW,
-            lpfnWndProc = Marshal.GetFunctionPointerForDelegate(s_wndProc),
-            hInstance = hInstance,
-            hbrBackground = backgroundBrush,
-            hCursor = cursor,
-            lpszClassName = Marshal.StringToHGlobalUni(WindowClassName)
-        };
-
-        ushort atom = User32.RegisterClassExW(ref wc);
-        Marshal.FreeHGlobal(wc.lpszClassName);
-
-        if (atom != 0)
-            s_classRegistered = true;
-        else
-            Logger.Error($"RegisterClassExW failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
+        if (!s_windowClass.Register(hInstance, backgroundBrush, cursor))
+            Logger.Error("RegisterClassExW failed for blackout window", Marshal.GetLastWin32Error());
     }
 
     private static nint WndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
@@ -136,7 +128,7 @@ internal sealed class BlackoutWindow : IBlackoutWindow
                     0, 0, 0, 0,
                     WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
                 {
-                    Logger.Warn($"SetWindowPos failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
+                    Logger.Warn("SetWindowPos failed for blackout window", Marshal.GetLastWin32Error());
                 }
 
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? timerInstance) &&
@@ -176,7 +168,7 @@ internal sealed class BlackoutWindow : IBlackoutWindow
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? dblClickInstance))
                     dblClickInstance.UserDismissed = true;
                 if (!User32.DestroyWindow(hWnd))
-                    Logger.Warn($"DestroyWindow failed after double-click (Win32 error: {Marshal.GetLastWin32Error()})");
+                    Logger.Warn("DestroyWindow failed after double-click", Marshal.GetLastWin32Error());
                 return 0;
 
             // Right-click also dismisses (safety: allows recovery when main monitor is blacked out)
@@ -184,12 +176,12 @@ internal sealed class BlackoutWindow : IBlackoutWindow
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? rClickInstance))
                     rClickInstance.UserDismissed = true;
                 if (!User32.DestroyWindow(hWnd))
-                    Logger.Warn($"DestroyWindow failed after right-click (Win32 error: {Marshal.GetLastWin32Error()})");
+                    Logger.Warn("DestroyWindow failed after right-click", Marshal.GetLastWin32Error());
                 return 0;
 
             case WindowStyles.WM_DESTROY:
                 if (!User32.KillTimer(hWnd, TopmostTimerId))
-                    Logger.Warn($"KillTimer failed for blackout window (Win32 error: {Marshal.GetLastWin32Error()})");
+                    Logger.Warn("KillTimer failed for blackout window", Marshal.GetLastWin32Error());
                 if (s_instances.TryGetValue(hWnd, out BlackoutWindow? instance))
                 {
                     Logger.Info($"Blackout window destroyed: {instance.DevicePath}");

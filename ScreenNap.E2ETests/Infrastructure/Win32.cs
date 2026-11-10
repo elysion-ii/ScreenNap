@@ -144,10 +144,6 @@ internal static partial class Win32
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     internal static partial nint GetWindowLongPtrW(IntPtr hWnd, int nIndex);
 
-    [LibraryImport("user32.dll", EntryPoint = "IsWindow")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool IsWindow(IntPtr hWnd);
-
     [LibraryImport("user32.dll", EntryPoint = "IsWindowVisible")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool IsWindowVisible(IntPtr hWnd);

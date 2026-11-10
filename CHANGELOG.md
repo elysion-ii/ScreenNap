@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-11-10
+
+### Changed
+- A text whose localized resource cannot be found now shows its resource key instead of built-in English text
+- Converged the repository onto dev-standards v4.31.0, including the specification rules, the shared-knowledge table, and a build error for APIs that resolve paths against the working directory
+
+### Fixed
+- Pressing the identify hotkey now reports every monitor whose identification number cannot be shown, also when no overlay can be created at all
+
 ## [1.7.0] - 2026-11-02
 
 ### Added

@@ -10,12 +10,14 @@ internal sealed class HotkeyManager
     private const uint Modifiers = WindowStyles.MOD_CONTROL | WindowStyles.MOD_SHIFT | WindowStyles.MOD_ALT | WindowStyles.MOD_NOREPEAT;
 
     private readonly BlackoutManager _manager;
+    private readonly MonitorIdentifier _identifier;
     private readonly IUserNotifier _notifier;
     private readonly List<int> _registeredIds = [];
 
-    internal HotkeyManager(BlackoutManager manager, IUserNotifier notifier)
+    internal HotkeyManager(BlackoutManager manager, MonitorIdentifier identifier, IUserNotifier notifier)
     {
         _manager = manager;
+        _identifier = identifier;
         _notifier = notifier;
     }
 
@@ -40,7 +42,7 @@ internal sealed class HotkeyManager
         foreach (int id in _registeredIds)
         {
             if (!User32.UnregisterHotKey(hwnd, id))
-                Logger.Warn($"Failed to unregister hotkey {id} (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn($"Failed to unregister hotkey {id}", Marshal.GetLastWin32Error());
         }
         _registeredIds.Clear();
     }
@@ -50,7 +52,7 @@ internal sealed class HotkeyManager
         HotkeyAction action = HotkeyInterpreter.Interpret(hotkeyId);
         if (action.Kind == HotkeyActionKind.Identify)
         {
-            IdentifyOverlay.Toggle(_notifier);
+            _identifier.Toggle();
             return;
         }
 
@@ -67,7 +69,7 @@ internal sealed class HotkeyManager
         if (!User32.RegisterHotKey(hwnd, id, Modifiers, virtualKey))
         {
             int error = Marshal.GetLastWin32Error();
-            Logger.Warn($"Failed to register hotkey {HotkeyInterpreter.CombinationFor(digit)} (Win32 error: {error})");
+            Logger.Warn($"Failed to register hotkey {HotkeyInterpreter.CombinationFor(digit)}", error);
             return false;
         }
 

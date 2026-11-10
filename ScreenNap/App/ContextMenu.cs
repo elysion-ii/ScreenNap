@@ -22,7 +22,7 @@ internal sealed class ContextMenu
         IntPtr hMenu = User32.CreatePopupMenu();
         if (hMenu == IntPtr.Zero)
         {
-            Logger.Warn($"CreatePopupMenu failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("CreatePopupMenu failed", Marshal.GetLastWin32Error());
             return;
         }
 
@@ -39,7 +39,7 @@ internal sealed class ContextMenu
                 flags |= WindowStyles.MF_GRAYED;
 
             if (!User32.AppendMenuW(hMenu, flags, (nuint)item.CommandId, item.Text))
-                Logger.Warn($"AppendMenuW failed for command {item.CommandId} (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn($"AppendMenuW failed for command {item.CommandId}", Marshal.GetLastWin32Error());
         }
 
         // Required for menu to dismiss on outside click (KB Q135788)
@@ -48,18 +48,18 @@ internal sealed class ContextMenu
 
         if (!User32.GetCursorPos(out POINT pt))
         {
-            Logger.Warn($"GetCursorPos failed before displaying context menu (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("GetCursorPos failed before displaying context menu", Marshal.GetLastWin32Error());
             pt = default;
         }
         if (!User32.TrackPopupMenuEx(hMenu, WindowStyles.TPM_RIGHTBUTTON, pt.X, pt.Y, hwnd, IntPtr.Zero))
-            Logger.Warn($"TrackPopupMenuEx failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("TrackPopupMenuEx failed", Marshal.GetLastWin32Error());
 
         // Post WM_NULL to fix menu tracking (KB Q135788)
         if (!User32.PostMessageW(hwnd, WindowStyles.WM_NULL, 0, 0))
-            Logger.Warn($"PostMessageW failed after displaying context menu (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("PostMessageW failed after displaying context menu", Marshal.GetLastWin32Error());
 
         if (!User32.DestroyMenu(hMenu))
-            Logger.Warn($"DestroyMenu failed for context menu (Win32 error: {Marshal.GetLastWin32Error()})");
+            Logger.Warn("DestroyMenu failed for context menu", Marshal.GetLastWin32Error());
     }
 
     internal void HandleCommand(int commandId)

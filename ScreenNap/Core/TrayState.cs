@@ -1,12 +1,14 @@
 using System.Globalization;
+using ScreenNap.Native;
 using ScreenNap.Resources;
 
 namespace ScreenNap.Core;
 
 internal readonly record struct TrayState(bool UseActiveIcon, string TipText)
 {
-    private const int MaximumTipLength = 127;
-    private const int MaximumInfoLength = 255;
+    // The buffers hold the terminating null as well
+    private const int MaximumTipLength = WindowStyles.NotifyIconTipCapacity - 1;
+    private const int MaximumInfoLength = WindowStyles.NotifyIconInfoCapacity - 1;
 
     internal static TrayState For(int activeCount)
     {

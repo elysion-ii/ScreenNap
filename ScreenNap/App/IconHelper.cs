@@ -44,7 +44,7 @@ internal static class IconHelper
                 TrayIconSize, TrayIconSize, WindowStyles.LR_DEFAULTCOLOR);
 
             if (hIcon == IntPtr.Zero)
-                Logger.Warn($"CreateIconFromResourceEx failed (Win32 error: {Marshal.GetLastWin32Error()})");
+                Logger.Warn("CreateIconFromResourceEx failed", Marshal.GetLastWin32Error());
 
             return hIcon;
         }

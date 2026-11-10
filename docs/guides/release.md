@@ -27,8 +27,9 @@ gone — only the current version stays published.
 - `C:\Program Files (x86)\Microsoft Visual Studio\Installer` is on `PATH`; the MSVC
   environment script invokes `vswhere` by bare name, and the publish fails with
   `MSB3073` when the directory is missing from `PATH`
-- Inno Setup 6 is installed at `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`;
-  `build/Installer.ps1` aborts when that path is absent
+- Inno Setup 6 or later is installed; `build/Installer.ps1` looks for `ISCC.exe` in the
+  Inno Setup uninstall entries, on `PATH`, through the `.iss` file association, and in
+  the default install folders, and aborts when none of them holds it
 - `gh auth status` reports an account with push access to `elysion-ii/ScreenNap`
 
 ## Phase 1 — Land the version on `main`

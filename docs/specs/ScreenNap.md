@@ -160,10 +160,6 @@ application was built with, with no build metadata.
 
 The version item is visible, and selecting it does nothing.
 
-#### VER-3: An unknown version reads as unknown
-
-When the product version cannot be determined, the item reads `ScreenNap unknown`.
-
 #### VER-4: The context menu is the only version display
 
 There is no about window, and ScreenNap accepts no command-line options.
@@ -409,13 +405,15 @@ the installer created.
 
 When ScreenNap is running, the interactive uninstaller offers to close it and retry, to
 retry after the user closes it, or to cancel; it never force-closes ScreenNap. A silent
-uninstall closes ScreenNap and continues.
+uninstall asks ScreenNap to close without force-closing it and continues once ScreenNap
+has exited; when ScreenNap is still running after that request, the silent uninstall
+removes nothing and ends with a non-zero exit code.
 
 ## Inputs and Outputs
 
 | Input | Observable output | Requirements |
 |---|---|---|
-| Tray-icon left or right button release | Context menu with the version item and the current monitors | TRAY-4, MENU-1 to MENU-8, VER-1 to VER-3 |
+| Tray-icon left or right button release | Context menu with the version item and the current monitors | TRAY-4, MENU-1 to MENU-8, VER-1, VER-2 |
 | Monitor menu item | Blackout toggled for that menu entry | MENU-6, BLK-1, BLK-2 |
 | `Release All` | All closable blackouts dismissed | MENU-7, BLK-4 |
 | `Exit` | Normal application shutdown | MENU-8, LIFE-3 |

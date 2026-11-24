@@ -103,6 +103,8 @@ placement, naming, and front matter.
 - `docs/rules/` — rule bodies: universal shared rules (`docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/specs.md`, `docs/rules/testing.md`), `docs/rules/dotnet.md`, the conditional shared and .NET facet rule files distributed to this repository (all managed by dev-standards), and `docs/rules/ScreenNap.md` (application rules)
 - `docs/specs/ScreenNap.md` — the ScreenNap specification: what it does
 - `docs/references/code-map.md` — feature folders and shared mechanism homes
+- `docs/references/ScreenNap/violating-behavior.md` — ScreenNap behavior that breaks a rule and awaits its fix, read together with the specification (`docs/rules/specs.md`, Ledgers)
+- `docs/notes/ScreenNap/deferred-violations.md` — code and document violations deferred by the maintainer (`docs/rules/standard.md`, AUDIT)
 - `docs/adr/` — Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
 - `docs/guides/release.md` — the version bump → assets → tag → GitHub Release procedure
 - `docs/plans/` and `docs/archive/plans/` — working area for plans, gitignored (`docs/rules/documentation.md`, Category Notes — `docs/plans/`)

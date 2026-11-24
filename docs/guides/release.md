@@ -102,8 +102,9 @@ published assets come from the workflow.
 ### 6. Build the portable EXE
 
 Run `powershell -ExecutionPolicy Bypass -File build/Build.ps1`. It checks the
-configuration files, verifies formatting, runs the test suite, and publishes the
-Native AOT single EXE; a failure in any gate stops it before publishing.
+configuration files, verifies formatting, checks that every requirement ID in the
+specification is named by a test, runs the test suite, and publishes the Native AOT
+single EXE; a failure in any gate stops it before publishing.
 
 Confirmation: the command exits 0, `build/ScreenNap/ScreenNap.exe` is the only file in
 `build/ScreenNap/`, and

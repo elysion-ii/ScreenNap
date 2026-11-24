@@ -70,7 +70,7 @@ Log files are written to `%LocalAppData%\ScreenNap\Logs\` with daily rotation an
 | Level | Description |
 |-------|-------------|
 | INFO | Application lifecycle, blackout events, monitor enumeration |
-| WARN | Non-critical failures (menu) |
+| WARN | Failures ScreenNap continues after (e.g., a hotkey another application holds, a rejected `SCREENNAP_LOG_DIR`, a Win32 call that failed) |
 | ERROR | Critical P/Invoke failures with Win32 error codes |
 
 ### Adding a Language
@@ -81,7 +81,7 @@ Create `ScreenNap/Resources/Strings.xx.resx` (where `xx` is the language code, e
 
 - **C#** on **.NET 10.0 LTS**
 - **Raw Win32 API** via P/Invoke (no WinForms, WPF, or WinUI)
-- Zero runtime NuGet dependencies; the build uses a private analyzer package
+- Zero runtime NuGet dependencies; the build uses private analyzer packages
 
 ## License
 

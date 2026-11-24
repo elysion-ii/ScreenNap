@@ -15,7 +15,6 @@ public sealed class AppVersionTests
     [InlineData("1.4.0+abc1234", "1.4.0")]
     [InlineData("1.4.0-beta.1", "1.4.0-beta.1")]
     [Trait("Requirement", "VER-1")]
-    [Trait("Requirement", "VER-3")]
     internal void Normalize_AnyInformationalVersion_ReturnsVersionWithoutMetadata(string? informationalVersion, string expected)
     {
         Assert.Equal(expected, AppVersion.Normalize(informationalVersion));

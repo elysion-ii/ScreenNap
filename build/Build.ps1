@@ -28,8 +28,9 @@ if (Test-Path $OutputDir) { Remove-Item $OutputDir -Recurse -Force }
 New-Item -ItemType Directory -Path $OutputDir -Force -ErrorAction SilentlyContinue | Out-Null
 
 # Only the placeholder template of a configuration file belongs in the repository:
-# the real file carries credentials and environment-specific values
-# (rule: docs/rules/dotnet.md, CONFIGFILE)
+# the real file carries credentials and environment-specific values; derive the untracked
+# runtime file from <name>.template.<ext> when adopting configuration settings
+# (rule: docs/rules/dotnet.md, CONFIGFILE; applies when configuration settings are used)
 Write-Host "Verifying configuration files..." -ForegroundColor Cyan
 # Configuration extensions only, so a source-code template never trips the check
 $ConfigTemplate = '\.template\.(json|ya?ml|xml|ini|config|toml|env)$'

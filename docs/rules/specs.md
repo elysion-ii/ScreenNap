@@ -1,230 +1,201 @@
 # Specifications
 
-Part of the shared core rules (`docs/rules/`). Governs what a specification states about
-each decision of the application, where each answer comes from, and how an existing
-implementation's behavior that no answer confirms is classified and recorded. A decision
-the specification leaves open is settled by whoever writes the code, and the traps that
-formal checks find in implementations — conditions that match nothing or everything, a
-check racing its own write, a failure read as an answer, a value trusted across a
-boundary — are decisions nobody stated. Stack-agnostic: how a specification is checked
-against this file (a solver, a model checker, enumerating the cases, review) is the
-application's choice.
+Shared rules defining what a specification states about every decision of an application,
+where each answer comes from, and how existing implementation behavior lacking an answer
+is classified and tracked. A decision left unspecified is settled silently by whoever
+writes the code; formal defects such as unmatched branches, check-then-act races, failed
+reads interpreted as negative matches, and unverified boundary values arise from unstated
+decisions. How a specification is verified against this file (e.g., model checking,
+solver, case enumeration, or review) is the application's choice.
 
-What a specification is, its sections, requirement text, and requirement IDs are in
-`documentation.md`; spec-first is in `standard.md` (Specifications); the tests that verify
-requirements are in `testing.md` (Requirement Coverage).
+Specification structure, requirement text criteria, and requirement IDs are governed by
+`documentation.md`; spec-first timing by `standard.md` (Specifications); test coverage of
+requirements by `testing.md` (Requirement Coverage).
 
 ## Scope
 
-- **Decisions a change adds or changes**: a change that adds a decision, or changes a decision's inputs, classes, or outcomes, meets this file for that decision.
-- **Every decision when written from the implementation**: a specification written from an existing implementation meets this file for every decision of the application.
-- **Other decisions wait**: a decision that existed before this file applied to its application, and that no change has added or changed since, is outside this file until its specification is written from the implementation or a change adds or changes it.
-- **One criterion before and after the code**: the questions below are the same whether the specification is written before the implementation or from it. Only the sources an answer can come from differ (Where Answers Come From).
+- **Decisions added or modified by a change**: any change that introduces a decision or alters a decision's inputs, classes, or outcomes satisfies this file for that decision.
+- **Complete coverage when specifying from existing code**: when writing a specification from an existing implementation, satisfy this file for every decision in the application.
+- **Existing untouched decisions wait**: decisions predating adoption of this file that no change has touched remain outside scope until specified from code or modified by a change.
+- **Uniform criterion before and after code**: the questions below stay identical whether authoring specifications before implementation or reconstructing them from code; only the permitted answer sources differ (Where Answers Come From).
 
 ## Decisions
 
-- **A decision**: a point where an outcome observable from outside the application differs according to a value the application reads. Observable from outside means one of these only: what the application shows, what it returns or exits with, what it writes outside its own process (a file, a database, a message, another system), and whether it accepts, rejects, or carries out an operation.
-- **Not a decision**: a choice whose alternatives produce the same observable outcome (e.g., which of two algorithms computes the same total), and a value that never changes an observable outcome.
-- **One decision per outcome**: the conditions that together choose among the alternatives of one outcome (e.g., whether an order is accepted) are one decision, however many places in the code carry them.
-- **The inputs of a decision**: every value whose change can change the decision's outcome — e.g., input from a user or another system, configuration values, stored data, the time, and the outcome of another operation.
+- **Observable decision definition**: a point where an externally observable outcome varies based on any value the application reads. Externally observable means solely: what the application displays, what it returns or exits with, what it writes outside its process (e.g., a file, database, message, or external system), or whether it accepts, rejects, or performs an operation. Diagnostic log entries are not externally observable outcomes unless a requirement of the specification names them (`standard.md` Functional Core, Imperative Shell).
+- **Non-decisions**: internal choices whose alternatives yield identical observable outcomes (e.g., two equivalent calculation algorithms) and constant values that never alter an observable outcome are not decisions.
+- **One decision per outcome**: all conditions collectively selecting among the alternatives of one observable outcome (e.g., whether an order is accepted) form one decision regardless of how many code locations evaluate them.
+- **Decision inputs**: every value whose variation can change the decision's outcome — e.g., user or external system inputs, configuration values, stored state, current time, and outcomes of other operations.
 
 ## Questions
 
-For each decision in scope, the specification answers every question below whose
-condition holds for that decision.
+For each decision in scope, the specification answers every question below whose condition
+holds for that decision.
 
-- **Answered by requirements**: a question is answered by requirements of the specification (`documentation.md`, Requirement IDs) that state what the question asks. The section of the specification they sit in does not matter.
-- **Answered or recorded**: when the specification is written from an existing implementation, a question is also settled by an entry in one of the application's ledgers (Ledgers). A specification meets this file for a decision when every question that applies to it is answered or recorded.
-- **Classes are conditions**: an answer states the outcome for a class of values by a condition over the values (e.g., "a quantity from 1 to 999"), never by example values alone. Concrete input → output pairs belong in test code (`documentation.md`, Document responsibilities); the class statement stays in the specification.
-- **Each heading ID names a question**: the ID before each question heading (OUTCOMES, SETTINGS, ...) is how a ledger entry or a review names the question.
+- **Answered by requirements**: a question is answered when specification requirements (`documentation.md` Requirement IDs) state what the question asks, regardless of which specification section holds them.
+- **Answered or recorded**: when documenting an existing implementation, a question is also accounted for by an entry in an application behavior ledger (Ledgers). The entry does not answer the question: it keeps the question open (unconfirmed) or the code deferred (violation) until an answer source (Where Answers Come From) settles it.
+- **Classes state conditions, not examples**: specify outcome classes via value conditions (e.g., "quantity from 1 to 999"), never by sample values alone; concrete input → output pairs belong in test code (`documentation.md` Document Responsibilities).
+- **Heading IDs name questions**: the uppercase identifier before each question heading (`OUTCOMES`, `SETTINGS`, ...) is used in ledger entries and reviews to reference that question.
 
 ### Conditions and Settings
 
 #### OUTCOMES: Every value has one outcome
 
-An input no condition covers falls into whichever branch the code happens to reach, and a
-branch no input reaches goes unnoticed.
+Inputs falling outside enumerated cases reach arbitrary branches, and dead branches go unnoticed.
 
 - **Applies to**: every decision.
-- **Classes cover every value**: the specification names the decision's inputs and divides the values of each into classes that together cover every value the input can carry where it enters the application — invalid values as well as valid ones, and missing, empty, zero, and negative values wherever the input can carry them. A source that was read but holds no value for the input (an empty field, an absent key) is a class here, not under UNAVAILABLE.
-- **One outcome per class**: each class, and each combination of classes of different inputs, has exactly one outcome. A statement covering several combinations at once (e.g., "whatever the quantity") counts for all of them. Where two classes can hold the same value, the specification states which one decides.
-- **Boundaries are exact**: a class bounded by an ordered value (a number, a length, a date, a time) states the boundary value, whether the boundary belongs to the class, and its unit — for a date or a time, also the time zone it is read in.
-- **Order is an outcome**: an outcome that is a sequence (rows listed, records written, messages sent) states its order, or states that the order carries no meaning.
-- **Rules that limit the answer**, e.g.: `standard.md` External Input (invalid input is rejected, never repaired), Configuration Values.
+- **Complete input class partitioning**: name all decision inputs and partition each into classes covering every value the input can carry at entry — including invalid, missing, empty, zero, and negative values wherever possible. A successfully read source containing no value (e.g., an empty field or absent optional key) is classified here rather than under UNAVAILABLE.
+- **Deterministic outcome per combination**: every class and combination of input classes maps to exactly one outcome; where two classes overlap, explicitly state precedence. Broad rules ("regardless of X") satisfy multiple combinations at once.
+- **Exact ordered boundaries**: ordered boundaries (numbers, lengths, dates, times) state the boundary value, inclusivity/exclusivity, and unit — and for dates or times, the governing time zone or offset.
+- **Ordered outputs**: sequence outcomes (e.g., listed rows, exported records, emitted messages) state their sort order or explicitly state that order is unspecified.
+- **Constraints from other rules**: e.g., `standard.md` (External Input — Reject, never repair) and, when present, `configuration.md` (Configuration Values — Validate once on read).
 
 #### SETTINGS: Settings that empty or override each other
 
-A combination of settings can leave an option that matches nothing, or a setting that a
-stronger one has already decided, and neither shows until someone asks why the setting
-does nothing.
+Combined settings can cancel every option out or leave one setting silently overridden by another.
 
-- **Applies when**: the decision reads two or more settings — values set in advance by an operator or a user to select what the decision does (e.g., configuration values, filters, rules, schedules, limits).
-- **Combinations that match nothing**: for each combination of settings under which no value of the other inputs can reach one of the decision's outcomes (e.g., an item both included and excluded, a range whose start is after its end), the specification states whether the combination is rejected when the settings are set, or accepted with the outcome the specification states for it.
-- **Settings that override**: for each pair of settings where a value of one leaves the other without effect (e.g., "new customers only" set together with "first purchase only"), the specification states which setting decides.
-- **Rules that limit the answer**, e.g.: `standard.md` Configuration Values (Validate on read).
+- **Applies when**: the decision evaluates two or more pre-configured settings (e.g., configuration values, filter criteria, schedules, limits).
+- **Empty-intersection combinations**: for any combination of settings under which no input can reach an outcome (e.g., an entity both included and excluded, or start after end), state whether the combination is rejected on configuration entry or accepted with a defined outcome.
+- **Setting precedence**: for every pair of settings where one value renders another ineffective, state which setting wins.
+- **Constraints from other rules**: e.g., when present, `configuration.md` (Configuration Values — Validate once on read).
 
 #### FORMATS: Values in an earlier representation
 
-Settings, stored values, and messages outlive the version that wrote them; read with
-today's rules, an old value can mean something else without anything failing.
+Persisted data, settings, and messages often outlive the version that wrote them; reading legacy formats under current assumptions changes meaning silently.
 
-- **Applies when**: an input of the decision can arrive in a representation other than the one the application writes now (e.g., a settings file from an earlier version, rows stored before a format change, a file an older version of another system produces).
-- **Every earlier value has a reading**: the specification states, for each earlier representation, the value in the current representation each earlier value is read as, so that both give the same outcome — or that the earlier value is rejected, and what the application does then.
-- **Rules that limit the answer**, e.g.: `db.md` MEANING.
+- **Applies when**: an input can arrive in a format or schema representation older than the current writer produces (e.g., legacy config files, rows written before a schema change, older partner payloads).
+- **Explicit mapping or rejection**: state, for every supported earlier representation, how each legacy value maps to current values to produce equivalent semantics — or state that the earlier representation is rejected and define the rejection behavior.
+- **Constraints from other rules**: e.g., when `db.md` applies, `db.md` (Schema Changes and Migrations — Convert existing rows on semantic change).
 
 ### Concurrency and Time
 
 #### SHARED: State that other operations change at the same time
 
-A check and the write it guards are separate steps; operations that run between them all
-pass the check against a value that is no longer true, and a limit enforced that way is
-exceeded without any operation failing.
+Separating a check from its write allows concurrent operations to both pass the check against stale state and violate limits without error.
 
-- **Applies when**: the decision reads state that it or its operation also changes, or that it is meant to keep within a limit (e.g., a stock count, a balance, a quota, a uniqueness requirement) — whether the application keeps that state or another system does — and another operation can change that state, or be decided against it, before the first operation's effect is counted in it: another request, another user, another instance of the application, or another process using the same store.
-- **Excluded only by statement**: the question does not apply when the specification states that no other operation changes the state at the same time; that statement is itself an answer with a source (Where Answers Come From).
-- **The invariant is named**: the specification states the condition the state always satisfies, under a name (e.g., "STOCK: the stock of an item is never below zero").
-- **Simultaneous operations**: the specification states the outcome when operations act on the same state at the same time — which one proceeds and what each other one gets (e.g., rejected with a message) — and the invariant holds in that outcome.
-- **Admitted means counted**: every operation the decision admits counts toward the state, where the state is kept, from the moment it is admitted, so the next decision on the same state sees it — in the other system, when another system keeps the limit. An admission recorded later (e.g., queued and written in the background), or never recorded where the limit is kept, leaves a window in which the limit is exceeded.
-- **Rules that limit the answer**, e.g.: `standard.md` Writes That Hold Together (Concurrent updates), `db.md` CONSTRAINTS.
+- **Applies when**: the decision reads state that the operation modifies or bounds (e.g., inventory, balance, quota, uniqueness) — whether stored locally or in another system — and another request, user, process, or instance can alter or decide against that state before the first operation's effect is recorded.
+- **Excluded only by statement**: exempted only when the specification explicitly states that no concurrent operation modifies that state; that statement itself requires a valid answer source (Where Answers Come From).
+- **Named invariant**: state the invariant condition the shared state always satisfies under a clear name (e.g., `STOCK: item stock is never negative`).
+- **Concurrent conflict outcome**: specify which operation succeeds and what competing operations observe (e.g., rejected with conflict error) while preserving the named invariant.
+- **Admitted means counted**: every admitted operation is counted toward the constrained state where that state lives immediately upon admission, preventing subsequent decisions from overlooking queued or deferred updates.
+- **Constraints from other rules**: e.g., `standard.md` (Writes That Hold Together — Detect concurrent updates) and, when `db.md` applies, `db.md` (Database Constraints).
 
 #### STALE: Data older than the state it stands for
 
-A copy lags its source; a limit checked against the copy is broken by the lag alone, with
-no concurrency involved.
+Reading a lagging copy allows decisions to break invariants without concurrency.
 
-- **Applies when**: the decision reads a copy of state the application or another system keeps elsewhere (e.g., a replica, a cache, an exported file, a value another system sent earlier, a value the application read once and keeps, such as settings read at start).
-- **The age is stated**: the specification states how old the copy may be when the decision uses it — a maximum age, or that the decision reads the current state — and the outcome when the copy is older than that.
-- **Invariants hold at that age**: every invariant the specification names over the state (SHARED) holds when the decision uses a copy of the maximum age.
+- **Applies when**: the decision reads a copy of state owned elsewhere (e.g., read replica, cache, exported snapshot, cached startup settings, previously fetched partner response).
+- **Maximum staleness**: specify either that live authoritative state is required or the maximum tolerated age of the copy and the outcome when that age is exceeded.
+- **Invariants hold up to max age**: every named invariant (SHARED) remains satisfied when acting on copies up to the permitted maximum age.
 
 #### PARTIAL: Reading while another writes
 
-A reader that meets a write in progress, or one that stopped partway, sees a state that
-never existed as a whole.
+A reader intersecting an incomplete write sees fractured state that never validly existed.
 
-- **Applies when**: the decision writes state that a reader can read while the write is in progress or after the write stopped partway — another process, another system, another thread, or the application itself after a restart.
-- **Units are named**: the specification states which values form one unit — values valid only together.
-- **Whole or nothing**: a reader sees each unit either entirely as before the write or entirely as after it, never a part of each, including after the writer stops partway.
-- **Rules that limit the answer**, e.g.: `standard.md` Writes That Hold Together (Atomic units).
+- **Applies when**: the decision writes state readable concurrently or after an unexpected stop mid-write (e.g., by another process, thread, external system, or the application itself after restart).
+- **Named atomic units**: define which values together form one indivisible unit.
+- **All-or-nothing visibility**: readers observe each unit wholly before or wholly after the write — never half-written — including after mid-write interruption.
+- **Constraints from other rules**: e.g., `standard.md` (Writes That Hold Together — Atomic units).
 
 #### REPEAT: The same intent arriving more than once
 
-A retry after a timeout, a duplicate delivery, or a second press of a button applies the
-same intent twice unless something identifies it as the same.
+Retries, duplicate deliveries, and repeated submissions execute the same action twice unless identified as one intent.
 
-- **Applies when**: an operation that changes state can arrive or run more than once for one intent — a retry after a timeout or a failure, a duplicate delivery, a user submitting twice, a re-run after a stop partway.
-- **What identifies the intent**: the specification states what identifies the arrivals of one intent (e.g., an identifier the sender fixes before its first attempt and reuses on every retry). An identifier made anew for each attempt identifies nothing.
-- **Later arrivals change nothing**: every arrival after the first leaves the state as the first arrival left it and gets the outcome the first arrival got, so a sender that retries learns the result of its intent.
-- **A uniqueness rule is another decision**: a rule that refuses a second intent (e.g., one redemption per customer) does not refuse a later arrival of an intent it already admitted.
-- **Rules that limit the answer**, e.g.: `standard.md` Writes That Hold Together (Safe to re-run).
+- **Applies when**: a state-changing operation can be triggered repeatedly for the same intent (e.g., timeout retry, duplicate message delivery, double submission, crash re-run).
+- **Intent identity**: specify what identifies repeated arrivals as the same intent (e.g., a client-assigned idempotency key reused across retries; per-attempt IDs identify nothing).
+- **Idempotent replay**: subsequent arrivals for an already processed intent leave durable state unchanged and return the original outcome so senders observe the true result.
+- **Distinguish from business uniqueness**: a rule limiting distinct intents (e.g., one coupon per user) must not block re-deliveries of an already admitted intent.
+- **Constraints from other rules**: e.g., `standard.md` (Writes That Hold Together — Safe to re-run).
 
 #### LOOPS: Repetition that must end
 
-A retry or polling loop that ends only when another system answers, or when an outside
-deadline passes, runs forever when that system never answers and the deadline is not set.
+Retry or polling loops bounded only by an external response or optional caller deadline run forever when that peer hangs.
 
-- **Applies when**: the application repeats an action until a condition holds (e.g., a retry, polling, waiting for a resource, raising a value step by step).
-- **A bound the application counts**: the specification states a maximum number of repetitions or a maximum duration that the application itself measures, and the outcome when it is reached. A condition outside the application's control (another system's answer, a deadline a caller may set) is never the only bound.
+- **Applies when**: the application repeats an action until a condition holds (e.g., retries, polling, waiting on a resource, progressive backoff).
+- **Self-enforced bound**: specify a maximum iteration count or elapsed duration measured by the application itself and the outcome upon exhaustion; external conditions or optional caller timeouts are never the sole termination bound.
 
 #### PROPAGATION: Changes that must reach another place
 
-A change sent once, as an event, is lost when the application stops between committing
-it and sending it; nothing later notices that the target never received it.
+Fire-and-forget emission after a commit drops updates if the process stops between committing and sending.
 
-- **Applies when**: a change the application commits must afterwards appear somewhere else (e.g., another system, a copy, a derived value, a notification, a search index).
-- **A state, not an event**: the specification states the condition that relates the target to the source once the change has reached it (e.g., "every order recorded as shipped is in the carrier's list"), and by when that condition holds after the commit.
-- **Survives a stop**: the condition holds by that time even when the application stops at any point after the commit and starts again.
-- **Rules that limit the answer**, e.g.: `standard.md` Writes That Hold Together (Atomic units, Safe to re-run).
+- **Applies when**: a committed change must subsequently reach another destination (e.g., external system, derived index, replica, notification).
+- **State invariant and deadline**: express propagation as a target-to-source consistency condition (e.g., every shipped order appears in the carrier manifest) and state the maximum time after commit before it holds.
+- **Crash recovery**: guarantee the condition holds within that deadline even if the application stops at any instant after committing and later restarts.
+- **Constraints from other rules**: e.g., `standard.md` (Writes That Hold Together — Atomic units, Safe to re-run).
 
 ### Boundaries and Trust
 
 #### UNAVAILABLE: Inputs that cannot be obtained
 
-When a failure to obtain a value comes back as "false" or "no match", every negation and
-exclusion built on top turns the failure into a match; and two checks guarding the same
-operation, one blocking on failure and one allowing, make the operation's fate depend on
-which check fails.
+Treating read failures as "false" or "no match" flips behavior across negations and causes combined guards to disagree.
 
-- **Applies when**: obtaining an input can fail — reading its source fails (the source cannot be reached, does not exist, reports an error, or does not answer in time) or evaluating a condition on it raises an error — so that no value exists to classify. A value obtained but empty, malformed, or out of range is a class under OUTCOMES.
-- **A class of its own**: the specification states the outcome when the input cannot be obtained, as an outcome stated apart from the outcomes for obtained values, even where the two are the same.
-- **Stated after every combination**: the outcome is stated as seen from outside, after every negation, exclusion, and combination (any-of, all-of) the decision applies to the failed input.
-- **Checks guarding one operation agree**: where two or more decisions can each stop the same operation, the specification states the operation's outcome when any of their inputs cannot be obtained.
-- **Rules that limit the answer**, e.g.: `standard.md` Failure Reporting, Configuration Values (Required values fail fast).
+- **Applies when**: obtaining an input or evaluating a predicate on it can fail (e.g., unreachable source, missing resource, error response, timeout) so no value exists to classify. Successfully obtained empty or malformed values fall under OUTCOMES instead.
+- **Explicit failure class**: specify the outcome when an input is unavailable separately from outcomes for obtained values, even when both lead to the same visible action.
+- **Post-combination visibility**: state the externally visible outcome after all boolean combinations (negation, any-of, all-of) over the failed input.
+- **Consistent multi-guard outcome**: when multiple checks can halt the same operation, specify the combined outcome when any check's input becomes unavailable.
+- **Constraints from other rules**: e.g., `standard.md` (Failure Handling and Reporting) and, when present, `configuration.md` (Configuration Values — Installation settings fail fast at startup).
 
 #### EMPTY: Empty sets
 
-An all-of over no conditions is true and an any-of over none is false, so a rule with no
-conditions matches everything in one place and nothing in another.
+Vacuous truth turns empty universal conditions into "match everything" and empty existential conditions into "match nothing".
 
-- **Applies when**: the decision ranges over a set that can be empty — a set of conditions (e.g., a rule with no conditions, an empty filter, an empty allow or deny list) or a set of items (e.g., an input with no rows, a search with no results).
-- **Stated, not inferred**: the specification states the outcome for the empty set explicitly, as seen from outside, never leaving it to follow from the operator used to combine the members.
+- **Applies when**: a decision operates over a set that can be empty (e.g., zero rules/filters, empty allow/deny list, empty search result, zero rows).
+- **Explicit empty outcome**: state the externally observable outcome for an empty set explicitly, never leaving it to emerge implicitly from logical quantifiers or loop defaults.
 
 #### ORIGIN: Who can set each input
 
-An identity, a permission, or a price taken from a value the requester controls (a query
-parameter, a header, a field a client fills, a file the user can edit) is whatever the
-requester chooses, and a check that runs only in a program the requester controls is
-skipped by calling past it.
+Trusting caller-controlled fields or client-only checks lets callers forge identities, roles, prices, or limits.
 
 - **Applies to**: every input of every decision.
-- **The origin is stated**: the specification states where each input comes from and who can set it.
-- **Protected effects name their check**: an input that someone outside the application can set has an effect the specification does not let that party choose (e.g., who the requester is, what they may do, a price, a limit) only through a check the specification states — what verifies the input, and that the check runs where the input enters the application. A check in a program that party controls (e.g., a client, a browser page) does not count.
-- **Rules that limit the answer**, e.g.: `standard.md` External Input (Validate at the boundary), Values Never Become Code.
+- **Declared origin**: state the source of each input and which actor can modify it.
+- **Trusted verification of protected effects**: an untrusted input may determine protected attributes (e.g., caller identity, permissions, pricing, limits) only after an explicit server-side or trusted-boundary check; checks running inside caller-controlled environments (e.g., browsers, client apps) do not qualify.
+- **Constraints from other rules**: e.g., `standard.md` (External Input — Validate at the boundary; Values Never Become Code).
 
 #### REPRESENTATION: Values crossing a boundary
 
-Two systems that disagree on a unit, a precision, a time zone, or the meaning of a code
-exchange values that convert without error and mean something else.
+Mismatched units, precision, time zones, encodings, or code meanings silently corrupt data across boundaries without raising parse errors.
 
-- **Applies when**: the decision reads or writes a value exchanged with another system, or stored where another system or another version reads it (e.g., a file, a database, an API, a message).
-- **Both sides are stated**: the specification states the value's representation as each side holds it — unit, precision, time zone or offset, character encoding, the meaning of each code value, and range, each where it applies.
-- **Values one side cannot hold**: the specification states the outcome for a value one side can hold and the other cannot represent (e.g., too large, more precise, an unknown code).
-- **Rules that limit the answer**, e.g.: `standard.md` Stored Time, External Input (Canonicalize, then validate).
+- **Applies when**: the decision exchanges or persists values across an external or version boundary (e.g., files, databases, APIs, messages).
+- **Both sides specified**: state unit, precision, time zone or UTC offset, character encoding, code-value definitions, and numeric range on both sides of the boundary where applicable.
+- **Out-of-capacity handling**: specify what happens when a value valid on one side exceeds precision, range, or defined codes on the other.
+- **Constraints from other rules**: e.g., `standard.md` (External Input — Canonicalize, then validate) and, when present, `values.md` (Time and Dates; Machine-Readable Formatting; Text Length and Equivalence).
 
 ## Where Answers Come From
 
-Each answer has one of three sources. An answer the writer of the specification picked
-because nothing ruled it out is a decision nobody made.
+Every answer originates from one of three sources; an unstated answer invented silently by an implementer is an unmade decision.
 
-- **A rule**: the rule files under `docs/rules/`, this file included. Where they admit exactly one answer to a question, that answer is the specification's. Where they admit several, the user chooses among them.
-- **The user**: the person who decides what the application must do — through the request that started the change, an answer to a question, or a statement already in the specification.
-- **The code**: when the specification is written from an existing implementation, what the code does — including what its comments, tests, and guards declare — is a candidate answer, never an answer on its own (Classifying an Implementation's Behavior).
-- **Unanswered questions go to the user**: a question that applies and that no rule and no user answers is asked of the user. Before the implementation exists, the decision is not implemented until the user answers.
+- **Shared, stack, and application rules**: files under `docs/rules/`. Where rules leave only one compliant answer, that answer enters the specification; where rules permit multiple options, the user chooses.
+- **The user**: the decision maker defining what the application must do — expressed via the triggering request, explicit answers to questions, or existing specification requirements.
+- **Existing code (candidate only)**: when reconstructing specifications from existing code, what the code currently does (including its comments, tests, and guards) is strictly a candidate answer until classified below — never authoritative on its own.
+- **Ask unanswered questions**: ask the user whenever an applicable question is unanswered by rules or existing user decisions; before implementation exists, never write code before obtaining that answer.
 
 ## Classifying an Implementation's Behavior
 
-Applies when the specification is written from an existing implementation, to every
-question that applies to every decision. The code's answer — what the code does in the
-case the question asks about — belongs to the first of these classes that holds (only
-these three):
+Applies when deriving specifications from existing code across every applicable question of every decision. Classify each code answer strictly into the first matching category (only these three exist):
 
-1. **Violation**: a rule prohibits the code's answer, or the code's answer contradicts a statement already in the specification or an answer the user gave.
-2. **Specified**: a rule admits only the code's answer, or the user confirms it.
-3. **Unconfirmed**: every other code answer, including one that reading the code cannot settle.
+1. **Violation**: code behavior breaks a rule under `docs/rules/`, contradicts an existing specification requirement, or conflicts with a user answer.
+2. **Specified**: rules permit only the code's behavior, or the user explicitly confirms it.
+3. **Unconfirmed**: all other observed code behaviors, including ambiguity reading the code alone cannot resolve.
 
-A comment, a test, or a guard that declares the code's answer does not move it out of
-Unconfirmed: it shows what a developer wrote, not what the user decided.
+Comments, tests, or guards inside the code never elevate an answer out of Unconfirmed: they show developer intent rather than user decision.
 
 ## Handling Each Class
 
-- **Specified answers are requirements**: a specified answer is stated in the specification as a requirement, and brings what `testing.md` requires for a requirement.
-- **A violation is fixed or deferred by the user**: for each violation, the user decides to fix it now or to defer it. Never fix a violation without the user's decision.
-- **A fixed violation**: the specification states, as a requirement, the answer the rule requires — or the user's answer, where the rules admit several — and the code changes to that answer in the same change.
-- **A deferred violation**: recorded in the violation ledger, with the answer the fix will implement — or, where the rules admit several and the user has not chosen, the answers they admit. The code keeps its behavior, and the specification never states that behavior as a requirement.
-- **A contradicted statement**: where a violation contradicts a statement already in the specification, the user may also replace the statement with the code's answer, which makes the code's answer specified. Deferred instead, the statement moves from the specification into the violation ledger as the answer the fix will implement, because a specification stating behavior the code does not have fails every later AUDIT of the application.
-- **An unconfirmed answer is asked**: the user is asked to confirm it. Confirmed, it is specified. Answered otherwise, the code's answer contradicts the user's answer and is a violation.
-- **An unanswered question is recorded**: until the user answers, the unconfirmed answer is recorded in the unconfirmed ledger. The code keeps its behavior, and the specification does not state it.
-- **Recorded behavior changes only with its entry resolved**: a change that alters a behavior recorded in either ledger resolves the entry in the same change — an unconfirmed entry through the user's answer, a violation through its fix.
+- **Specified → requirement**: state specified answers as specification requirements (`documentation.md` Requirement IDs) with matching test coverage (`testing.md`).
+- **Violation → user decides fix or defer**: never fix a violation unilaterally without user approval.
+- **Fixed violation**: update the specification to state the compliant rule/user answer as a requirement and fix the code in the same change.
+- **Deferred violation**: record it in the violation ledger with the target compliant behavior (or permissible rule choices if undecided); keep current code unchanged and never state violating behavior as a specification requirement.
+- **Contradicted existing requirement**: when code conflicts with an existing spec statement, the user may update the spec to match code (making it Specified); if deferred instead, move that requirement out of the specification into the violation ledger so the specification never makes false claims about current code.
+- **Unconfirmed → ask user**: present to the user; if confirmed, promote to Specified; if rejected in favor of another behavior, classify the current code as a Violation.
+- **Unanswered → record in unconfirmed ledger**: until the user responds, leave code unchanged, keep it out of the specification, and record it in the unconfirmed ledger.
+- **Resolving ledger entries**: any change altering behavior recorded in either ledger resolves that ledger entry in the same change (via user answer for Unconfirmed, or code fix for Violation).
 
 ## Ledgers
 
-The ledgers hold behavior the implementation has and the specification deliberately does
-not state. They are facts about the implementation, so they sit beside the specification,
-not inside it: a specification states behavior the application must exhibit
-(`documentation.md`, Document responsibilities).
+Ledgers record actual implementation behaviors deliberately excluded from the specification; as implementation facts rather than desired behavior, they reside under `docs/references/` beside the specification (`documentation.md` Document Responsibilities).
 
-- **Paths**: an application's unconfirmed ledger is `docs/references/<App>/unconfirmed-behavior.md` and its violation ledger is `docs/references/<App>/violating-behavior.md`, `<App>` being the identifier in the `AGENTS.md` Applications table. A repository that holds a single-file `docs/references/<App>.md` moves it into `docs/references/<App>/` (`documentation.md`, Application scope).
-- **Read with the specification**: whenever an application's specification is read — before a change to the application and in AUDIT step 1 (`standard.md`) — its ledgers are read as well.
-- **One entry per decision and question**: each entry names the decision, the question by its heading ID, the code's answer, the code that produces it (file and symbol), and whether a comment, a test, or a guard declares it.
-- **An unconfirmed entry also states**: the question put to the user, and the answers the rules allow.
-- **A violation entry also states**: the rule or the statement the code's answer breaks, and the answer the fix will implement (or the answers the rules admit, where the user has not chosen).
-- **Resolved entries leave**: the change that resolves an entry removes it, and a ledger left without entries is deleted.
+- **Ledger paths**: for application identifier `<App>` (from `AGENTS.md` Applications), place the unconfirmed ledger at `docs/references/<App>/unconfirmed-behavior.md` and the violation ledger at `docs/references/<App>/violating-behavior.md`. Migrate any pre-existing single-file `docs/references/<App>.md` into `docs/references/<App>/` (`documentation.md` Application Scope).
+- **Read alongside specification**: read both ledgers whenever reading `<App>`'s specification (before changes and in AUDIT step 1 of `standard.md`).
+- **Entry structure**: record one entry per `(decision, question ID)` naming the decision, question heading ID, observed code behavior, code location (file and symbol), and whether comments, tests, or guards assert it.
+- **Additional unconfirmed fields**: include the exact question for the user and the options rules allow.
+- **Additional violation fields**: cite the violated rule or spec requirement and the target compliant fix (or allowed rule options).
+- **Retire when resolved**: remove resolved entries in the resolving change, and delete any ledger file left empty.

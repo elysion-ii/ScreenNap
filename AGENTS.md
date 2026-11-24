@@ -28,12 +28,12 @@ Rule bodies live under `docs/rules/`. Edit this file, never `CLAUDE.md`.
 
 Rules in `docs/rules/` are organized into three tiers:
 - **Application rules**: `docs/rules/ScreenNap.md` (this repository's own rules and overrides)
-- **Stack rules**: `docs/rules/dotnet.md` (.NET stack rules, managed by dev-standards)
-- **Core rules**: Shared engineering standards (`standard.md`, `documentation.md`, `git.md`, `specs.md`, `testing.md`, and the conditional core files `cli.md` and `db.md`; managed by dev-standards)
+- **Stack rules**: the .NET stack rule files under `docs/rules/` (managed by dev-standards)
+- **Shared rules**: `standard.md`, `documentation.md`, `specs.md`, and `testing.md`, plus the conditional shared rule files under `docs/rules/` (managed by dev-standards)
 
-**Precedence on conflict**: Application rules > Stack rules > Core rules.
+**Precedence on conflict**: Application rules > Stack rules > Shared rules.
 
-- **Rule Scope**: which rule files and specification every change complies with, and when `cli.md` and `db.md` apply, is stated in `docs/rules/standard.md` (How to use these rules). The specification of ScreenNap is `docs/specs/ScreenNap.md`.
+- **Rule Scope**: which rule files and specification every change complies with, and when a conditional rule file applies, is stated in `docs/rules/standard.md` (How to Use These Rules). The specification of ScreenNap is `docs/specs/ScreenNap.md`.
 - **Loading Rules**: Read this file and every file under `docs/rules/` before writing code (including when transitioning from a plan to implementation).
 - **Completion Gate (AUDIT)**: Before reporting an implementation task as complete, pass the AUDIT gate in `docs/rules/standard.md`.
 - **File Ownership**: rule files under `docs/rules/` managed by dev-standards are copies of its pinned tag; repository- and application-specific rules are maintained in `docs/rules/ScreenNap.md`.
@@ -125,7 +125,7 @@ All non-source documents live in role-based subfolders. Before creating, changin
 moving, renaming, archiving, or deleting a document, read
 `docs/rules/documentation.md` first. It defines placement, naming, and front matter.
 
-- `docs/rules/` contains `standard.md`, `documentation.md`, `git.md`, `specs.md`, `testing.md`, `cli.md`, `db.md`, and `dotnet.md` managed by dev-standards, plus `ScreenNap.md` (application rules)
+- `docs/rules/` contains the rule files managed by dev-standards, plus `ScreenNap.md` (application rules)
 - `docs/specs/ScreenNap.md` defines ScreenNap behavior
 - `docs/adr/` contains active Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
 - `docs/guides/release.md` is the version bump → assets → tag → GitHub Release procedure

@@ -38,8 +38,10 @@ gone — only the current version stays published.
 
 Run `git switch main` and `git pull`, then `git switch -c {branch}`. `main` is
 protected, so the version commit is made on a branch and reaches `main` only through a
-pull request; `docs/rules/git.md` governs the branch name. When the version bump travels
-with the change being released, that change's own branch is the one.
+pull request. `{branch}` is a kebab-case name that states the change, such as
+`release-v{version}`, so the branch list shows what each branch carries. When the
+version bump travels with the change being released, that change's own branch is the
+one.
 
 Confirmation: `git status --porcelain` prints nothing, and `git branch --show-current`
 prints `{branch}`.
@@ -74,9 +76,16 @@ Confirmation: `git show --stat HEAD` lists both files in the same commit.
 
 ### 5. Merge the branch into `main`
 
-Push the branch, open a pull request, and merge it by the Merge Procedure in
-`docs/rules/git.md` — squash merge with an explicit subject and body, then delete the
-branch on both the remote and the local clone. Return to `main` and run `git pull`.
+Push the branch and open a pull request. Before merging, confirm with
+`gh pr view {number}` that the pull request holds the intended commits, its checks
+pass, and it has no merge conflict; stop on a failing check. Merge it as one squash
+commit whose message is written explicitly, because the default message copies the
+pull request title and co-author lines into `main`'s history:
+`gh pr merge {number} --squash --subject "{subject}" --body "{body}" --delete-branch`,
+where `{subject}` states in English what the change does and `{body}` summarizes what
+changed and why (`--body ""` when the subject says everything). `--delete-branch`
+deletes the branch on both the remote and the local clone. Return to `main` and run
+`git pull`, then `git fetch --prune`.
 
 Confirmation: `gh pr view {number} --json state` reports `MERGED`,
 `git branch --show-current` prints `main`, and `git log --oneline -1` shows the squash

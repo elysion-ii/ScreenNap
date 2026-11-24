@@ -1,10 +1,14 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using ScreenNap.App;
 using ScreenNap.Blackout;
+using ScreenNap.Hotkeys;
+using ScreenNap.Identify;
 using ScreenNap.Logging;
+using ScreenNap.Monitors;
 using ScreenNap.Native;
 using ScreenNap.Resources;
+using ScreenNap.Tray;
+using ScreenNap.Versioning;
 
 namespace ScreenNap;
 

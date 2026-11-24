@@ -17,20 +17,24 @@ directory. On conflict, this file wins.
 
 - ScreenNap must use raw Win32 API through P/Invoke; do not introduce WinForms, WPF, WinUI, or another UI framework
 - Runtime functionality must use the .NET BCL and Win32 APIs without external NuGet runtime packages; centrally managed build-time analyzers with `PrivateAssets="all"` are permitted
-- Dependencies must follow these directions:
+- **Feature folders**: the source of `ScreenNap/` is grouped by feature, as `standard.md` Code Organization requires. The feature folders are `Tray/` (the tray icon, its tooltip, and the context menu), `Blackout/` (blackout windows and their restoration after a display change), `Hotkeys/` (the global hotkeys), and `Identify/` (the monitor-identification overlays). A type that one feature uses lives in that feature's folder
+- **Shared homes**: a type that two or more features use lives in a shared home, never in a feature folder. The shared homes are `Monitors/` (monitor enumeration, names, and identity), `Notifications/` (how a failure reaches the user, and its wording), `Versioning/` (the product version), `Logging/`, `Native/` (P/Invoke declarations, Win32 constants, and native structures), and `Resources/` (localized strings and icons). A type moves from a feature folder to a shared home in the change that gives it a second feature
+- **Dependency directions**: references between folders follow only these directions, so no feature depends on a feature that depends on it, and a shared home never depends on a feature:
 
 ```text
-Program.cs → App/, Blackout/, Logging/, Native/, Resources/
-App/ → Core/, Logging/, Native/, Resources/
-Blackout/ → Core/, Logging/, Native/
-Core/ → Native/, Resources/
-Logging/ → BCL only
-Native/ → no project dependencies
+Program.cs     → every folder
+Tray/          → Blackout/, Monitors/, Notifications/, Versioning/, Logging/, Native/, Resources/
+Hotkeys/       → Blackout/, Identify/, Monitors/, Notifications/, Logging/, Native/
+Identify/      → Monitors/, Notifications/, Logging/, Native/
+Blackout/      → Monitors/, Notifications/, Logging/, Native/
+Monitors/      → Logging/, Native/
+Notifications/ → Resources/
+Versioning/    → BCL only
+Logging/       → BCL only
+Resources/     → BCL only
+Native/        → no project dependencies
 ```
 
-- `Native/` must not reference another project layer
-- `Blackout/` must not reference `App/`
-- `Core/` must not reference `App/`, `Blackout/`, or `Logging/`, and it must not call P/Invoke or I/O methods
 - The named mutex in `Program.cs` is the only permitted single-instance mechanism
 
 ## Win32 and P/Invoke

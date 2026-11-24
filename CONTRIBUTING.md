@@ -19,7 +19,7 @@ dotnet build ScreenNap/ScreenNap.csproj -c Release
 ## Architecture Constraints
 
 ScreenNap's architecture constraints (raw Win32 only, no runtime NuGet packages, the
-layer dependency directions) are stated in `docs/rules/ScreenNap.md`. Read
+feature folders and their dependency directions) are stated in `docs/rules/ScreenNap.md`. Read
 `AGENTS.md` first: it explains how the rule files under `docs/rules/` are organized and
 which of them apply, and it lists the commands that verify a change.
 

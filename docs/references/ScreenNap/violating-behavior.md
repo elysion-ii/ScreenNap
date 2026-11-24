@@ -20,7 +20,7 @@ holds no entry.
 - **Code's answer**: the item reads `ScreenNap unknown`, and ScreenNap otherwise runs
   normally
 - **Code**: `AppVersion.Normalize` and `AppVersion.Current` in
-  `ScreenNap/App/AppVersion.cs`
+  `ScreenNap/Versioning/AppVersion.cs`
 - **Declared by**: a test — `AppVersionTests.Normalize_AnyInformationalVersion_ReturnsVersionWithoutMetadata`
   pins the `unknown` rows. The specification stated it as VER-3 until that requirement
   moved here

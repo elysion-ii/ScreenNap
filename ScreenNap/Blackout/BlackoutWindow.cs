@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
-using ScreenNap.Core;
 using ScreenNap.Logging;
+using ScreenNap.Monitors;
 using ScreenNap.Native;
 
 namespace ScreenNap.Blackout;

@@ -61,16 +61,15 @@ Feature folders and shared mechanism homes in ScreenNap are listed in `docs/refe
 The main application project contains the source code.
 
 - `Program.cs` contains the application entry point, named mutex, and Win32 message loop
-- `Native/` contains P/Invoke declarations, Win32 constants, native structures, and the window-class registration helper
-- `Core/` contains shared contracts, domain types, and pure decision logic
-- `App/` contains application orchestration, including the tray icon, context menu, monitor enumeration, blackout lifecycle, global hotkeys, and monitor identification
-- `Blackout/` contains the blackout-window implementation
-- `Logging/` contains best-effort file logging and retention
-- `Resources/` contains localized string resources and icon assets
+- The feature folders are `Tray/` (tray icon, tooltip, context menu), `Blackout/` (blackout windows and their restoration after display changes), `Hotkeys/` (global hotkeys), and `Identify/` (monitor-identification overlays)
+- The shared homes are `Monitors/` (monitor enumeration and identity), `Notifications/` (failure notification and its wording), `Versioning/` (product version), `Logging/` (best-effort file logging and retention), `Native/` (P/Invoke declarations, Win32 constants, native structures, and the window-class registration helper), and `Resources/` (localized string resources and icon assets)
+- What belongs in each folder and the permitted dependency directions are in `docs/rules/ScreenNap.md` (Architecture)
 
 ### `ScreenNap.Tests/`
 
-The xUnit unit-test project runs as a gate in `Build.ps1` before publishing.
+The xUnit unit-test project runs as a gate in `Build.ps1` before publishing. Its folders
+mirror those of `ScreenNap/`; `TestDoubles/` holds the test doubles several features'
+tests use.
 
 ### `ScreenNap.E2ETests/`
 

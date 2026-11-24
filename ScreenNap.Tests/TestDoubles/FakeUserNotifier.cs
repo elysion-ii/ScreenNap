@@ -1,4 +1,4 @@
-using ScreenNap.Core;
+using ScreenNap.Notifications;
 
 namespace ScreenNap.Tests.TestDoubles;
 

@@ -1,4 +1,4 @@
-using ScreenNap.Core;
+using ScreenNap.Monitors;
 
 namespace ScreenNap.Blackout;
 

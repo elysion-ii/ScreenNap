@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using ScreenNap.App;
 using ScreenNap.Blackout;
@@ -28,13 +29,16 @@ internal static class Program
     {
         Logger.Initialize();
 
+        // The Windows UI language selects the localized text and stays fixed for the process
+        CultureInfo culture = CultureInfo.CurrentUICulture;
+
         using var mutex = new Mutex(true, MutexName, out bool createdNew);
         if (!createdNew)
         {
             int messageResult = User32.MessageBoxW(
                 IntPtr.Zero,
-                Strings.NotifyAlreadyRunning,
-                Strings.NotifyTitle,
+                Strings.NotifyAlreadyRunning(culture),
+                Strings.NotifyTitle(culture),
                 WindowStyles.MB_OK | WindowStyles.MB_ICONINFORMATION);
             if (messageResult == 0)
                 Logger.Error("MessageBoxW failed for the single-instance notification");
@@ -47,14 +51,14 @@ internal static class Program
         if (hInstance == IntPtr.Zero)
         {
             Logger.Error("GetModuleHandleW failed", Marshal.GetLastWin32Error());
-            ShowError(Strings.NotifyStartFailed);
+            ShowError(Strings.NotifyStartFailed(culture), culture);
             return;
         }
 
         if (!s_messageWindowClass.Register(hInstance, IntPtr.Zero, IntPtr.Zero))
         {
             Logger.Error("RegisterClassExW failed for message window", Marshal.GetLastWin32Error());
-            ShowError(Strings.NotifyStartFailed);
+            ShowError(Strings.NotifyStartFailed(culture), culture);
             return;
         }
 
@@ -68,16 +72,16 @@ internal static class Program
             Logger.Error("CreateWindowExW failed for message window", Marshal.GetLastWin32Error());
             if (!s_messageWindowClass.Unregister(hInstance))
                 Logger.Warn("UnregisterClassW failed after message window creation failure", Marshal.GetLastWin32Error());
-            ShowError(Strings.NotifyStartFailed);
+            ShowError(Strings.NotifyStartFailed(culture), culture);
             return;
         }
 
-        s_trayIcon = new TrayIcon(s_messageWindow);
-        s_blackoutManager = new BlackoutManager(new BlackoutWindowFactory(), s_trayIcon);
-        s_contextMenu = new ContextMenu(s_blackoutManager);
+        s_trayIcon = new TrayIcon(s_messageWindow, culture);
+        s_blackoutManager = new BlackoutManager(new BlackoutWindowFactory(), s_trayIcon, culture);
+        s_contextMenu = new ContextMenu(s_blackoutManager, culture);
         var identifyOverlays = new IdentifyOverlay();
-        var monitorIdentifier = new MonitorIdentifier(identifyOverlays, s_trayIcon, MonitorEnumerator.EnumerateMonitors);
-        s_hotkeyManager = new HotkeyManager(s_blackoutManager, monitorIdentifier, s_trayIcon);
+        var monitorIdentifier = new MonitorIdentifier(identifyOverlays, s_trayIcon, MonitorEnumerator.EnumerateMonitors, culture);
+        s_hotkeyManager = new HotkeyManager(s_blackoutManager, monitorIdentifier, s_trayIcon, culture);
 
         s_blackoutManager.ActiveCountChanged += () =>
         {
@@ -96,7 +100,7 @@ internal static class Program
         }
         else
         {
-            ShowError(Strings.NotifyTrayFailed);
+            ShowError(Strings.NotifyTrayFailed(culture), culture);
         }
 
         Logger.Info("Application exiting");
@@ -112,12 +116,12 @@ internal static class Program
             Logger.Warn("UnregisterClassW failed for message window", Marshal.GetLastWin32Error());
     }
 
-    private static void ShowError(string message)
+    private static void ShowError(string message, CultureInfo culture)
     {
         int result = User32.MessageBoxW(
             IntPtr.Zero,
             message,
-            Strings.NotifyTitle,
+            Strings.NotifyTitle(culture),
             WindowStyles.MB_OK | WindowStyles.MB_ICONERROR);
         if (result == 0)
             Logger.Error("MessageBoxW failed for a startup failure notification");

@@ -1,3 +1,4 @@
+using System.Globalization;
 using ScreenNap.Core;
 
 namespace ScreenNap.App;
@@ -7,12 +8,14 @@ internal sealed class MonitorIdentifier
     private readonly IIdentifyOverlays _overlays;
     private readonly IUserNotifier _notifier;
     private readonly Func<IReadOnlyList<MonitorInfo>> _enumerateMonitors;
+    private readonly CultureInfo _culture;
 
-    internal MonitorIdentifier(IIdentifyOverlays overlays, IUserNotifier notifier, Func<IReadOnlyList<MonitorInfo>> enumerateMonitors)
+    internal MonitorIdentifier(IIdentifyOverlays overlays, IUserNotifier notifier, Func<IReadOnlyList<MonitorInfo>> enumerateMonitors, CultureInfo culture)
     {
         _overlays = overlays;
         _notifier = notifier;
         _enumerateMonitors = enumerateMonitors;
+        _culture = culture;
     }
 
     internal void Toggle()
@@ -34,6 +37,6 @@ internal sealed class MonitorIdentifier
         }
 
         if (failedNumbers.Count > 0)
-            _notifier.Notify(FailureNotices.OverlaysNotCreated(failedNumbers));
+            _notifier.Notify(FailureNotices.OverlaysNotCreated(failedNumbers, _culture));
     }
 }

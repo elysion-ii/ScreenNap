@@ -3,8 +3,6 @@ using System.Runtime.InteropServices;
 
 namespace ScreenNap.E2ETests.Infrastructure;
 
-internal sealed record MenuEntry(uint Id, string Text, bool IsSeparator, bool IsChecked, bool IsDisabled);
-
 internal sealed class ScreenNapApp : IDisposable
 {
     internal const uint ExitCommand = 9999;

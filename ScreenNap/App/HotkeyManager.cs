@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using ScreenNap.Core;
 using ScreenNap.Logging;
@@ -12,13 +13,15 @@ internal sealed class HotkeyManager
     private readonly BlackoutManager _manager;
     private readonly MonitorIdentifier _identifier;
     private readonly IUserNotifier _notifier;
+    private readonly CultureInfo _culture;
     private readonly List<int> _registeredIds = [];
 
-    internal HotkeyManager(BlackoutManager manager, MonitorIdentifier identifier, IUserNotifier notifier)
+    internal HotkeyManager(BlackoutManager manager, MonitorIdentifier identifier, IUserNotifier notifier, CultureInfo culture)
     {
         _manager = manager;
         _identifier = identifier;
         _notifier = notifier;
+        _culture = culture;
     }
 
     internal void Register(IntPtr hwnd)
@@ -34,7 +37,7 @@ internal sealed class HotkeyManager
             unavailable.Add(HotkeyInterpreter.CombinationFor(HotkeyInterpreter.IdentifyDigit));
 
         if (unavailable.Count > 0)
-            _notifier.Notify(FailureNotices.HotkeysUnavailable(unavailable));
+            _notifier.Notify(FailureNotices.HotkeysUnavailable(unavailable, _culture));
     }
 
     internal void Unregister(IntPtr hwnd)

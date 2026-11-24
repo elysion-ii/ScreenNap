@@ -12,10 +12,11 @@ Feature folders and homes of cross-cutting mechanisms in ScreenNap (`docs/rules/
 | `ScreenNap/App/` | Application orchestration: the tray icon, the context menu, the blackout lifecycle, global hotkeys, monitor identification, and display-change handling |
 | `ScreenNap/Blackout/` | The blackout window |
 | `ScreenNap/Core/` | Shared contracts, domain types, and pure decision logic |
-| `ScreenNap/Native/` | The P/Invoke declarations of each Win32 DLL, one class per DLL (`User32`, `Gdi32`, `Shell32`, `Kernel32`, `DisplayConfigApi`), and native structures |
+| `ScreenNap/Native/` | The P/Invoke declarations, one class per Win32 DLL (`User32`, `Gdi32`, `Shell32`, `Kernel32`) plus `DisplayConfig` for the display-configuration functions of user32.dll, and the native structures and delegates they take, one file per type |
 | `ScreenNap/Native/WindowStyles.cs` | Win32 constants |
 | `ScreenNap/Native/WindowClass.cs` | How a window class is registered once and unregistered at shutdown |
 | `ScreenNap/Logging/Logger.cs` | Which directory log files go to, how a log line is formatted and written, how a Win32 error code is appended to a log message, and which old log files are deleted |
+| `ScreenNap/Logging/InvariantLogMessage.cs` | How the values interpolated into a log message are formatted independently of the user's culture |
 | `ScreenNap/Resources/Strings.cs` | How a localized user-facing string is looked up, and what is shown when the lookup fails |
 | `ScreenNap/Core/FailureNotices.cs` | The wording of every failure notification shown to the user |
 | `ScreenNap/Core/IUserNotifier.cs` | How an operation's failure reaches the user |
@@ -28,4 +29,4 @@ Feature folders and homes of cross-cutting mechanisms in ScreenNap (`docs/rules/
 | `ScreenNap.E2ETests/Infrastructure/Wait.cs` | How an end-to-end test waits for an observable condition with a time limit |
 | `ScreenNap.E2ETests/Infrastructure/Desktop.cs` | How an end-to-end test reads windows, monitors, pixels, and the cursor in the DPI awareness of the window it measures |
 | `ScreenNap.E2ETests/Infrastructure/Keyboard.cs` | How an end-to-end test presses a global hotkey and probes whether one is held |
-| `ScreenNap.E2ETests/Infrastructure/Win32.cs` | The Win32 declarations and constants the end-to-end tests use |
+| `ScreenNap.E2ETests/Infrastructure/Win32.cs` | The Win32 function declarations and constants the end-to-end tests use; the native structures and delegates they take sit beside it, one file per type |

@@ -1,6 +1,6 @@
+using System.Globalization;
 using ScreenNap.Core;
 using ScreenNap.Native;
-using ScreenNap.Tests.TestDoubles;
 using Xunit;
 
 namespace ScreenNap.Tests.Core;
@@ -26,7 +26,6 @@ public sealed class MonitorInfoTests
         bool isActive,
         string expected)
     {
-        using var scope = new CultureScope(culture);
         var monitor = new MonitorInfo(
             "DISPLAY1",
             "Display",
@@ -34,7 +33,7 @@ public sealed class MonitorInfoTests
             isPrimary,
             default);
 
-        Assert.Equal(expected, monitor.BuildMenuLabel(index, isActive));
+        Assert.Equal(expected, monitor.BuildMenuLabel(index, isActive, CultureInfo.GetCultureInfo(culture)));
     }
 
     [Fact]

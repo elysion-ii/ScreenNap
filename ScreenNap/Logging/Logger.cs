@@ -43,13 +43,23 @@ internal static class Logger
 
     internal static void Info(string message) => Write("INFO", message);
 
+    internal static void Info(ref InvariantLogMessage message) => Write("INFO", message.ToStringAndClear());
+
     internal static void Warn(string message) => Write("WARN", message);
+
+    internal static void Warn(ref InvariantLogMessage message) => Write("WARN", message.ToStringAndClear());
 
     internal static void Error(string message) => Write("ERROR", message);
 
+    internal static void Error(ref InvariantLogMessage message) => Write("ERROR", message.ToStringAndClear());
+
     internal static void Warn(string message, int win32Error) => Write("WARN", WithWin32Error(message, win32Error));
 
+    internal static void Warn(ref InvariantLogMessage message, int win32Error) => Write("WARN", WithWin32Error(message.ToStringAndClear(), win32Error));
+
     internal static void Error(string message, int win32Error) => Write("ERROR", WithWin32Error(message, win32Error));
+
+    internal static void Error(ref InvariantLogMessage message, int win32Error) => Write("ERROR", WithWin32Error(message.ToStringAndClear(), win32Error));
 
     internal static string WithWin32Error(string message, int win32Error)
         => string.Create(CultureInfo.InvariantCulture, $"{message} (Win32 error: {win32Error})");
@@ -67,11 +77,11 @@ internal static class Logger
     }
 
     internal static IReadOnlyList<string> SelectExpiredLogs(
-        IReadOnlyList<(string Path, DateTime LastWrite)> files,
-        DateTime now,
+        IReadOnlyList<(string Path, DateTimeOffset LastWrite)> files,
+        DateTimeOffset now,
         int retentionDays)
     {
-        DateTime cutoff = now.AddDays(-retentionDays);
+        DateTimeOffset cutoff = now.AddDays(-retentionDays);
         return files.Where(file => file.LastWrite < cutoff).Select(file => file.Path).ToList();
     }
 
@@ -112,12 +122,12 @@ internal static class Logger
 
     private static void PurgeOldLogs()
     {
-        List<(string Path, DateTime LastWrite)> files;
+        List<(string Path, DateTimeOffset LastWrite)> files;
         try
         {
             string[] paths = Directory.GetFiles(
                 s_logDirectory!, $"{LogFilePrefix}*{LogFileExtension}");
-            files = paths.Select(path => (Path: path, LastWrite: File.GetLastWriteTime(path))).ToList();
+            files = paths.Select(path => (Path: path, LastWrite: new DateTimeOffset(File.GetLastWriteTimeUtc(path)))).ToList();
         }
         catch (Exception ex)
         {
@@ -125,7 +135,7 @@ internal static class Logger
             return;
         }
 
-        foreach (string file in SelectExpiredLogs(files, DateTime.Now, RetentionDays))
+        foreach (string file in SelectExpiredLogs(files, DateTimeOffset.UtcNow, RetentionDays))
         {
             try
             {

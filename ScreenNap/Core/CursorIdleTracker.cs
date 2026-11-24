@@ -1,12 +1,5 @@
 namespace ScreenNap.Core;
 
-internal enum CursorAction
-{
-    None,
-    Show,
-    Hide
-}
-
 internal sealed class CursorIdleTracker
 {
     private const long HideTimeoutMs = 10000;

@@ -1,13 +1,6 @@
+using System.Globalization;
+
 namespace ScreenNap.Core;
-
-internal enum HotkeyActionKind
-{
-    None,
-    Identify,
-    ToggleMonitor
-}
-
-internal readonly record struct HotkeyAction(HotkeyActionKind Kind, int MonitorIndex = -1);
 
 internal static class HotkeyInterpreter
 {
@@ -16,7 +9,7 @@ internal static class HotkeyInterpreter
     internal const int IdentifyHotkeyId = 3009;
     internal const int IdentifyDigit = 0;
 
-    internal static string CombinationFor(int digit) => $"Ctrl+Shift+Alt+{digit}";
+    internal static string CombinationFor(int digit) => string.Create(CultureInfo.InvariantCulture, $"Ctrl+Shift+Alt+{digit}");
 
     internal static HotkeyAction Interpret(int hotkeyId)
     {

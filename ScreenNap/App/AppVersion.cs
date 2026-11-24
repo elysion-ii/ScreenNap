@@ -21,7 +21,7 @@ internal static class AppVersion
         if (string.IsNullOrWhiteSpace(informationalVersion))
             return Unknown;
 
-        int metadataStart = informationalVersion.IndexOf(MetadataSeparator);
+        int metadataStart = informationalVersion.IndexOf(MetadataSeparator, StringComparison.Ordinal);
         string version = metadataStart >= 0
             ? informationalVersion[..metadataStart]
             : informationalVersion;

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using ScreenNap.Core;
 using ScreenNap.Logging;
@@ -8,11 +9,13 @@ namespace ScreenNap.App;
 internal sealed class ContextMenu
 {
     private readonly BlackoutManager _manager;
+    private readonly CultureInfo _culture;
     private List<MonitorInfo> _lastMonitors = [];
 
-    internal ContextMenu(BlackoutManager manager)
+    internal ContextMenu(BlackoutManager manager, CultureInfo culture)
     {
         _manager = manager;
+        _culture = culture;
     }
 
     internal void Show(IntPtr hwnd)
@@ -29,7 +32,8 @@ internal sealed class ContextMenu
         IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(
             _lastMonitors,
             _manager.ActiveDevicePaths,
-            AppVersion.DisplayText);
+            AppVersion.DisplayText,
+            _culture);
         foreach (MenuItem item in items)
         {
             uint flags = item.IsSeparator ? WindowStyles.MF_SEPARATOR : WindowStyles.MF_STRING;

@@ -1,6 +1,6 @@
+using System.Globalization;
 using ScreenNap.Core;
 using ScreenNap.Native;
-using ScreenNap.Tests.TestDoubles;
 using Xunit;
 
 namespace ScreenNap.Tests.Core;
@@ -8,6 +8,7 @@ namespace ScreenNap.Tests.Core;
 public sealed class MenuModelTests
 {
     private const string VersionText = "ScreenNap 1.4.0";
+    private static readonly CultureInfo s_english = CultureInfo.GetCultureInfo("en-US");
 
     [Fact]
     [Trait("Requirement", "MENU-1")]
@@ -15,8 +16,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MENU-8")]
     internal void Build_NoMonitors_ContainsVersionSingleSeparatorAndExit()
     {
-        using var scope = new CultureScope("en-US");
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([], new HashSet<string>(), VersionText);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([], new HashSet<string>(), VersionText, s_english);
 
         Assert.Collection(items,
             item => Assert.Equal(VersionText, item.Text),
@@ -29,8 +29,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "VER-2")]
     internal void Build_OneMonitor_PlacesDisabledVersionItemFirst()
     {
-        using var scope = new CultureScope("en-US");
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), VersionText);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), VersionText, s_english);
 
         Assert.Equal(new MenuItem(false, false, MenuCommandIds.None, VersionText, true), items[0]);
     }
@@ -41,8 +40,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MON-2")]
     internal void Build_OneInactiveMonitor_CreatesUncheckedMonitorItem()
     {
-        using var scope = new CultureScope("en-US");
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), VersionText);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), VersionText, s_english);
 
         Assert.False(items[2].Checked);
         Assert.Equal(MenuCommandIds.MonitorBase, items[2].CommandId);
@@ -57,11 +55,11 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MENU-7")]
     internal void Build_MixedActiveMonitors_CreatesCompleteOrderedModel()
     {
-        using var scope = new CultureScope("en-US");
         IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(
             [Monitor("DISPLAY1"), Monitor("DISPLAY2")],
             new HashSet<string>(["DISPLAY2"], StringComparer.Ordinal),
-            VersionText);
+            VersionText,
+            s_english);
 
         Assert.Collection(
             items,

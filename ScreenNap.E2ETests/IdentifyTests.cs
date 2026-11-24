@@ -29,7 +29,7 @@ public sealed class IdentifyTests
 
         Keyboard.PressHotkey(0);
         Wait.Until(() => app.Overlays().Count == monitors.Count, s_timeout, "an overlay shows on every monitor");
-        var shown = Stopwatch.StartNew();
+        Stopwatch shown = Stopwatch.StartNew();
 
         IReadOnlyList<RECT> overlays = app.Overlays().Select(window => app.Measure(() => Desktop.Bounds(window))).ToList();
         foreach (RECT monitor in monitors)
@@ -60,7 +60,7 @@ public sealed class IdentifyTests
         using ScreenNapApp app = ScreenNapApp.Start();
         Keyboard.PressHotkey(0);
         Wait.Until(() => app.Overlays().Count > 0, s_timeout, "the overlays show");
-        var pressed = Stopwatch.StartNew();
+        Stopwatch pressed = Stopwatch.StartNew();
 
         Keyboard.PressHotkey(0);
 

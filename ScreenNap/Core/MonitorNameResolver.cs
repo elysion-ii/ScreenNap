@@ -1,7 +1,5 @@
 namespace ScreenNap.Core;
 
-internal readonly record struct MonitorDisplayInfo(string FriendlyName, MonitorIdentity Identity);
-
 internal static class MonitorNameResolver
 {
     internal static (string FriendlyName, MonitorIdentity Identity) Resolve(

@@ -1,5 +1,5 @@
+using System.Globalization;
 using ScreenNap.Core;
-using ScreenNap.Tests.TestDoubles;
 using Xunit;
 
 namespace ScreenNap.Tests.Core;
@@ -18,9 +18,7 @@ public sealed class TrayStateTests
     [InlineData("ja-JP", 3, true, "ScreenNap (3台 暗転中)")]
     internal void For_AnyActiveCountAndCulture_SelectsLocalizedState(string culture, int count, bool expectedActive, string expectedTip)
     {
-        using var scope = new CultureScope(culture);
-
-        TrayState state = TrayState.For(count);
+        TrayState state = TrayState.For(count, CultureInfo.GetCultureInfo(culture));
 
         Assert.Equal(expectedActive, state.UseActiveIcon);
         Assert.Equal(expectedTip, state.TipText);
@@ -47,6 +45,18 @@ public sealed class TrayStateTests
     internal void TruncateInfo_AnyLength_EnforcesMaximumLength(int inputLength, int expectedLength)
     {
         string result = TrayState.TruncateInfo(new string('x', inputLength));
+
+        Assert.Equal(expectedLength, result.Length);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(62, 62)]
+    [InlineData(63, 63)]
+    [InlineData(64, 63)]
+    internal void TruncateInfoTitle_AnyLength_EnforcesMaximumLength(int inputLength, int expectedLength)
+    {
+        string result = TrayState.TruncateInfoTitle(new string('x', inputLength));
 
         Assert.Equal(expectedLength, result.Length);
     }

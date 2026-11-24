@@ -56,7 +56,7 @@ internal static class MonitorEnumerator
     {
         var result = new Dictionary<string, MonitorDisplayInfo>(StringComparer.Ordinal);
 
-        int status = DisplayConfigApi.GetDisplayConfigBufferSizes(
+        int status = DisplayConfig.GetDisplayConfigBufferSizes(
             WindowStyles.QDC_ONLY_ACTIVE_PATHS,
             out uint pathCount,
             out uint modeCount);
@@ -70,7 +70,7 @@ internal static class MonitorEnumerator
         var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
         var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
 
-        status = DisplayConfigApi.QueryDisplayConfig(
+        status = DisplayConfig.QueryDisplayConfig(
             WindowStyles.QDC_ONLY_ACTIVE_PATHS,
             ref pathCount, paths,
             ref modeCount, modes,
@@ -90,7 +90,7 @@ internal static class MonitorEnumerator
             deviceName.header.adapterId = paths[i].targetInfo.adapterId;
             deviceName.header.id = paths[i].targetInfo.id;
 
-            status = DisplayConfigApi.DisplayConfigGetDeviceInfo(ref deviceName);
+            status = DisplayConfig.DisplayConfigGetDeviceInfo(ref deviceName);
             if (status != 0)
             {
                 Logger.Warn("DisplayConfigGetDeviceInfo failed for a target name", status);
@@ -103,7 +103,7 @@ internal static class MonitorEnumerator
             sourceName.header.adapterId = paths[i].sourceInfo.adapterId;
             sourceName.header.id = paths[i].sourceInfo.id;
 
-            int sourceStatus = DisplayConfigApi.DisplayConfigGetSourceDeviceInfo(ref sourceName);
+            int sourceStatus = DisplayConfig.DisplayConfigGetSourceDeviceInfo(ref sourceName);
             if (sourceStatus != 0)
             {
                 Logger.Warn("DisplayConfigGetDeviceInfo failed for a source name", sourceStatus);

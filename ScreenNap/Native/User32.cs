@@ -2,9 +2,6 @@ using System.Runtime.InteropServices;
 
 namespace ScreenNap.Native;
 
-internal delegate nint WNDPROC(IntPtr hWnd, uint msg, nuint wParam, nint lParam);
-internal delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, nint dwData);
-
 internal static partial class User32
 {
     [LibraryImport("user32.dll", EntryPoint = "RegisterClassExW", SetLastError = true)]

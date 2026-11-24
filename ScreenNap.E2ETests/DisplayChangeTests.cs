@@ -23,7 +23,7 @@ public sealed class DisplayChangeTests
             app.Post(Win32.WM_DISPLAYCHANGE, 0, 0);
             Thread.Sleep(s_burstInterval);
         }
-        var sinceLastChange = Stopwatch.StartNew();
+        Stopwatch sinceLastChange = Stopwatch.StartNew();
         app.WaitForLog(DebouncedEntry);
         TimeSpan settled = sinceLastChange.Elapsed;
 

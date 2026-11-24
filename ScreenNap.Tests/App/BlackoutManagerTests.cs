@@ -1,3 +1,4 @@
+using System.Globalization;
 using ScreenNap.App;
 using ScreenNap.Core;
 using ScreenNap.Native;
@@ -8,6 +9,8 @@ namespace ScreenNap.Tests.App;
 
 public sealed class BlackoutManagerTests
 {
+    private static readonly CultureInfo s_english = CultureInfo.GetCultureInfo("en-US");
+
     [Fact]
     [Trait("Requirement", "BLK-1")]
     [Trait("Requirement", "BLK-5")]
@@ -15,7 +18,7 @@ public sealed class BlackoutManagerTests
     internal void Toggle_InactiveMonitor_CreatesWindowAndRaisesEvent()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         int changes = 0;
         manager.ActiveCountChanged += () => changes++;
 
@@ -32,7 +35,7 @@ public sealed class BlackoutManagerTests
     internal void Toggle_ActiveMonitor_DestroysAndRemovesWindow()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
 
@@ -48,7 +51,7 @@ public sealed class BlackoutManagerTests
     internal void Toggle_ReconcileInsideChangeEvent_DoesNotRecreateWindow()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         manager.ActiveCountChanged += () => manager.Reconcile([monitor]);
@@ -65,7 +68,7 @@ public sealed class BlackoutManagerTests
     internal void Toggle_DestroyFailure_PreservesActiveAndDesiredState()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         FakeBlackoutWindow window = factory.Windows[0];
@@ -91,7 +94,7 @@ public sealed class BlackoutManagerTests
     {
         var factory = new FakeBlackoutWindowFactory();
         factory.ReturnFailure();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         int changes = 0;
         manager.ActiveCountChanged += () => changes++;
 
@@ -109,7 +112,7 @@ public sealed class BlackoutManagerTests
     internal void Toggle_DefaultIdentityAfterOsDismissal_DoesNotRestore()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         manager.Toggle(Monitor("DISPLAY1", default));
         factory.Windows[0].Destroy();
 
@@ -122,7 +125,7 @@ public sealed class BlackoutManagerTests
     [Trait("Requirement", "BLK-4")]
     internal void ReleaseAll_NoWindows_DoesNothing()
     {
-        var manager = new BlackoutManager(new FakeBlackoutWindowFactory(), new FakeUserNotifier());
+        var manager = new BlackoutManager(new FakeBlackoutWindowFactory(), new FakeUserNotifier(), s_english);
         int changes = 0;
         manager.ActiveCountChanged += () => changes++;
 
@@ -138,7 +141,7 @@ public sealed class BlackoutManagerTests
     internal void ReleaseAll_MultipleWindows_DestroysEveryWindow()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         manager.Toggle(Monitor("DISPLAY1", Identity(1)));
         manager.Toggle(Monitor("DISPLAY2", Identity(2)));
 
@@ -154,7 +157,7 @@ public sealed class BlackoutManagerTests
     internal void ReleaseAll_DestroyFailure_PreservesOnlyFailedWindowDesiredState()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo failedMonitor = Monitor("DISPLAY1", Identity(1));
         MonitorInfo releasedMonitor = Monitor("DISPLAY2", Identity(2));
         manager.Toggle(failedMonitor);
@@ -180,7 +183,7 @@ public sealed class BlackoutManagerTests
     internal void ReleaseAll_DestroySucceeds_ClearsDesiredState()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         manager.ReleaseAll();
@@ -195,7 +198,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_NoDesiredState_DoesNothing()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
 
         manager.Reconcile([Monitor("DISPLAY1", Identity(1))]);
 
@@ -208,7 +211,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_StaleWindowWithNothingDesired_RemovesItAndRaisesEvent()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", default);
         manager.Toggle(monitor);
         factory.Windows[0].IsAlive = false;
@@ -228,7 +231,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_StaleWindow_RemovesItAndRestoresDesiredMonitor()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         factory.Windows[0].IsAlive = false;
@@ -244,7 +247,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_ReconnectedMonitorOnNewPath_RestoresBlackout()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo oldMonitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(oldMonitor);
         factory.Windows[0].Destroy();
@@ -262,7 +265,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_LiveWindow_DoesNotRecreateIt()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
 
@@ -276,7 +279,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_UndesiredMonitor_IsIgnored()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo desired = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(desired);
         factory.Windows[0].Destroy();
@@ -291,7 +294,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_FactoryFailure_LeavesMonitorInactive()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         factory.Windows[0].Destroy();
@@ -308,7 +311,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_RepeatedCalls_RaisesEventOnlyWhenCountChanges()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         int changes = 0;
@@ -330,7 +333,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_DestroyedWindow_RestoresOnlyWhenNotUserDismissed(bool userDismissed, int expectedRequests)
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         factory.Windows[0].UserDismissed = userDismissed;
@@ -346,7 +349,7 @@ public sealed class BlackoutManagerTests
     internal void Reconcile_DisconnectedDesiredMonitor_IsRestoredOnReconnection()
     {
         var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier());
+        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         factory.Windows[0].Destroy();
@@ -363,7 +366,7 @@ public sealed class BlackoutManagerTests
     internal void Toggle_InactiveMonitor_DoesNotNotify()
     {
         var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(new FakeBlackoutWindowFactory(), notifier);
+        var manager = new BlackoutManager(new FakeBlackoutWindowFactory(), notifier, s_english);
 
         manager.Toggle(Monitor("DISPLAY1", Identity(1)));
 
@@ -374,11 +377,10 @@ public sealed class BlackoutManagerTests
     [Trait("Requirement", "ERR-3")]
     internal void Toggle_FactoryFailure_NotifiesTheMonitor()
     {
-        using var scope = new CultureScope("en-US");
         var factory = new FakeBlackoutWindowFactory();
         factory.ReturnFailure();
         var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier);
+        var manager = new BlackoutManager(factory, notifier, s_english);
 
         manager.Toggle(Monitor("DISPLAY1", Identity(1)));
 
@@ -389,10 +391,9 @@ public sealed class BlackoutManagerTests
     [Trait("Requirement", "ERR-4")]
     internal void Toggle_DestroyFailure_NotifiesTheMonitor()
     {
-        using var scope = new CultureScope("en-US");
         var factory = new FakeBlackoutWindowFactory();
         var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier);
+        var manager = new BlackoutManager(factory, notifier, s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         factory.Windows[0].DestroySucceeds = false;
@@ -406,10 +407,9 @@ public sealed class BlackoutManagerTests
     [Trait("Requirement", "ERR-5")]
     internal void ReleaseAll_DestroyFailures_NotifiesTheRemainingCount()
     {
-        using var scope = new CultureScope("en-US");
         var factory = new FakeBlackoutWindowFactory();
         var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier);
+        var manager = new BlackoutManager(factory, notifier, s_english);
         manager.Toggle(Monitor("DISPLAY1", Identity(1)));
         manager.Toggle(Monitor("DISPLAY2", Identity(2)));
         manager.Toggle(Monitor("DISPLAY3", Identity(3)));
@@ -427,7 +427,7 @@ public sealed class BlackoutManagerTests
     {
         var factory = new FakeBlackoutWindowFactory();
         var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier);
+        var manager = new BlackoutManager(factory, notifier, s_english);
         manager.Toggle(Monitor("DISPLAY1", Identity(1)));
 
         manager.ReleaseAll();
@@ -439,10 +439,9 @@ public sealed class BlackoutManagerTests
     [Trait("Requirement", "ERR-6")]
     internal void Reconcile_FactoryFailure_NotifiesTheMonitor()
     {
-        using var scope = new CultureScope("en-US");
         var factory = new FakeBlackoutWindowFactory();
         var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier);
+        var manager = new BlackoutManager(factory, notifier, s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         manager.Toggle(monitor);
         factory.Windows[0].Destroy();

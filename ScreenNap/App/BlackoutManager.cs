@@ -1,3 +1,4 @@
+using System.Globalization;
 using ScreenNap.Core;
 using ScreenNap.Logging;
 
@@ -7,13 +8,15 @@ internal sealed class BlackoutManager
 {
     private readonly IBlackoutWindowFactory _factory;
     private readonly IUserNotifier _notifier;
+    private readonly CultureInfo _culture;
     private readonly Dictionary<string, IBlackoutWindow> _windows = new(StringComparer.Ordinal);
     private readonly HashSet<MonitorIdentity> _desired = [];
 
-    internal BlackoutManager(IBlackoutWindowFactory factory, IUserNotifier notifier)
+    internal BlackoutManager(IBlackoutWindowFactory factory, IUserNotifier notifier, CultureInfo culture)
     {
         _factory = factory;
         _notifier = notifier;
+        _culture = culture;
     }
 
     internal int ActiveCount => _windows.Count;
@@ -33,14 +36,14 @@ internal sealed class BlackoutManager
 
             if (desiredRemoved)
                 _desired.Add(monitor.Identity);
-            _notifier.Notify(FailureNotices.BlackoutNotClosed(monitor.FriendlyName));
+            _notifier.Notify(FailureNotices.BlackoutNotClosed(monitor.FriendlyName, _culture));
         }
         else
         {
             IBlackoutWindow? window = _factory.Create(monitor);
             if (window is null)
             {
-                _notifier.Notify(FailureNotices.BlackoutNotCreated(monitor.FriendlyName));
+                _notifier.Notify(FailureNotices.BlackoutNotCreated(monitor.FriendlyName, _culture));
                 return;
             }
 
@@ -74,7 +77,7 @@ internal sealed class BlackoutManager
         }
 
         if (remaining > 0)
-            _notifier.Notify(FailureNotices.ReleaseAllIncomplete(remaining));
+            _notifier.Notify(FailureNotices.ReleaseAllIncomplete(remaining, _culture));
     }
 
     internal void Reconcile(IReadOnlyList<MonitorInfo> currentMonitors)
@@ -122,7 +125,7 @@ internal sealed class BlackoutManager
             IBlackoutWindow? window = _factory.Create(monitor);
             if (window is null)
             {
-                _notifier.Notify(FailureNotices.BlackoutNotRestored(monitor.FriendlyName));
+                _notifier.Notify(FailureNotices.BlackoutNotRestored(monitor.FriendlyName, _culture));
                 continue;
             }
 

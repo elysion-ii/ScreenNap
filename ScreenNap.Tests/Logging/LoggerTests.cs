@@ -64,7 +64,7 @@ public sealed class LoggerTests
     [Trait("Requirement", "LOG-7")]
     internal void SelectExpiredLogs_EmptyInput_ReturnsEmpty()
     {
-        IReadOnlyList<string> expired = Logger.SelectExpiredLogs([], new DateTime(2026, 7, 10), 7);
+        IReadOnlyList<string> expired = Logger.SelectExpiredLogs([], new DateTimeOffset(2026, 7, 10, 0, 0, 0, TimeSpan.Zero), 7);
 
         Assert.Empty(expired);
     }
@@ -73,16 +73,33 @@ public sealed class LoggerTests
     [Trait("Requirement", "LOG-7")]
     internal void SelectExpiredLogs_FilesAroundCutoff_SelectsOnlyOlderThanCutoff()
     {
-        var now = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Local);
-        var files = new List<(string Path, DateTime LastWrite)>
+        var now = new DateTimeOffset(2026, 7, 10, 0, 0, 0, TimeSpan.Zero);
+        var files = new List<(string Path, DateTimeOffset LastWrite)>
         {
             ("before", now.AddDays(-7).AddTicks(-1)),
             ("cutoff", now.AddDays(-7)),
+            ("cutoff in another offset", now.AddDays(-7).ToOffset(TimeSpan.FromHours(9))),
             ("after", now.AddDays(-7).AddTicks(1))
         };
 
         IReadOnlyList<string> expired = Logger.SelectExpiredLogs(files, now, 7);
 
         Assert.Equal(["before"], expired);
+    }
+
+    [Theory]
+    [Trait("Requirement", "L10N-5")]
+    [InlineData("en-US")]
+    [InlineData("sv-SE")]
+    [InlineData("ar-SA")]
+    internal void InvariantLogMessage_AnyCulture_FormatsValuesInvariantly(string culture)
+    {
+        using var scope = new CultureScope(culture);
+        int left = -1920;
+        double ratio = 1.5;
+
+        InvariantLogMessage message = $"at {left} scale {ratio} id {255:X4}";
+
+        Assert.Equal("at -1920 scale 1.5 id 00FF", message.ToStringAndClear());
     }
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using ScreenNap.App;
 using ScreenNap.Core;
 using ScreenNap.Native;
@@ -8,6 +9,8 @@ namespace ScreenNap.Tests.App;
 
 public sealed class MonitorIdentifierTests
 {
+    private static readonly CultureInfo s_english = CultureInfo.GetCultureInfo("en-US");
+
     [Fact]
     [Trait("Requirement", "IDN-1")]
     [Trait("Requirement", "IDN-3")]
@@ -17,7 +20,7 @@ public sealed class MonitorIdentifierTests
         var overlays = new FakeIdentifyOverlays();
         MonitorInfo first = Monitor("DISPLAY1", 0);
         MonitorInfo second = Monitor("DISPLAY2", 1920);
-        var identifier = new MonitorIdentifier(overlays, new FakeUserNotifier(), () => [first, second]);
+        var identifier = new MonitorIdentifier(overlays, new FakeUserNotifier(), () => [first, second], s_english);
 
         identifier.Toggle();
 
@@ -34,7 +37,7 @@ public sealed class MonitorIdentifierTests
         {
             enumerations++;
             return [Monitor("DISPLAY1", 0)];
-        });
+        }, s_english);
         identifier.Toggle();
 
         identifier.Toggle();
@@ -48,11 +51,10 @@ public sealed class MonitorIdentifierTests
     [Trait("Requirement", "ERR-8")]
     internal void Toggle_EveryOverlayFails_NotifiesEveryMonitorNumber()
     {
-        using var scope = new CultureScope("en-US");
         var overlays = new FakeIdentifyOverlays();
         overlays.FailingNumbers.UnionWith([1, 2]);
         var notifier = new FakeUserNotifier();
-        var identifier = new MonitorIdentifier(overlays, notifier, () => [Monitor("DISPLAY1", 0), Monitor("DISPLAY2", 1920)]);
+        var identifier = new MonitorIdentifier(overlays, notifier, () => [Monitor("DISPLAY1", 0), Monitor("DISPLAY2", 1920)], s_english);
 
         identifier.Toggle();
 
@@ -64,11 +66,10 @@ public sealed class MonitorIdentifierTests
     [Trait("Requirement", "ERR-8")]
     internal void Toggle_OneOverlayFails_ShowsTheOthersAndNotifiesItsNumber()
     {
-        using var scope = new CultureScope("en-US");
         var overlays = new FakeIdentifyOverlays();
         overlays.FailingNumbers.Add(1);
         var notifier = new FakeUserNotifier();
-        var identifier = new MonitorIdentifier(overlays, notifier, () => [Monitor("DISPLAY1", 0), Monitor("DISPLAY2", 1920)]);
+        var identifier = new MonitorIdentifier(overlays, notifier, () => [Monitor("DISPLAY1", 0), Monitor("DISPLAY2", 1920)], s_english);
 
         identifier.Toggle();
 
@@ -81,7 +82,7 @@ public sealed class MonitorIdentifierTests
     internal void Toggle_EveryOverlayShown_DoesNotNotify()
     {
         var notifier = new FakeUserNotifier();
-        var identifier = new MonitorIdentifier(new FakeIdentifyOverlays(), notifier, () => [Monitor("DISPLAY1", 0)]);
+        var identifier = new MonitorIdentifier(new FakeIdentifyOverlays(), notifier, () => [Monitor("DISPLAY1", 0)], s_english);
 
         identifier.Toggle();
 

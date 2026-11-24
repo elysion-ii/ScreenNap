@@ -1,5 +1,5 @@
+using System.Globalization;
 using ScreenNap.Core;
-using ScreenNap.Tests.TestDoubles;
 using Xunit;
 
 namespace ScreenNap.Tests.Core;
@@ -13,9 +13,7 @@ public sealed class FailureNoticesTests
     [InlineData("ja-JP", "DELL U2723QE を暗転できませんでした。")]
     internal void BlackoutNotCreated_AnyCulture_NamesTheMonitor(string culture, string expected)
     {
-        using var scope = new CultureScope(culture);
-
-        Assert.Equal(expected, FailureNotices.BlackoutNotCreated("DELL U2723QE"));
+        Assert.Equal(expected, FailureNotices.BlackoutNotCreated("DELL U2723QE", CultureInfo.GetCultureInfo(culture)));
     }
 
     [Theory]
@@ -25,9 +23,7 @@ public sealed class FailureNoticesTests
     [InlineData("ja-JP", "DELL U2723QE の暗転を解除できませんでした。")]
     internal void BlackoutNotClosed_AnyCulture_NamesTheMonitor(string culture, string expected)
     {
-        using var scope = new CultureScope(culture);
-
-        Assert.Equal(expected, FailureNotices.BlackoutNotClosed("DELL U2723QE"));
+        Assert.Equal(expected, FailureNotices.BlackoutNotClosed("DELL U2723QE", CultureInfo.GetCultureInfo(culture)));
     }
 
     [Theory]
@@ -38,9 +34,7 @@ public sealed class FailureNoticesTests
     [InlineData("ja-JP", 2, "2 台の暗転を解除できませんでした。")]
     internal void ReleaseAllIncomplete_AnyCultureAndCount_StatesTheCount(string culture, int remaining, string expected)
     {
-        using var scope = new CultureScope(culture);
-
-        Assert.Equal(expected, FailureNotices.ReleaseAllIncomplete(remaining));
+        Assert.Equal(expected, FailureNotices.ReleaseAllIncomplete(remaining, CultureInfo.GetCultureInfo(culture)));
     }
 
     [Theory]
@@ -50,9 +44,7 @@ public sealed class FailureNoticesTests
     [InlineData("ja-JP", "DELL U2723QE の暗転を復元できませんでした。")]
     internal void BlackoutNotRestored_AnyCulture_NamesTheMonitor(string culture, string expected)
     {
-        using var scope = new CultureScope(culture);
-
-        Assert.Equal(expected, FailureNotices.BlackoutNotRestored("DELL U2723QE"));
+        Assert.Equal(expected, FailureNotices.BlackoutNotRestored("DELL U2723QE", CultureInfo.GetCultureInfo(culture)));
     }
 
     [Theory]
@@ -63,9 +55,7 @@ public sealed class FailureNoticesTests
     [InlineData("ja-JP", "次のホットキーは使用できません: Ctrl+Shift+Alt+1, Ctrl+Shift+Alt+0")]
     internal void HotkeysUnavailable_AnyCulture_ListsTheCombinations(string culture, string expected)
     {
-        using var scope = new CultureScope(culture);
-
-        Assert.Equal(expected, FailureNotices.HotkeysUnavailable(["Ctrl+Shift+Alt+1", "Ctrl+Shift+Alt+0"]));
+        Assert.Equal(expected, FailureNotices.HotkeysUnavailable(["Ctrl+Shift+Alt+1", "Ctrl+Shift+Alt+0"], CultureInfo.GetCultureInfo(culture)));
     }
 
     [Theory]
@@ -75,8 +65,6 @@ public sealed class FailureNoticesTests
     [InlineData("ja-JP", "モニター 2, 3 に識別番号を表示できませんでした。")]
     internal void OverlaysNotCreated_AnyCulture_ListsTheMonitorNumbers(string culture, string expected)
     {
-        using var scope = new CultureScope(culture);
-
-        Assert.Equal(expected, FailureNotices.OverlaysNotCreated([2, 3]));
+        Assert.Equal(expected, FailureNotices.OverlaysNotCreated([2, 3], CultureInfo.GetCultureInfo(culture)));
     }
 }

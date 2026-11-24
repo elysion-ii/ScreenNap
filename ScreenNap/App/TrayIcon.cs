@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using ScreenNap.Core;
 using ScreenNap.Logging;
@@ -11,13 +12,15 @@ internal sealed class TrayIcon : IUserNotifier
     private const uint IconId = 1;
 
     private readonly IntPtr _hwnd;
+    private readonly CultureInfo _culture;
     private IntPtr _iconNormal;
     private IntPtr _iconActive;
     private bool _created;
 
-    internal TrayIcon(IntPtr messageWindowHandle)
+    internal TrayIcon(IntPtr messageWindowHandle, CultureInfo culture)
     {
         _hwnd = messageWindowHandle;
+        _culture = culture;
         _iconNormal = IconHelper.LoadIconFromResource("icon-normal.ico");
         _iconActive = IconHelper.LoadIconFromResource("icon-active.ico");
     }
@@ -28,7 +31,7 @@ internal sealed class TrayIcon : IUserNotifier
         nid.uFlags = WindowStyles.NIF_MESSAGE | WindowStyles.NIF_ICON | WindowStyles.NIF_TIP;
         nid.uCallbackMessage = WindowStyles.WM_TRAYICON;
         nid.hIcon = _iconNormal;
-        SetTipText(ref nid, Strings.TooltipNormal);
+        SetTipText(ref nid, Strings.TooltipNormal(_culture));
 
         _created = Shell32.Shell_NotifyIconW(WindowStyles.NIM_ADD, ref nid);
         if (!_created)
@@ -57,7 +60,7 @@ internal sealed class TrayIcon : IUserNotifier
         NOTIFYICONDATAW nid = CreateBaseData();
         nid.uFlags = WindowStyles.NIF_INFO;
         nid.dwInfoFlags = WindowStyles.NIIF_WARNING;
-        SetInfoText(ref nid, Strings.NotifyTitle, TrayState.TruncateInfo(message));
+        SetInfoText(ref nid, TrayState.TruncateInfoTitle(Strings.NotifyTitle(_culture)), TrayState.TruncateInfo(message));
 
         if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_MODIFY, ref nid))
             Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed for a tray notification", Marshal.GetLastWin32Error());
@@ -103,7 +106,7 @@ internal sealed class TrayIcon : IUserNotifier
         NOTIFYICONDATAW nid = CreateBaseData();
         nid.uFlags = WindowStyles.NIF_ICON | WindowStyles.NIF_TIP;
 
-        TrayState state = TrayState.For(activeCount);
+        TrayState state = TrayState.For(activeCount, _culture);
         nid.hIcon = state.UseActiveIcon ? _iconActive : _iconNormal;
         SetTipText(ref nid, state.TipText);
 
@@ -131,11 +134,11 @@ internal sealed class TrayIcon : IUserNotifier
         nid.szTip[length] = '\0';
     }
 
-    private static unsafe void SetInfoText(ref NOTIFYICONDATAW nid, string title, string truncatedText)
+    private static unsafe void SetInfoText(ref NOTIFYICONDATAW nid, string truncatedTitle, string truncatedText)
     {
-        int titleLength = Math.Min(title.Length, WindowStyles.NotifyIconInfoTitleCapacity - 1);
+        int titleLength = truncatedTitle.Length;
         for (int i = 0; i < titleLength; i++)
-            nid.szInfoTitle[i] = title[i];
+            nid.szInfoTitle[i] = truncatedTitle[i];
         nid.szInfoTitle[titleLength] = '\0';
 
         int length = truncatedText.Length;

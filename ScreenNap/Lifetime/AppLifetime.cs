@@ -123,6 +123,8 @@ internal sealed class AppLifetime
         var blackoutManager = new BlackoutManager(blackoutWindows, trayIcon, _culture);
         blackoutManager.ActiveCountChanged += () => trayIcon.UpdateState(blackoutManager.ActiveCount);
         var overlays = new IdentifyOverlay(_windowApi, _overlayPaintApi);
+        // A blackout that takes the top of the topmost band puts the overlays back above it (IDN-7)
+        blackoutWindows.WindowRaised += overlays.RaiseAll;
         var identifier = new MonitorIdentifier(overlays, trayIcon, _enumerateMonitors, _culture);
 
         return new Features(
@@ -161,7 +163,9 @@ internal sealed class AppLifetime
 
     private nint MessageWndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
     {
-        if (msg == WindowStyles.WM_DESTROY)
+        // A close request from another process ends the message loop and leaves the window to
+        // the shutdown, which still needs it to release the hotkeys (specification LIFE-5)
+        if (msg == WindowStyles.WM_CLOSE)
         {
             _lifetimeApi.PostQuit();
             return 0;

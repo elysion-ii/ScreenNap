@@ -38,7 +38,8 @@ internal sealed class ContextMenu
 
         IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(
             _lastMonitors,
-            _manager.ActiveDevicePaths,
+            _lastMonitors.Where(_manager.IsActive).Select(monitor => monitor.DevicePath).ToHashSet(StringComparer.Ordinal),
+            _manager.ActiveCount,
             AppVersion.DisplayText,
             _culture);
         foreach (MenuItem item in items)
@@ -90,6 +91,26 @@ internal sealed class ContextMenu
         }
 
         if (command.Kind == MenuCommandKind.ToggleMonitor)
-            _manager.Toggle(_lastMonitors[command.MonitorIndex]);
+            ToggleSelected(_lastMonitors[command.MonitorIndex]);
+    }
+
+    // The display may have changed while the menu was open: a live blackout closes, and a new
+    // one covers the monitor as it is now, or nothing happens when it is gone (specification MENU-6)
+    private void ToggleSelected(MonitorInfo selected)
+    {
+        if (_manager.IsActive(selected))
+        {
+            _manager.Toggle(selected);
+            return;
+        }
+
+        MonitorInfo? current = _enumerateMonitors().FirstOrDefault(monitor => monitor.Denotes(selected.Identity, selected.DevicePath));
+        if (current is null)
+        {
+            Logger.Info($"Menu selection ignored: {selected.FriendlyName} ({selected.DevicePath}) is no longer present");
+            return;
+        }
+
+        _manager.Toggle(current);
     }
 }

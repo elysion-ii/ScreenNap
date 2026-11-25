@@ -6,8 +6,8 @@ namespace ScreenNap.Identify;
 
 internal sealed class IdentifyOverlay : IIdentifyOverlays
 {
-    internal const nuint DismissTimerId = 2;
-    internal const nuint TopmostTimerId = 3;
+    private const nuint DismissTimerId = 2;
+    private const nuint TopmostTimerId = 3;
     private const string FontFace = "Segoe UI";
     private const uint White = 0x00FFFFFF;
     private const uint DismissDelayMs = 3000;
@@ -107,6 +107,14 @@ internal sealed class IdentifyOverlay : IIdentifyOverlays
         }
     }
 
+    // Puts every overlay back above the blackouts after one of them took the top of the
+    // topmost band (specification IDN-7)
+    internal void RaiseAll()
+    {
+        foreach (IntPtr hwnd in _windows.Keys)
+            Raise(hwnd);
+    }
+
     internal void UnregisterClass(IntPtr hInstance)
     {
         if (!_windowClass.Unregister(hInstance))
@@ -182,6 +190,16 @@ internal sealed class IdentifyOverlay : IIdentifyOverlays
         return drawn;
     }
 
+    private void Raise(IntPtr hWnd)
+    {
+        if (!_api.SetWindowPos(hWnd, WindowStyles.HWND_TOPMOST,
+            0, 0, 0, 0,
+            WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
+        {
+            Logger.Warn("SetWindowPos failed for identify overlay", _api.LastError);
+        }
+    }
+
     private nint WndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
     {
         switch (msg)
@@ -199,12 +217,7 @@ internal sealed class IdentifyOverlay : IIdentifyOverlays
                 return 0;
 
             case WindowStyles.WM_TIMER when wParam == TopmostTimerId:
-                if (!_api.SetWindowPos(hWnd, WindowStyles.HWND_TOPMOST,
-                    0, 0, 0, 0,
-                    WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
-                {
-                    Logger.Warn("SetWindowPos failed for identify overlay", _api.LastError);
-                }
+                Raise(hWnd);
                 return 0;
 
             case WindowStyles.WM_DESTROY:

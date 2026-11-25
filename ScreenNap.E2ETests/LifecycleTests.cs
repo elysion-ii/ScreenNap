@@ -11,6 +11,9 @@ public sealed class LifecycleTests
     private static readonly TimeSpan s_quietPeriod = TimeSpan.FromSeconds(2.5);
     private static readonly TimeSpan s_idleTimeout = TimeSpan.FromSeconds(20);
 
+    // The name ScreenNap gives its single-instance mutex, without a namespace prefix
+    private const string SingleInstanceMutex = "ScreenNap_SingleInstance";
+
     public LifecycleTests() => TestAssets.RequireNoRunningScreenNap();
 
     [Fact]
@@ -82,6 +85,43 @@ public sealed class LifecycleTests
         }
     }
 
+    // The single-instance lock lives in the logon session's namespace, not the global one
+    [Fact]
+    [Trait("Requirement", "LIFE-2")]
+    internal void Start_NoOtherInstance_HoldsItsSingleInstanceLockForTheLogonSessionOnly()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+
+        Assert.True(MutexExists(@"Local\" + SingleInstanceMutex), "ScreenNap holds no lock in the logon session");
+        Assert.False(MutexExists(@"Global\" + SingleInstanceMutex), "ScreenNap holds a lock for every session");
+    }
+
+    [Fact]
+    [Trait("Requirement", "LIFE-5")]
+    [Trait("Requirement", "LIFE-3")]
+    [Trait("Requirement", "WIN-6")]
+    internal void CloseRequest_ToEveryWindow_ShutsDownNormallyWithoutLoggingAFailure()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        app.WaitForBlackoutCount(1);
+
+        // A program closing ScreenNap asks each of its top-level windows to close
+        foreach (IntPtr window in Desktop.TopLevelWindows(app.Process.Id))
+        {
+            if (!Win32.PostMessageW(window, Win32.WM_CLOSE, 0, 0))
+                throw new InvalidOperationException("PostMessageW could not send the close request");
+        }
+
+        Assert.True(app.Process.WaitForExit(TimeSpan.FromSeconds(30)), "ScreenNap did not close on the request");
+        Assert.False(app.TrayIconExists());
+        for (int digit = 0; digit <= 9; digit++)
+            Assert.False(Keyboard.HotkeyIsHeldElsewhere(digit), $"Ctrl+Shift+Alt+{digit} is still held after the close");
+        List<string> shutdown = [.. app.LogLines().SkipWhile(line => !line.EndsWith("Application exiting", StringComparison.Ordinal))];
+        Assert.NotEmpty(shutdown);
+        Assert.DoesNotContain(shutdown, line => line.Contains("[WARN]", StringComparison.Ordinal) || line.Contains("[ERROR]", StringComparison.Ordinal));
+    }
+
     [Fact]
     [Trait("Requirement", "MENU-8")]
     [Trait("Requirement", "LIFE-3")]
@@ -139,5 +179,14 @@ public sealed class LifecycleTests
         {
             TestAssets.DeleteScratchDirectory(logDirectory);
         }
+    }
+
+    private static bool MutexExists(string name)
+    {
+        IntPtr handle = Win32.OpenMutexW(Win32.SYNCHRONIZE, false, name);
+        if (handle == IntPtr.Zero)
+            return false;
+        _ = Win32.CloseHandle(handle);
+        return true;
     }
 }

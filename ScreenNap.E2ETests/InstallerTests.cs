@@ -25,17 +25,26 @@ public sealed class InstallerTests : IDisposable
 
     private readonly string _scratch;
     private readonly string _installDirectory;
+    private readonly SetAsideDirectory _userAppData;
 
+    // Every uninstall deletes ScreenNap's logs in the user's default log directory (DIST-6),
+    // so each test sets the user's folder aside and puts it back afterwards
     public InstallerTests()
     {
         TestAssets.RequireNoRunningScreenNap();
         _scratch = TestAssets.CreateScratchDirectory();
         _installDirectory = Path.Combine(_scratch, "ScreenNap");
+        _userAppData = new SetAsideDirectory(ScreenNapAppData, Path.Combine(_scratch, "UserAppData"));
     }
 
     private static string StartMenuShortcut => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), ShortcutName);
 
     private static string DesktopShortcut => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), ShortcutName);
+
+    // ScreenNap's folder under the user's local application data, which holds the default log directory
+    private static string ScreenNapAppData => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ScreenNap");
+
+    private static string DefaultLogDirectory => Path.Combine(ScreenNapAppData, "Logs");
 
     private string InstalledExe => Path.Combine(_installDirectory, "ScreenNap.exe");
 
@@ -78,8 +87,31 @@ public sealed class InstallerTests : IDisposable
         Assert.Null(RunEntry());
     }
 
+    [Theory]
+    [Trait("Requirement", "DIST-6")]
+    [InlineData(false)]
+    [InlineData(true)]
+    internal void Uninstall_LogsInTheDefaultLogDirectory_RemovesScreenNapsLogsAndTheEmptyDirectories(bool otherFilePresent)
+    {
+        Install("startmenu");
+        Directory.CreateDirectory(DefaultLogDirectory);
+        File.WriteAllText(Path.Combine(DefaultLogDirectory, "ScreenNap_20000101.log"), "old");
+        File.WriteAllText(Path.Combine(DefaultLogDirectory, "ScreenNap_20000102.log"), "newer");
+        string otherFile = Path.Combine(DefaultLogDirectory, "notes.txt");
+        if (otherFilePresent)
+            File.WriteAllText(otherFile, "not ScreenNap's");
+
+        Uninstall();
+
+        if (otherFilePresent)
+            Assert.Equal([otherFile], Directory.GetFiles(DefaultLogDirectory));
+        else
+            Assert.False(Directory.Exists(ScreenNapAppData));
+    }
+
     [Fact]
     [Trait("Requirement", "DIST-7")]
+    [Trait("Requirement", "LIFE-5")]
     internal void SilentUninstall_ScreenNapRunning_ClosesItAndContinues()
     {
         Install("startmenu");
@@ -89,6 +121,9 @@ public sealed class InstallerTests : IDisposable
 
         Assert.True(app.Process.WaitForExit(TimeSpan.FromSeconds(30)), "The uninstaller did not close ScreenNap");
         Assert.False(File.Exists(InstalledExe));
+        List<string> shutdown = [.. app.LogLines().SkipWhile(line => !line.EndsWith("Application exiting", StringComparison.Ordinal))];
+        Assert.NotEmpty(shutdown);
+        Assert.DoesNotContain(shutdown, line => line.Contains("[WARN]", StringComparison.Ordinal) || line.Contains("[ERROR]", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -193,9 +228,40 @@ public sealed class InstallerTests : IDisposable
 
     public void Dispose()
     {
-        if (File.Exists(Uninstaller))
-            Uninstall();
+        try
+        {
+            if (File.Exists(Uninstaller))
+                Uninstall();
+        }
+        finally
+        {
+            _userAppData.Dispose();
+        }
         TestAssets.DeleteScratchDirectory(_scratch);
+    }
+
+    // The user's own folder moves aside for the test and returns afterwards, so the user's logs
+    // survive the uninstaller deleting logs there
+    private sealed class SetAsideDirectory : IDisposable
+    {
+        private readonly string _path;
+        private readonly string _keptAt;
+
+        internal SetAsideDirectory(string path, string keptAt)
+        {
+            _path = path;
+            _keptAt = keptAt;
+            if (Directory.Exists(path))
+                Directory.Move(path, keptAt);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(_path))
+                Directory.Delete(_path, true);
+            if (Directory.Exists(_keptAt))
+                Directory.Move(_keptAt, _path);
+        }
     }
 
     private static void RequireNotInstalled()

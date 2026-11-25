@@ -5,10 +5,10 @@ namespace ScreenNap.Hotkeys;
 
 internal static class HotkeyInterpreter
 {
-    internal const int MonitorHotkeyCount = 9;
-    internal const int MonitorHotkeyIdBase = 3000;
-    internal const int IdentifyHotkeyId = 3009;
-    internal const int IdentifyDigit = 0;
+    private const int MonitorHotkeyCount = 9;
+    private const int MonitorHotkeyIdBase = 3000;
+    private const int IdentifyHotkeyId = 3009;
+    private const int IdentifyDigit = 0;
 
     internal static IReadOnlyList<int> HotkeyIds { get; } =
         [.. Enumerable.Range(MonitorHotkeyIdBase, MonitorHotkeyCount), IdentifyHotkeyId];

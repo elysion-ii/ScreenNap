@@ -43,13 +43,13 @@ internal static class Desktop
         return monitors;
     }
 
-    internal static IReadOnlyList<IntPtr> TopLevelWindows(int processId, string className)
+    internal static IReadOnlyList<IntPtr> TopLevelWindows(int processId)
     {
         var windows = new List<IntPtr>();
         bool enumerated = Win32.EnumWindows((hWnd, lParam) =>
         {
             _ = Win32.GetWindowThreadProcessId(hWnd, out uint ownerId);
-            if (ownerId == (uint)processId && ClassName(hWnd) == className)
+            if (ownerId == (uint)processId)
                 windows.Add(hWnd);
             return true;
         }, 0);
@@ -57,24 +57,15 @@ internal static class Desktop
             throw new InvalidOperationException("EnumWindows failed");
         return windows;
     }
+
+    internal static IReadOnlyList<IntPtr> TopLevelWindows(int processId, string className)
+        => TopLevelWindows(processId).Where(hWnd => ClassName(hWnd) == className).ToList();
 
     internal static IReadOnlyList<IntPtr> VisibleTopLevelWindows(int processId, string className)
         => TopLevelWindows(processId, className).Where(Win32.IsWindowVisible).ToList();
 
     internal static IReadOnlyList<IntPtr> VisibleTopLevelWindows(int processId)
-    {
-        var windows = new List<IntPtr>();
-        bool enumerated = Win32.EnumWindows((hWnd, lParam) =>
-        {
-            _ = Win32.GetWindowThreadProcessId(hWnd, out uint ownerId);
-            if (ownerId == (uint)processId && Win32.IsWindowVisible(hWnd))
-                windows.Add(hWnd);
-            return true;
-        }, 0);
-        if (!enumerated)
-            throw new InvalidOperationException("EnumWindows failed");
-        return windows;
-    }
+        => TopLevelWindows(processId).Where(Win32.IsWindowVisible).ToList();
 
     internal static RECT Bounds(IntPtr hWnd)
     {
@@ -106,6 +97,9 @@ internal static class Desktop
             _ = Win32.ReleaseDC(IntPtr.Zero, screen);
         }
     }
+
+    // The window a click at the point would reach
+    internal static IntPtr WindowAt(int x, int y) => Win32.WindowFromPoint(new POINT { X = x, Y = y });
 
     internal static bool CursorIsHidden()
     {

@@ -1,5 +1,4 @@
 using ScreenNap.Identify;
-using ScreenNap.Logging;
 using ScreenNap.Native;
 using ScreenNap.Tests.TestDoubles;
 using Xunit;
@@ -121,7 +120,7 @@ public sealed class IdentifyOverlayTests
     internal void Show_ClosingTimerCannotStart_LogsItAndShowsTheOverlayWithoutTheTimer()
     {
         var api = new FakeWindowApi();
-        api.TimersFailingToStart.Add(IdentifyOverlay.DismissTimerId);
+        api.TimerStartFails = (_, interval) => IsClosingTimer(interval);
         var overlays = new IdentifyOverlay(api, new FakeOverlayPaintApi());
         using var log = new LogCapture();
 
@@ -136,7 +135,7 @@ public sealed class IdentifyOverlayTests
     internal void Show_TopmostTimerCannotStart_LogsItAndShowsTheOverlay()
     {
         var api = new FakeWindowApi();
-        api.TimersFailingToStart.Add(IdentifyOverlay.TopmostTimerId);
+        api.TimerStartFails = (_, interval) => !IsClosingTimer(interval);
         var overlays = new IdentifyOverlay(api, new FakeOverlayPaintApi());
         using var log = new LogCapture();
 
@@ -157,7 +156,7 @@ public sealed class IdentifyOverlayTests
         api.SetWindowPosFails = true;
         using var log = new LogCapture();
 
-        api.Send(overlay, WindowStyles.WM_TIMER, IdentifyOverlay.TopmostTimerId);
+        api.Tick(overlay, interval => !IsClosingTimer(interval));
 
         Assert.True(overlays.AnyShown);
         LogAssert.Logged(log, "WARN", "SetWindowPos failed for identify overlay");
@@ -173,7 +172,7 @@ public sealed class IdentifyOverlayTests
         overlays.Show(2, s_monitor, startsClosingTimer: false);
         IntPtr first = api.Windows.First().Key;
 
-        api.Send(first, WindowStyles.WM_TIMER, IdentifyOverlay.DismissTimerId);
+        api.Tick(first, IsClosingTimer);
 
         Assert.False(overlays.AnyShown);
         Assert.Empty(api.LiveWindows(OverlayClass));
@@ -203,8 +202,7 @@ public sealed class IdentifyOverlayTests
         var api = new FakeWindowApi();
         var overlays = new IdentifyOverlay(api, new FakeOverlayPaintApi());
         overlays.Show(1, s_monitor, startsClosingTimer: true);
-        api.TimersFailingToStop.Add(IdentifyOverlay.DismissTimerId);
-        api.TimersFailingToStop.Add(IdentifyOverlay.TopmostTimerId);
+        api.TimerStopFails = (_, _) => true;
         using var log = new LogCapture();
 
         overlays.DismissAll();
@@ -213,4 +211,26 @@ public sealed class IdentifyOverlayTests
         LogAssert.Logged(log, "WARN", "KillTimer failed for identify overlay dismissal");
         LogAssert.Logged(log, "WARN", "KillTimer failed for identify overlay topmost maintenance");
     }
+
+    [Fact]
+    [Trait("Requirement", "IDN-7")]
+    internal void RaiseAll_OverlaysShown_PutsEachBackOnTopWithoutMovingResizingOrActivating()
+    {
+        var api = new FakeWindowApi();
+        var overlays = new IdentifyOverlay(api, new FakeOverlayPaintApi());
+        overlays.Show(1, s_monitor, startsClosingTimer: true);
+        overlays.Show(2, s_monitor, startsClosingTimer: false);
+        api.Positions.Clear();
+
+        overlays.RaiseAll();
+
+        const uint KeepPlace = WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE;
+        Assert.Equal(
+            api.LiveWindows(OverlayClass).Count(),
+            api.Positions.Count(position => position.InsertAfter == WindowStyles.HWND_TOPMOST && position.Flags == KeepPlace));
+        Assert.Equal(2, api.Positions.Count);
+    }
+
+    // The closing timer is the overlay's timer of about three seconds (specification IDN-3)
+    private static bool IsClosingTimer(uint intervalMs) => intervalMs == 3000;
 }

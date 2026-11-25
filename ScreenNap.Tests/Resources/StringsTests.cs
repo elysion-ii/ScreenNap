@@ -88,7 +88,7 @@ public sealed class StringsTests
     {
         var missing = new ResourceManager("ScreenNap.Resources.Missing", typeof(Strings).Assembly);
 
-        Assert.Equal("MenuExit", Strings.Lookup(missing, "MenuExit", CultureInfo.GetCultureInfo("ja-JP")));
+        Assert.Equal("MenuExit", LocalizedText.Lookup(missing, "MenuExit", CultureInfo.GetCultureInfo("ja-JP")));
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class StringsTests
     {
         var resources = new ResourceManager("ScreenNap.Resources.Strings", typeof(Strings).Assembly);
 
-        Assert.Equal("NoSuchKey", Strings.Lookup(resources, "NoSuchKey", CultureInfo.GetCultureInfo("ja-JP")));
+        Assert.Equal("NoSuchKey", LocalizedText.Lookup(resources, "NoSuchKey", CultureInfo.GetCultureInfo("ja-JP")));
     }
 
     private static string Value(string key, CultureInfo culture) => key switch

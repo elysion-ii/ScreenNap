@@ -65,6 +65,14 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch ScreenNap"; Flags: nowait postinstall skipifsilent
 
+[UninstallDelete]
+; ScreenNap's own logs in the default log directory: once ScreenNap is gone, no retention
+; deletes them (specification DIST-6, LOG-7). Other files there, and a directory named by
+; SCREENNAP_LOG_DIR, are left alone.
+Type: files; Name: "{localappdata}\ScreenNap\Logs\ScreenNap_*.log"
+Type: dirifempty; Name: "{localappdata}\ScreenNap\Logs"
+Type: dirifempty; Name: "{localappdata}\ScreenNap"
+
 [CustomMessages]
 AppRunningCaption={#MyAppName} is still running
 AppRunningText=The uninstaller cannot remove files that {#MyAppName} still has open.%n%nChoose how to continue.

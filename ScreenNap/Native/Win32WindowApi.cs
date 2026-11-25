@@ -33,7 +33,6 @@ internal sealed class Win32WindowApi : IWindowApi
 
     public bool DestroyWindow(IntPtr hwnd) => User32.DestroyWindow(hwnd);
 
-    public bool IsWindow(IntPtr hwnd) => User32.IsWindow(hwnd);
 
     public bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags)
         => User32.SetWindowPos(hwnd, insertAfter, x, y, width, height, flags);

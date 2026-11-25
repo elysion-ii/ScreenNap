@@ -1,4 +1,3 @@
-using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Native;
 using ScreenNap.Tests.TestDoubles;
@@ -52,6 +51,31 @@ public sealed class MonitorEnumeratorTests
             api.Monitors.Take(foundBeforeFailure).Select(monitor => monitor.DevicePath),
             monitors.Select(monitor => monitor.DevicePath));
         LogAssert.Logged(log, "WARN", $"EnumDisplayMonitors failed; using the monitors found before the failure (Win32 error: {FakeMonitorApi.FailureError})");
+    }
+
+    // Two monitors of the same model; the first lacks a friendly name and the third has no display path
+    [Fact]
+    [Trait("Requirement", "MON-3")]
+    [Trait("Requirement", "MON-4")]
+    [Trait("Requirement", "MON-7")]
+    internal void EnumerateMonitors_DisplayTargetsReported_NamesAndIdentifiesEachMonitor()
+    {
+        FakeMonitorApi api = ThreeMonitors();
+        api.Targets[@"\\.\DISPLAY1"] = new DisplayTarget(" ", "port 1", EdidTests.Build(0xAC10, 0xA0DB, 0, "SERIAL-A"));
+        api.Targets[@"\\.\DISPLAY2"] = new DisplayTarget("DELL P2417H", "port 2", EdidTests.Build(0xAC10, 0xA0DB, 0, "SERIAL-B"));
+        api.DisplayDeviceNames[@"\\.\DISPLAY1"] = "Generic PnP Monitor";
+
+        IReadOnlyList<MonitorInfo> monitors = new MonitorEnumerator(api).EnumerateMonitors();
+
+        Assert.Equal(["Generic PnP Monitor", "DELL P2417H", "DISPLAY3"], monitors.Select(monitor => monitor.FriendlyName));
+        Assert.Equal(
+            [
+                MonitorIdentity.For(api.Targets[@"\\.\DISPLAY1"].Edid, "port 1"),
+                MonitorIdentity.For(api.Targets[@"\\.\DISPLAY2"].Edid, "port 2"),
+                null,
+            ],
+            monitors.Select(monitor => monitor.Identity));
+        Assert.NotEqual(monitors[0].Identity, monitors[1].Identity);
     }
 
     private static FakeMonitorApi ThreeMonitors()

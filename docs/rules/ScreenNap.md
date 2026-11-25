@@ -41,7 +41,7 @@ Native/        → no project dependencies
 ## Win32 and P/Invoke
 
 - Prefer `[LibraryImport]` over `[DllImport]` for new declarations
-- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, and `DisplayConfig.cs`
+- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, and `Cfgmgr32.cs`, with the display-configuration functions of user32.dll in `DisplayConfig.cs`
 - Use `IntPtr` for HWND, HMENU, HICON, and other Win32 handles
 - Native structures must use `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`
 - Check every P/Invoke return value and use `Marshal.GetLastWin32Error()` when the function documents `SetLastError = true`
@@ -59,8 +59,8 @@ Native/        → no project dependencies
 - Keep each WndProc delegate in a field of the `Native/WindowClass` that registers it, and keep that `WindowClass` in an object that lives until the class is unregistered at shutdown, so garbage collection cannot reclaim a delegate Windows can still call. The window procedure is an instance method of that object, so each window's state is found in the object rather than in static state
 - Call `DefWindowProc` for every message that is not handled explicitly
 - Do not use `async` or `await` inside a WndProc
-- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change `WM_TIMER`, the registered `TaskbarCreated` message, and `WM_DESTROY`
-- The blackout window handles `WM_TIMER`, `WM_MOUSEMOVE`, `WM_SETCURSOR`, `WM_LBUTTONDBLCLK`, `WM_RBUTTONUP`, and `WM_DESTROY`
+- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change `WM_TIMER`, the registered `TaskbarCreated` message, and `WM_CLOSE`. `WM_CLOSE` ends the message loop without destroying the window, because the shutdown path still needs the window to unregister the hotkeys; the shutdown path destroys it
+- The blackout window handles `WM_TIMER`, `WM_MOUSEMOVE`, `WM_SETCURSOR`, `WM_LBUTTONDBLCLK`, `WM_RBUTTONUP`, `WM_CLOSE` (ignored, specification WIN-6), and `WM_DESTROY`
 - The identify overlay handles `WM_PAINT`, `WM_TIMER`, and `WM_DESTROY`
 
 ## System Tray Implementation
@@ -80,7 +80,7 @@ Native/        → no project dependencies
 ## Monitor Enumeration Implementation
 
 - Resolve friendly monitor names in this order: `QueryDisplayConfig` with `DisplayConfigGetDeviceInfo`, second-level `EnumDisplayDevices`, then `MONITORINFOEX.szDevice` with the `\\.\` prefix removed
-- Use EDID manufacturer ID, product code, and connector instance as the stable identity for restoring blackout state across display-path changes
+- Identify a physical monitor as `docs/adr/0005-monitor-identity-by-serial-number-or-connection.md` decides: the EDID read from the monitor's device node, or the monitor's device interface path from `DisplayConfigGetDeviceInfo`
 
 ## Internationalization Implementation
 
@@ -91,8 +91,8 @@ Native/        → no project dependencies
 
 ## Logging Override
 
-- **Synchronous log I/O**: this section overrides `standard.md` Synchronous vs Asynchronous and `dotnet.md` ASYNC for `Logging/Logger.cs`. Log writes, the retention scan, and log deletion are synchronous, because their callers run on the UI thread inside a window procedure or the message loop, where Window Procedures in this file prohibits `async` and `await`
-- **The logger's own write failures**: this section overrides `standard.md` Failure Handling and Reporting (Never swallow failures) for the `catch` around a log-line write in `Logging/Logger.cs`. The `catch` swallows the failure, because the logger has no other channel to report its own failure, and the specification requires a logging failure to stay silent to the user
+- **Synchronous log I/O**: this section overrides `standard.md` Synchronous vs Asynchronous and `dotnet.md` ASYNC for `Logging/LogFile.cs`. Log writes, the retention scan, and log deletion are synchronous, because their callers run on the UI thread inside a window procedure or the message loop, where Window Procedures in this file prohibits `async` and `await`
+- **The logger's own write failures**: this section overrides `standard.md` Failure Handling and Reporting (Never swallow failures) for the `catch` around a log-line write in `Logging/LogFile.cs`. The `catch` swallows the failure, because the logger has no other channel to report its own failure, and the specification requires a logging failure to stay silent to the user
 
 ## Release Constraints
 

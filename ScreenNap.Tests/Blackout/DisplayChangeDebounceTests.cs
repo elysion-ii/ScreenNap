@@ -1,6 +1,5 @@
 using System.Globalization;
 using ScreenNap.Blackout;
-using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Tests.TestDoubles;
 using Xunit;
@@ -17,7 +16,7 @@ public sealed class DisplayChangeDebounceTests
     internal void OnDisplayChange_TimerCannotStart_LogsItAndDoesNotReconcileUntilTheNextChange()
     {
         var api = new FakeWindowApi();
-        api.TimersFailingToStart.Add(DisplayChangeDebounce.TimerId);
+        api.TimerStartFails = (_, _) => true;
         int enumerations = 0;
         var debounce = new DisplayChangeDebounce(api, Manager(), () => { enumerations++; return []; });
         using var log = new LogCapture();
@@ -28,9 +27,9 @@ public sealed class DisplayChangeDebounceTests
         Assert.Equal(0, enumerations);
         LogAssert.Logged(log, "WARN", $"SetTimer failed for display-change debounce; this display change is not reconciled (Win32 error: {FakeWindowApi.FailureError})");
 
-        api.TimersFailingToStart.Clear();
+        api.TimerStartFails = (_, _) => false;
         debounce.OnDisplayChange(s_messageWindow);
-        Assert.Contains((s_messageWindow, DisplayChangeDebounce.TimerId), api.Timers);
+        Assert.True(api.Timers.ContainsKey((s_messageWindow, DisplayChangeDebounce.TimerId)));
 
         debounce.OnTimer(s_messageWindow);
 
@@ -43,7 +42,7 @@ public sealed class DisplayChangeDebounceTests
     internal void OnTimer_TimerCannotBeStopped_LogsItAndStillReconciles()
     {
         var api = new FakeWindowApi();
-        api.TimersFailingToStop.Add(DisplayChangeDebounce.TimerId);
+        api.TimerStopFails = (_, _) => true;
         int enumerations = 0;
         var debounce = new DisplayChangeDebounce(api, Manager(), () => { enumerations++; return []; });
         debounce.OnDisplayChange(s_messageWindow);

@@ -4,7 +4,8 @@ using ScreenNap.Native;
 namespace ScreenNap.Tests.Monitors;
 
 // Stands in for Windows' display functions: it reports the monitors a test lists, fails the
-// information request of the monitors a test names, and can end the enumeration with a failure
+// information request of the monitors a test names, reports the display targets and names a
+// test sets, and can end the enumeration with a failure
 internal sealed class FakeMonitorApi : IMonitorApi
 {
     internal const int FailureError = 1461;
@@ -48,7 +49,12 @@ internal sealed class FakeMonitorApi : IMonitorApi
         return true;
     }
 
-    public Dictionary<string, MonitorDisplayInfo> QueryDisplayInfo() => new(StringComparer.Ordinal);
+    // The display target Windows reports for each GDI device name
+    internal Dictionary<string, DisplayTarget> Targets { get; } = new(StringComparer.Ordinal);
+    // The secondary display-device name of each GDI device name
+    internal Dictionary<string, string> DisplayDeviceNames { get; } = new(StringComparer.Ordinal);
 
-    public string? GetDisplayDeviceName(string devicePath) => null;
+    public Dictionary<string, DisplayTarget> QueryDisplayTargets() => new(Targets, StringComparer.Ordinal);
+
+    public string? GetDisplayDeviceName(string devicePath) => DisplayDeviceNames.GetValueOrDefault(devicePath);
 }

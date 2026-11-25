@@ -18,7 +18,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MON-6")]
     internal void Build_NoMonitors_ContainsVersionSingleSeparatorAndExit()
     {
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([], new HashSet<string>(), VersionText, s_english);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([], new HashSet<string>(), 0, VersionText, s_english);
 
         Assert.Collection(items,
             item => Assert.Equal(VersionText, item.Text),
@@ -31,7 +31,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "VER-2")]
     internal void Build_OneMonitor_PlacesDisabledVersionItemFirst()
     {
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), VersionText, s_english);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), 0, VersionText, s_english);
 
         Assert.Equal(new MenuItem(false, false, MenuCommandIds.None, VersionText, true), items[0]);
     }
@@ -42,7 +42,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MON-2")]
     internal void Build_OneInactiveMonitor_CreatesUncheckedMonitorItem()
     {
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), VersionText, s_english);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([Monitor("DISPLAY1")], new HashSet<string>(), 0, VersionText, s_english);
 
         Assert.False(items[2].Checked);
         Assert.Equal(MenuCommandIds.MonitorBase, items[2].CommandId);
@@ -60,6 +60,7 @@ public sealed class MenuModelTests
         IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(
             [Monitor("DISPLAY1"), Monitor("DISPLAY2")],
             new HashSet<string>(["DISPLAY2"], StringComparer.Ordinal),
+            1,
             VersionText,
             s_english);
 
@@ -73,6 +74,37 @@ public sealed class MenuModelTests
             item => Assert.Equal(new MenuItem(false, false, 2000, "Release All"), item),
             item => Assert.Equal(new MenuItem(false, true, 0, null), item),
             item => Assert.Equal(new MenuItem(false, false, 9999, "Exit"), item));
+    }
+
+    // A blackout stays live while a failed enumeration lists no monitor (MON-6)
+    [Fact]
+    [Trait("Requirement", "MENU-2")]
+    [Trait("Requirement", "MENU-7")]
+    [Trait("Requirement", "MON-6")]
+    internal void Build_NoMonitorWhileABlackoutIsLive_HasNoTwoSeparatorsInARow()
+    {
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([], new HashSet<string>(), 1, VersionText, s_english);
+
+        Assert.Collection(
+            items,
+            item => Assert.Equal(new MenuItem(false, false, 0, VersionText, true), item),
+            item => Assert.Equal(new MenuItem(false, true, 0, null), item),
+            item => Assert.Equal(new MenuItem(false, false, 2000, "Release All"), item),
+            item => Assert.Equal(new MenuItem(false, true, 0, null), item),
+            item => Assert.Equal(new MenuItem(false, false, 9999, "Exit"), item));
+    }
+
+    [Theory]
+    [Trait("Requirement", "MENU-4")]
+    [InlineData("R&D Monitor", "&1  R&&D Monitor  1920x1080")]
+    [InlineData("&&&", "&1  &&&&&&  1920x1080")]
+    internal void Build_AmpersandInTheName_ShowsItAsText(string name, string expected)
+    {
+        MonitorInfo monitor = Monitor("DISPLAY1") with { FriendlyName = name };
+
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([monitor], new HashSet<string>(), 0, VersionText, s_english);
+
+        Assert.Equal(expected, items[2].Text);
     }
 
     [Theory]
@@ -102,7 +134,7 @@ public sealed class MenuModelTests
     {
         MonitorInfo[] monitors = [.. Enumerable.Range(1, 10).Select(number => Monitor($"DISPLAY{number}"))];
 
-        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(monitors, new HashSet<string>(), VersionText, s_english);
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(monitors, new HashSet<string>(), 0, VersionText, s_english);
 
         Assert.Equal(
             Enumerable.Range(1, 10).Select(number => $"&{number}  DISPLAY{number}  1920x1080"),
@@ -110,5 +142,5 @@ public sealed class MenuModelTests
     }
 
     private static MonitorInfo Monitor(string path)
-        => new(path, path, new RECT { Right = 1920, Bottom = 1080 }, false, default);
+        => new(path, path, new RECT { Right = 1920, Bottom = 1080 }, false, null);
 }

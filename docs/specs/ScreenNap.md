@@ -45,10 +45,11 @@ installer behavior.
 ScreenNap starts without displaying a main window and remains resident through a
 system-tray icon and registered global hotkeys.
 
-#### LIFE-2: Only one ScreenNap process runs at a time
+#### LIFE-2: Only one ScreenNap process runs at a time in a logon session
 
-A second launch displays a localized informational message and exits without affecting
-the running process.
+A second launch in the same Windows logon session displays a localized informational
+message and exits without affecting the running process. Each logon session (another
+user, or another sign-in of the same user) runs its own ScreenNap.
 When this message, or a startup-failure message (ERR-1, ERR-2), cannot be shown,
 ScreenNap logs that failure and ends as it would have after the message.
 
@@ -63,6 +64,13 @@ no notification, and ends; Windows removes the windows of the ended process.
 
 Blackout choices exist only for the current process lifetime; ScreenNap persists neither
 blackout state nor user configuration across restarts.
+
+#### LIFE-5: A close request from another process shuts ScreenNap down normally
+
+When another process sends ScreenNap's windows a close request (as the installer does
+before an update or uninstall), ScreenNap shuts down normally (LIFE-3), so the update or
+uninstall can proceed without force-closing it (DIST-7 to DIST-9). The shutdown releases
+what ScreenNap holds in the same way and logs no failure for what it released.
 
 ### Processing and timing
 
@@ -90,8 +98,9 @@ No input decides an identity, a permission, or another effect the user may not c
 #### MON-1: Monitors are enumerated when they are needed
 
 ScreenNap enumerates the currently active monitors whenever the tray menu opens, whenever
-a monitor hotkey is handled, whenever identification overlays are requested, and after a
-display configuration change settles.
+a monitor item of the menu is selected for a monitor without a live blackout (MENU-6),
+whenever a monitor hotkey is handled, whenever identification overlays are requested, and
+after a display configuration change settles.
 
 #### MON-2: Monitors are numbered from one in enumeration order
 
@@ -107,7 +116,20 @@ removed.
 #### MON-4: A monitor record carries bounds, resolution, primary state, and identity
 
 Each monitor record includes its full monitor bounds, resolution, primary-monitor state,
-and stable physical identity when Windows supplies that identity.
+and physical identity (MON-7) when Windows reports the monitor's display path.
+
+#### MON-7: A physical monitor is identified by its serial number, or by its connection
+
+Two monitor records denote the same physical monitor when their EDID manufacturer ID,
+product code, and serial number are equal, for a monitor whose EDID carries a serial
+number. A monitor whose EDID carries no serial number, or whose EDID cannot be read, is
+identified by the display connection it is attached to. Two monitors of the same model
+are therefore told apart, and a monitor with a serial number keeps its identity when it
+is attached to another connection. The serial number is the EDID's serial-number text
+when the EDID carries one, and otherwise its numeric serial number when that is not zero.
+A monitor has a physical identity whenever Windows reports its display path, whether or
+not Windows also reports a friendly name. The reasons are in
+`docs/adr/0005-monitor-identity-by-serial-number-or-connection.md`.
 
 #### MON-5: One monitor's failure does not hide the others
 
@@ -177,7 +199,8 @@ The menu lists every currently enumerated monitor before its action items.
 
 Each monitor item contains its one-based accelerator number, friendly name, resolution
 in physical pixels, localized primary marker when applicable, and localized active marker
-when blacked out.
+when blacked out. The friendly name appears exactly as Windows reports it; an `&` in it
+is shown as an `&` and never becomes an access key.
 
 #### MENU-5: A blacked-out monitor's item is checked
 
@@ -185,8 +208,12 @@ A live blackout monitor item is checked.
 
 #### MENU-6: Selecting a monitor item toggles that monitor
 
-Selecting a monitor item toggles the blackout for the monitor represented by the menu
-snapshot.
+Selecting a monitor item toggles the blackout for the monitor the item represented when
+the menu opened. When that monitor has a live blackout, the blackout closes. Otherwise
+the blackout covers that monitor as the current enumeration reports it, so a display
+change while the menu was open never leaves the blackout at the monitor's earlier bounds
+(WIN-1); when the current enumeration no longer lists that monitor, selecting the item
+does nothing, as for a hotkey without a monitor (HK-2).
 
 #### MENU-7: Release All appears only while a blackout is live
 
@@ -238,8 +265,10 @@ Multiple monitors may be blacked out simultaneously and controlled independently
 #### BLK-4: Release All closes every blackout it can
 
 `Release All` attempts to close every live blackout and clears restoration intent for
-every successfully closed window. A window that cannot be closed remains active and, when
-it has a stable physical identity, retains only its own desired state.
+every successfully closed window. It also clears the desired state of every disconnected
+monitor waiting for restoration (DISP-4), so no monitor is blacked out again when it
+reconnects. A window that cannot be closed remains active and, when it has a physical
+identity, retains only its own desired state.
 
 #### BLK-5: The tray follows the live blackout count
 
@@ -275,6 +304,13 @@ dismisses it and clears the user's desired blackout state for that physical moni
 The cursor hides after 10 seconds without a position change over the blackout window. A
 later position change shows the cursor and restarts the inactivity period.
 
+#### WIN-6: Only the user and ScreenNap close a blackout
+
+A blackout window ignores a close request another process sends to it. A blackout closes
+only through the user's actions (WIN-4, MENU-6, MENU-7, HK-2), reconciliation for a
+disconnected monitor (DISP-2), and ScreenNap's shutdown (LIFE-3, LIFE-5), so the monitor
+stays protected as long as the user wants it blacked out.
+
 ### Display configuration changes and restoration
 
 #### DISP-1: Display changes are debounced
@@ -286,10 +322,14 @@ When the debounce timer cannot be started, ScreenNap logs the failure and does n
 reconcile for that notification; the next display-change notification starts the
 debounce again.
 
-#### DISP-2: A blackout Windows destroyed stays desired
+#### DISP-2: A blackout whose monitor is disconnected closes and stays desired
 
-If Windows destroys a blackout window without a user dismissal, ScreenNap retains the
-desired blackout state when the monitor has a stable physical identity.
+When a physical monitor with a live blackout is no longer present after reconciliation,
+ScreenNap closes that blackout, so Windows never moves it onto another monitor, and the
+monitor stays desired when it has a physical identity (DISP-4). Live blackouts are kept
+per physical monitor (MON-7), so a display device path that moves to another monitor
+never carries a blackout with it. When the blackout cannot be closed, ScreenNap logs the
+failure, shows no notification, and tries again at the next reconciliation.
 
 #### DISP-3: A desired blackout follows its physical monitor
 
@@ -306,17 +346,26 @@ change reconnects the same physical monitor.
 A monitor without a stable physical identity is not restored automatically after its
 blackout window disappears.
 
-#### DISP-6: Reconciliation removes stale state without duplicating blackouts
+#### DISP-6: Reconciliation never duplicates a blackout
 
-Reconciliation removes stale window state, whether or not any blackout is desired, does
-not duplicate a live blackout, and ignores monitors that are not desired.
+Reconciliation does not create a second blackout for a monitor that has a live one, and
+ignores monitors that are not desired.
+
+#### DISP-7: A live blackout follows its monitor's bounds
+
+After reconciliation, every live blackout covers the current full bounds of its monitor,
+so a change of the monitor's resolution or position never leaves part of it uncovered
+(WIN-1). When a blackout cannot be moved, ScreenNap logs the failure, shows no
+notification, and tries again at the next reconciliation.
 
 ### Global hotkeys
 
 #### HK-1: Ctrl+Shift+Alt+1 through 9 are registered
 
 ScreenNap registers `Ctrl+Shift+Alt+1` through `Ctrl+Shift+Alt+9` as non-repeating
-global hotkeys.
+global hotkeys. The digits of every ScreenNap hotkey (HK-1, HK-3) are the digit keys of
+the keyboard's main row; the numeric keypad's digit keys are not hotkeys, because Windows
+turns a keypad digit pressed with Shift into a navigation key.
 
 #### HK-2: A numbered hotkey toggles its monitor
 
@@ -374,6 +423,11 @@ other monitors.
 
 When the enumeration finds no monitor, the identify hotkey shows nothing and shows no
 notification.
+
+#### IDN-7: Overlays appear above blackouts
+
+An identification overlay on a blacked-out monitor appears above the blackout for as
+long as the overlay is shown, so a blacked-out monitor can be identified.
 
 ### Localization
 
@@ -492,7 +546,10 @@ The installer user interface is English.
 #### DIST-6: Uninstalling removes what the installer created
 
 Uninstalling removes the installed files, the shortcuts, and the Windows-startup entry
-the installer created.
+the installer created. It also removes ScreenNap's log files (LOG-3) from the default log
+directory (LOG-1), and that directory and its `ScreenNap` parent when they are left
+empty, because no retention runs once ScreenNap is gone (LOG-7). A directory named by
+`SCREENNAP_LOG_DIR` is left untouched.
 
 #### DIST-7: Uninstalling handles a running ScreenNap
 
@@ -527,8 +584,9 @@ again once ScreenNap has closed.
 | `Ctrl+Shift+Alt+0` | Identification overlays shown or dismissed | HK-3, IDN-1 to IDN-4 |
 | Blackout-window left double-click or right-button release | That blackout dismissed by the user | WIN-4 |
 | Cursor position changes over a blackout | Cursor restored and inactivity timer restarted | WIN-5 |
-| Display configuration change | Desired blackout state reconciled after debounce | DISP-1 to DISP-6 |
+| Display configuration change | Desired blackout state reconciled after debounce | DISP-1 to DISP-7 |
 | Taskbar recreated | Tray icon added again with the current state | TRAY-5 |
+| Close request from another process | Normal application shutdown; a blackout window ignores it | LIFE-5, WIN-6 |
 | `SCREENNAP_LOG_DIR` | Log directory | LOG-1, LOG-2 |
 | Application and operational events | Daily English log entries when logging is available | LOG-3 to LOG-6 |
 
@@ -614,18 +672,20 @@ A logging failure is silent to the user and never terminates ScreenNap.
 ScreenNap does not change monitor power, display layout, orientation, resolution, or
 primary-monitor selection.
 
-#### INV-2: At most one blackout exists per display device
+#### INV-2: At most one blackout exists per monitor
 
-At most one live blackout window exists for a given display device path.
+At most one live blackout window exists for a physical monitor (MON-7) and, for a monitor
+without a physical identity, for its display device path.
 
 #### INV-3: The tray always reflects the live blackout count
 
 Every live blackout count change is reflected in the tray state.
 
-#### INV-4: Only an operating-system disappearance keeps restoration intent
+#### INV-4: Only the user clears restoration intent
 
-A user dismissal clears restoration intent; an operating-system disappearance retains
-restoration intent only through a non-default stable monitor identity.
+Only the user's actions clear a monitor's desired state: a dismissal (WIN-4), selecting
+its item or hotkey again (MENU-6, HK-2), and Release All (BLK-4). A blackout closed for a
+disconnected monitor keeps it desired (DISP-2) when the monitor has a physical identity.
 
 #### INV-5: Shutdown leaves nothing behind
 
@@ -660,3 +720,10 @@ The distributed application has no external runtime package dependency.
 - DDC/CI monitor control
 - User-configurable hotkeys, cursor timeout, identification duration, or topmost intervals
 - Persisting blackout selections or application settings across process restarts
+- Keyboard access to the tray icon and its menu; they respond to the mouse (TRAY-4)
+- What happens when the Windows session ends (sign-out, restart, shutdown): Windows ends
+  ScreenNap there, and whether ScreenNap's normal shutdown runs is unspecified; nothing
+  is lost, because nothing persists (LIFE-4)
+- Covering the secure desktop (the lock screen and elevation prompts) and full-screen
+  applications that take exclusive control of a display; Windows draws no ordinary
+  window there

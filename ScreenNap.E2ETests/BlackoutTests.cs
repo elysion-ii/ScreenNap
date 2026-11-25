@@ -81,6 +81,24 @@ public sealed class BlackoutTests
         Assert.DoesNotContain(app.OpenMenu(), entry => entry.Id == ScreenNapApp.ReleaseAllCommand);
     }
 
+    [Fact]
+    [Trait("Requirement", "WIN-6")]
+    internal void CloseRequest_SentToTheBlackout_LeavesItOpen()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT monitor = app.Monitors()[0];
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        IntPtr blackout = app.WaitForBlackoutCovering(monitor);
+
+        if (!Win32.PostMessageW(blackout, Win32.WM_CLOSE, 0, 0))
+            throw new InvalidOperationException($"PostMessageW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+        // The menu opens after ScreenNap handled the close request posted before it
+        Assert.Contains(app.OpenMenu(), entry => entry.IsChecked);
+
+        Assert.Equal([blackout], app.BlackoutWindows());
+        Assert.True(ScreenNapApp.SameRect(app.Measure(() => Desktop.Bounds(blackout)), monitor));
+    }
+
     [Theory]
     [Trait("Requirement", "WIN-4")]
     [Trait("Requirement", "INV-4")]

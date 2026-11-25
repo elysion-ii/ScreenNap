@@ -15,7 +15,7 @@ internal sealed class MonitorEnumerator
     internal IReadOnlyList<MonitorInfo> EnumerateMonitors()
     {
         var monitors = new List<MonitorInfo>();
-        Dictionary<string, MonitorDisplayInfo> displayInfo = _api.QueryDisplayInfo();
+        Dictionary<string, DisplayTarget> targets = _api.QueryDisplayTargets();
 
         bool enumerated = _api.EnumDisplayMonitors(hMonitor =>
         {
@@ -27,11 +27,13 @@ internal sealed class MonitorEnumerator
             }
 
             bool isPrimary = (flags & WindowStyles.MONITORINFOF_PRIMARY) != 0;
-            MonitorDisplayInfo? qdcInfo = displayInfo.TryGetValue(devicePath, out MonitorDisplayInfo found) ? found : null;
-            (string friendlyName, MonitorIdentity identity) = MonitorNameResolver.Resolve(
+            DisplayTarget? target = targets.GetValueOrDefault(devicePath);
+            string friendlyName = MonitorNameResolver.Resolve(
                 devicePath,
-                qdcInfo,
-                _api.GetDisplayDeviceName(devicePath));
+                target?.FriendlyName,
+                string.IsNullOrWhiteSpace(target?.FriendlyName) ? _api.GetDisplayDeviceName(devicePath) : null);
+            // The identity does not depend on whether Windows reports a friendly name (specification MON-7)
+            MonitorIdentity? identity = target is null ? null : MonitorIdentity.For(target.Edid, target.Connection);
 
             monitors.Add(new MonitorInfo(devicePath, friendlyName, bounds, isPrimary, identity));
             return true;
@@ -45,7 +47,7 @@ internal sealed class MonitorEnumerator
         {
             MonitorInfo m = monitors[i];
             string primary = m.IsPrimary ? " Primary" : "";
-            Logger.Info($"  #{i + 1} \"{m.FriendlyName}\" ({m.Bounds.Left},{m.Bounds.Top} {m.Bounds.Width}x{m.Bounds.Height}){primary} {m.DevicePath} [EDID:{m.Identity.EdidManufacturerId:X4}:{m.Identity.EdidProductCodeId:X4} CI:{m.Identity.ConnectorInstance}]");
+            Logger.Info($"  #{i + 1} \"{m.FriendlyName}\" ({m.Bounds.Left},{m.Bounds.Top} {m.Bounds.Width}x{m.Bounds.Height}){primary} {m.DevicePath} [{m.Identity?.Value ?? "no identity"}]");
         }
 
         return monitors;

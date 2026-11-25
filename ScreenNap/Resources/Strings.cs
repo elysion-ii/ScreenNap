@@ -45,17 +45,5 @@ internal static class Strings
 
     internal static string NotifyOverlaysNotCreated(CultureInfo culture) => Lookup(nameof(NotifyOverlaysNotCreated), culture);
 
-    internal static string Lookup(ResourceManager manager, string key, CultureInfo culture)
-    {
-        try
-        {
-            return manager.GetString(key, culture) ?? key;
-        }
-        catch (MissingManifestResourceException)
-        {
-            return key;
-        }
-    }
-
-    private static string Lookup(string key, CultureInfo culture) => Lookup(ResourceManager, key, culture);
+    private static string Lookup(string key, CultureInfo culture) => LocalizedText.Lookup(ResourceManager, key, culture);
 }

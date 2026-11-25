@@ -1,6 +1,5 @@
 using System.Globalization;
 using ScreenNap.Blackout;
-using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Native;
 using ScreenNap.Tests.TestDoubles;
@@ -14,7 +13,7 @@ public sealed class ContextMenuTests
     private static readonly CultureInfo s_english = CultureInfo.GetCultureInfo("en-US");
     private static readonly IntPtr s_messageWindow = new(0x77);
     private static readonly MonitorInfo s_monitor = new(
-        @"\\.\DISPLAY1", "Monitor", new RECT { Left = 0, Top = 0, Right = 1920, Bottom = 1080 }, true, new MonitorIdentity(1, 2, 0));
+        @"\\.\DISPLAY1", "Monitor", new RECT { Left = 0, Top = 0, Right = 1920, Bottom = 1080 }, true, MonitorIdentity.For(null, "connection 1"));
 
     [Fact]
     [Trait("Requirement", "TRAY-4")]
@@ -65,6 +64,30 @@ public sealed class ContextMenuTests
         menu.HandleCommand(MenuCommandIds.Exit);
 
         Assert.Equal(1, exits);
+    }
+
+    // The display changes while the menu is open, before the user selects the monitor
+    [Theory]
+    [Trait("Requirement", "MENU-6")]
+    [Trait("Requirement", "WIN-1")]
+    [InlineData(true)]
+    [InlineData(false)]
+    internal void HandleCommand_MonitorChangedWhileTheMenuWasOpen_ActsOnTheMonitorAsItIsNow(bool stillPresent)
+    {
+        var windows = new FakeWindowApi();
+        var manager = new BlackoutManager(new BlackoutWindowFactory(windows), new FakeUserNotifier(), s_english);
+        MonitorInfo moved = s_monitor with { DevicePath = @"\\.\DISPLAY2", Bounds = new RECT { Left = 1920, Right = 4480, Bottom = 1440 } };
+        IReadOnlyList<MonitorInfo> current = [s_monitor];
+        var menu = new ContextMenu(manager, () => current, new FakePopupMenuApi(), () => { }, s_english);
+        menu.Show(s_messageWindow);
+        current = stillPresent ? [moved] : [];
+
+        menu.HandleCommand(MenuCommandIds.MonitorBase);
+
+        if (stillPresent)
+            Assert.Equal((1920, 0, 2560, 1440), Assert.Single(windows.LiveWindows("ScreenNap_Blackout")).CreatedBounds);
+        else
+            Assert.Empty(windows.LiveWindows("ScreenNap_Blackout"));
     }
 
     private static ContextMenu Menu(FakePopupMenuApi api, FakeUserNotifier notifier)

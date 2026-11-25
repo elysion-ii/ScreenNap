@@ -14,7 +14,10 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        Logger.Initialize(Environment.GetEnvironmentVariable(Logger.DirectoryVariable), Logger.DefaultDirectory);
+        Logger.Use(LogFile.Open(
+            Environment.GetEnvironmentVariable(LogDirectoryChoice.DirectoryVariable),
+            LogFile.DefaultDirectory,
+            DateTimeOffset.Now));
 
         // The Windows UI language selects the localized text and stays fixed for the process
         CultureInfo culture = CultureInfo.CurrentUICulture;

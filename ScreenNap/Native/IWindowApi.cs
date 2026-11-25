@@ -17,8 +17,6 @@ internal interface IWindowApi
 
     bool DestroyWindow(IntPtr hwnd);
 
-    bool IsWindow(IntPtr hwnd);
-
     bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
 
     // Paints the window's invalid part now, before returning

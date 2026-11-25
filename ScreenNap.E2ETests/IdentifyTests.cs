@@ -73,4 +73,40 @@ public sealed class IdentifyTests
         Wait.Until(() => app.Overlays().Count == 0, s_timeout, "the overlays close");
         Assert.True(pressed.Elapsed < TimeSpan.FromSeconds(2), $"The overlays closed only after {pressed.Elapsed.TotalSeconds:0.0}s");
     }
+
+    // Long enough to span a blackout's one-second topmost reassertion twice, short of the
+    // overlays' automatic close after about three seconds
+    [Fact]
+    [Trait("Requirement", "IDN-7")]
+    internal void IdentifyHotkey_OverABlackout_KeepsTheOverlayAboveIt()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT monitor = app.Monitors()[0];
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        IntPtr blackout = app.WaitForBlackoutCovering(monitor);
+
+        Keyboard.PressHotkey(0);
+        Wait.Until(() => app.Overlays().Count > 0, s_timeout, "the overlays show");
+        IntPtr overlay = app.Overlays().Single(window => Covers(monitor, app.Measure(() => Desktop.Bounds(window))));
+        RECT bounds = app.Measure(() => Desktop.Bounds(overlay));
+        int x = bounds.Left + (bounds.Width / 2);
+        int y = bounds.Top + (bounds.Height / 2);
+
+        Stopwatch watched = Stopwatch.StartNew();
+        while (watched.Elapsed < TimeSpan.FromSeconds(2.2))
+        {
+            // A state that lasts no longer than one screen refresh is never seen
+            if (app.Measure(() => Desktop.WindowAt(x, y)) != overlay)
+            {
+                Thread.Sleep(20);
+                Assert.Equal(overlay, app.Measure(() => Desktop.WindowAt(x, y)));
+            }
+            Thread.Sleep(10);
+        }
+        Assert.Equal([blackout], app.BlackoutWindows());
+        Assert.Contains(overlay, app.Overlays());
+    }
+
+    private static bool Covers(RECT monitor, RECT window)
+        => window.Left >= monitor.Left && window.Right <= monitor.Right && window.Top >= monitor.Top && window.Bottom <= monitor.Bottom;
 }

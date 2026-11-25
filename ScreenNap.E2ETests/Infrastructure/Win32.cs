@@ -51,6 +51,7 @@ internal static partial class Win32
     internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOACTIVATE = 0x0010;
 
+    internal const uint SYNCHRONIZE = 0x00100000;
     internal const uint THREAD_SUSPEND_RESUME = 0x0002;
     internal const uint THREAD_QUERY_LIMITED_INFORMATION = 0x0800;
     internal const uint SuspendThreadFailed = 0xFFFFFFFF;
@@ -180,6 +181,12 @@ internal static partial class Win32
 
     [LibraryImport("kernel32.dll", EntryPoint = "ResumeThread", SetLastError = true)]
     internal static partial uint ResumeThread(IntPtr hThread);
+
+    [LibraryImport("user32.dll", EntryPoint = "WindowFromPoint")]
+    internal static partial IntPtr WindowFromPoint(POINT point);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "OpenMutexW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial IntPtr OpenMutexW(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, string lpName);
 
     [LibraryImport("kernel32.dll", EntryPoint = "CloseHandle", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

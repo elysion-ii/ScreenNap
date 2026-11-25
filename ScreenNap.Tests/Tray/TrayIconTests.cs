@@ -1,5 +1,4 @@
 using System.Globalization;
-using ScreenNap.Logging;
 using ScreenNap.Native;
 using ScreenNap.Tests.TestDoubles;
 using ScreenNap.Tray;
@@ -20,11 +19,16 @@ public sealed class TrayIconTests
     {
         var api = new FakeTrayIconApi();
         TrayIcon trayIcon = CreatedTrayIcon(api);
+        Assert.Equal((FakeTrayIconApi.NormalIcon, "ScreenNap"), (api.ShownIcon, api.ShownTip));
 
         trayIcon.UpdateState(2);
 
         Assert.Equal(FakeTrayIconApi.ActiveIcon, api.ShownIcon);
-        Assert.Contains("2", api.ShownTip, StringComparison.Ordinal);
+        Assert.Equal("ScreenNap (2 active)", api.ShownTip);
+
+        trayIcon.UpdateState(0);
+
+        Assert.Equal((FakeTrayIconApi.NormalIcon, "ScreenNap"), (api.ShownIcon, api.ShownTip));
     }
 
     [Fact]

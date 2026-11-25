@@ -12,6 +12,8 @@ internal sealed class TrayIcon : IUserNotifier
     private const uint IconId = 1;
     private const string NormalIconResource = "icon-normal.ico";
     private const string ActiveIconResource = "icon-active.ico";
+    // Version 4 icons show the standard tooltip only with NIF_SHOWTIP (specification TRAY-1, TRAY-2)
+    private const uint TipFlags = WindowStyles.NIF_TIP | WindowStyles.NIF_SHOWTIP;
 
     private readonly IntPtr _hwnd;
     private readonly CultureInfo _culture;
@@ -59,7 +61,7 @@ internal sealed class TrayIcon : IUserNotifier
     {
         TrayState state = TrayState.For(activeCount, _culture);
         NOTIFYICONDATAW nid = CreateBaseData();
-        nid.uFlags = WindowStyles.NIF_MESSAGE | WindowStyles.NIF_ICON | WindowStyles.NIF_TIP;
+        nid.uFlags = WindowStyles.NIF_MESSAGE | WindowStyles.NIF_ICON | TipFlags;
         nid.uCallbackMessage = WindowStyles.WM_TRAYICON;
         nid.hIcon = state.UseActiveIcon ? _iconActive : _iconNormal;
         SetTipText(ref nid, state.TipText);
@@ -133,7 +135,7 @@ internal sealed class TrayIcon : IUserNotifier
             return;
 
         NOTIFYICONDATAW nid = CreateBaseData();
-        nid.uFlags = WindowStyles.NIF_ICON | WindowStyles.NIF_TIP;
+        nid.uFlags = WindowStyles.NIF_ICON | TipFlags;
 
         TrayState state = TrayState.For(activeCount, _culture);
         nid.hIcon = state.UseActiveIcon ? _iconActive : _iconNormal;

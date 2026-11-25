@@ -12,6 +12,10 @@ internal sealed class BlackoutWindowFactory : IBlackoutWindowFactory
     private readonly WindowClass _windowClass;
     private readonly Dictionary<IntPtr, BlackoutWindow> _windows = [];
 
+    // Raised whenever a blackout window takes the top of the topmost band, as it does when it
+    // appears and each time it reasserts its topmost position (specification WIN-3, IDN-7)
+    internal event Action? WindowRaised;
+
     internal BlackoutWindowFactory(IWindowApi api)
     {
         _api = api;
@@ -58,9 +62,10 @@ internal sealed class BlackoutWindowFactory : IBlackoutWindowFactory
         }
         Logger.Info($"Blackout window created: {monitor.DevicePath} ({bounds.Left},{bounds.Top} {bounds.Width}x{bounds.Height})");
 
-        var window = new BlackoutWindow(_api, handle, monitor.DevicePath, monitor.Identity, Environment.TickCount64);
+        var window = new BlackoutWindow(_api, handle, monitor.DevicePath, monitor.Identity, Environment.TickCount64, () => WindowRaised?.Invoke());
         _windows[handle] = window;
         window.StartTopmostMaintenance();
+        WindowRaised?.Invoke();
         return window;
     }
 

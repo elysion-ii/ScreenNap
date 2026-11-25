@@ -6,16 +6,18 @@ namespace ScreenNap.Blackout;
 
 internal sealed class BlackoutWindow : IBlackoutWindow
 {
-    internal const nuint TopmostTimerId = 1;
+    private const nuint TopmostTimerId = 1;
     private const uint TopmostIntervalMs = 1000;
 
     private readonly IWindowApi _api;
     private readonly CursorIdleTracker _cursorIdleTracker;
+    private readonly Action _raised;
     private IntPtr _handle;
 
-    internal BlackoutWindow(IWindowApi api, IntPtr handle, string devicePath, MonitorIdentity identity, long createdTick)
+    internal BlackoutWindow(IWindowApi api, IntPtr handle, string devicePath, MonitorIdentity? identity, long createdTick, Action raised)
     {
         _api = api;
+        _raised = raised;
         _handle = handle;
         DevicePath = devicePath;
         Identity = identity;
@@ -23,9 +25,8 @@ internal sealed class BlackoutWindow : IBlackoutWindow
     }
 
     public string DevicePath { get; }
-    public MonitorIdentity Identity { get; }
+    public MonitorIdentity? Identity { get; }
     public bool UserDismissed { get; private set; }
-    public bool IsAlive => _handle != IntPtr.Zero && _api.IsWindow(_handle);
     public Action<IBlackoutWindow>? OnDestroyed { get; set; }
 
     // The blackout works without the timer; it only stops reasserting its topmost position
@@ -48,6 +49,16 @@ internal sealed class BlackoutWindow : IBlackoutWindow
         return false;
     }
 
+    public void MoveTo(RECT bounds)
+    {
+        if (!_api.SetWindowPos(_handle, IntPtr.Zero,
+            bounds.Left, bounds.Top, bounds.Width, bounds.Height,
+            WindowStyles.SWP_NOZORDER | WindowStyles.SWP_NOACTIVATE))
+        {
+            Logger.Warn($"SetWindowPos failed to fit blackout window {DevicePath} to its monitor", _api.LastError);
+        }
+    }
+
     internal nint HandleMessage(uint msg, nuint wParam, nint lParam)
     {
         switch (msg)
@@ -58,6 +69,10 @@ internal sealed class BlackoutWindow : IBlackoutWindow
                     WindowStyles.SWP_NOMOVE | WindowStyles.SWP_NOSIZE | WindowStyles.SWP_NOACTIVATE))
                 {
                     Logger.Warn($"SetWindowPos failed for blackout window {DevicePath}", _api.LastError);
+                }
+                else
+                {
+                    _raised();
                 }
 
                 if (_cursorIdleTracker.OnTimerTick(Environment.TickCount64) == CursorAction.Hide)
@@ -90,6 +105,10 @@ internal sealed class BlackoutWindow : IBlackoutWindow
             // Right-click also dismisses (safety: allows recovery when main monitor is blacked out)
             case WindowStyles.WM_RBUTTONUP:
                 Dismiss("right-click");
+                return 0;
+
+            // Another process cannot close a blackout the user wants (specification WIN-6)
+            case WindowStyles.WM_CLOSE:
                 return 0;
 
             case WindowStyles.WM_DESTROY:

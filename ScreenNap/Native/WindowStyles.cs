@@ -18,6 +18,7 @@ internal static class WindowStyles
     // Window messages
     internal const uint WM_DISPLAYCHANGE = 0x007E;
     internal const uint WM_DESTROY = 0x0002;
+    internal const uint WM_CLOSE = 0x0010;
     internal const uint WM_PAINT = 0x000F;
     internal const uint WM_TIMER = 0x0113;
     internal const uint WM_COMMAND = 0x0111;
@@ -42,6 +43,7 @@ internal static class WindowStyles
     internal const uint NIF_ICON = 0x00000002;
     internal const uint NIF_TIP = 0x00000004;
     internal const uint NIF_INFO = 0x00000010;
+    internal const uint NIF_SHOWTIP = 0x00000080;
     internal const uint NIIF_WARNING = 0x00000002;
     internal const uint NOTIFYICON_VERSION_4 = 4;
 
@@ -58,6 +60,16 @@ internal static class WindowStyles
     internal const uint DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME = 1;
     internal const uint DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME = 2;
 
+    // Configuration manager
+    internal const uint CR_SUCCESS = 0;
+    internal const uint CR_BUFFER_SMALL = 0x1A;
+    internal const uint DEVPROP_TYPE_STRING = 0x12;
+    internal static readonly DEVPROPKEY DEVPKEY_Device_InstanceId = new()
+    {
+        fmtid = new Guid(0x78c34fc8, 0x104a, 0x4aca, 0x9e, 0xa4, 0x52, 0x4d, 0x52, 0x99, 0x6e, 0x57),
+        pid = 256,
+    };
+
     // Menu flags
     internal const uint MF_STRING = 0x00000000;
     internal const uint MF_SEPARATOR = 0x00000800;
@@ -69,6 +81,7 @@ internal static class WindowStyles
     internal static readonly IntPtr HWND_TOPMOST = new(-1);
     internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOSIZE = 0x0001;
+    internal const uint SWP_NOZORDER = 0x0004;
     internal const uint SWP_NOACTIVATE = 0x0010;
     internal const uint SWP_SHOWWINDOW = 0x0040;
 
@@ -93,7 +106,6 @@ internal static class WindowStyles
     internal const uint MOD_ALT = 0x0001;
     internal const uint MOD_NOREPEAT = 0x4000;
     internal const uint VK_0 = 0x30;
-    internal const uint VK_1 = 0x31;
     internal const short KEY_DOWN_MASK = unchecked((short)0x8000);
 
     // Registered message names

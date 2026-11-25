@@ -2,7 +2,6 @@ using System.Globalization;
 using ScreenNap.Blackout;
 using ScreenNap.Hotkeys;
 using ScreenNap.Lifetime;
-using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Native;
 using ScreenNap.Resources;
@@ -19,7 +18,7 @@ public sealed class AppLifetimeTests
     private const string OverlayClass = "ScreenNap_Identify";
     private static readonly CultureInfo s_english = CultureInfo.GetCultureInfo("en-US");
     private static readonly MonitorInfo s_monitor = new(
-        @"\\.\DISPLAY1", "Monitor", new RECT { Left = 0, Top = 0, Right = 1920, Bottom = 1080 }, true, new MonitorIdentity(1, 2, 0));
+        @"\\.\DISPLAY1", "Monitor", new RECT { Left = 0, Top = 0, Right = 1920, Bottom = 1080 }, true, MonitorIdentity.For(null, "connection 1"));
 
     [Fact]
     [Trait("Requirement", "LIFE-1")]
@@ -173,7 +172,7 @@ public sealed class AppLifetimeTests
         var harness = new Harness();
         harness.Lifetime.Loop = () =>
         {
-            harness.Send(WindowStyles.WM_HOTKEY, HotkeyInterpreter.MonitorHotkeyIdBase);
+            harness.Send(WindowStyles.WM_HOTKEY, harness.Hotkeys.IdFor(1));
             harness.Tray.RecreateTaskbar();
 
             harness.Send(FakeLifetimeApi.RegisteredTaskbarCreated);
@@ -219,7 +218,7 @@ public sealed class AppLifetimeTests
         var harness = new Harness();
         harness.Lifetime.Loop = () =>
         {
-            harness.Send(WindowStyles.WM_HOTKEY, HotkeyInterpreter.MonitorHotkeyIdBase);
+            harness.Send(WindowStyles.WM_HOTKEY, harness.Hotkeys.IdFor(1));
             Assert.Single(harness.Windows.LiveWindows(BlackoutClass));
             harness.Windows.ClassesFailingDestruction.Add(BlackoutClass);
         };
@@ -245,8 +244,8 @@ public sealed class AppLifetimeTests
             harness.Windows.ClassesFailingUnregistration.Add(MessageWindowClass);
             harness.Windows.ClassesFailingUnregistration.Add(BlackoutClass);
             harness.Windows.ClassesFailingUnregistration.Add(OverlayClass);
-            harness.Send(WindowStyles.WM_HOTKEY, HotkeyInterpreter.MonitorHotkeyIdBase);
-            harness.Send(WindowStyles.WM_HOTKEY, HotkeyInterpreter.IdentifyHotkeyId);
+            harness.Send(WindowStyles.WM_HOTKEY, harness.Hotkeys.IdFor(1));
+            harness.Send(WindowStyles.WM_HOTKEY, harness.Hotkeys.IdFor(0));
         };
         using var log = new LogCapture();
 
@@ -297,6 +296,57 @@ public sealed class AppLifetimeTests
         harness.Run();
 
         Assert.Single(log.Entries, entry => entry.Message == "Display configuration changed (debounced)");
+    }
+
+    // What the installer and taskkill without /F send (specification DIST-7 to DIST-9)
+    [Fact]
+    [Trait("Requirement", "LIFE-5")]
+    [Trait("Requirement", "LIFE-3")]
+    internal void CloseRequest_WhileRunning_ShutsDownNormallyWithoutLoggingAFailure()
+    {
+        var harness = new Harness();
+        bool windowKeptForTheShutdown = false;
+        harness.Lifetime.Loop = () =>
+        {
+            harness.Send(WindowStyles.WM_CLOSE);
+            windowKeptForTheShutdown = harness.Lifetime.QuitRequests == 1 && harness.Windows.Windows[harness.MessageWindow].IsAlive;
+        };
+        using var log = new LogCapture();
+
+        harness.Run();
+
+        Assert.True(windowKeptForTheShutdown);
+        Assert.False(harness.Tray.IconShown);
+        Assert.Empty(harness.Hotkeys.Registered);
+        Assert.False(harness.Windows.Windows[harness.MessageWindow].IsAlive);
+        Assert.DoesNotContain(log.Entries, entry => entry.Level != "INFO");
+        LogAssert.Logged(log, "INFO", "Application exiting");
+    }
+
+    [Fact]
+    [Trait("Requirement", "IDN-7")]
+    internal void BlackoutReassertsItsPosition_WhileOverlaysShow_PutsTheOverlaysBackAboveIt()
+    {
+        var harness = new Harness();
+        List<IntPtr> raisedAfterTheBlackout = [];
+        harness.Lifetime.Loop = () =>
+        {
+            harness.Send(WindowStyles.WM_HOTKEY, harness.Hotkeys.IdFor(1));
+            harness.Send(WindowStyles.WM_HOTKEY, harness.Hotkeys.IdFor(0));
+            IntPtr blackout = harness.Windows.LiveWindows("ScreenNap_Blackout").Count() == 1
+                ? harness.Windows.Windows.Single(pair => pair.Value.ClassName == "ScreenNap_Blackout").Key
+                : IntPtr.Zero;
+            harness.Windows.Positions.Clear();
+
+            harness.Windows.Tick(blackout);
+
+            raisedAfterTheBlackout = [.. harness.Windows.Positions.SkipWhile(position => position.Window == blackout).Select(position => position.Window)];
+        };
+
+        harness.Run();
+
+        IntPtr overlay = harness.Windows.Windows.Single(pair => pair.Value.ClassName == "ScreenNap_Identify").Key;
+        Assert.Equal([overlay], raisedAfterTheBlackout);
     }
 
     internal enum StartupStep

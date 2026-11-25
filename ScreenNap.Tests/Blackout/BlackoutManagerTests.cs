@@ -1,6 +1,5 @@
 using System.Globalization;
 using ScreenNap.Blackout;
-using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Native;
 using ScreenNap.Tests.TestDoubles;
@@ -11,67 +10,120 @@ namespace ScreenNap.Tests.Blackout;
 public sealed class BlackoutManagerTests
 {
     private static readonly CultureInfo s_english = CultureInfo.GetCultureInfo("en-US");
+    private static readonly RECT s_fullHd = new() { Right = 1920, Bottom = 1080 };
+
+    private readonly FakeBlackoutWindowFactory _factory = new();
+    private readonly FakeUserNotifier _notifier = new();
+    private readonly BlackoutManager _manager;
+
+    public BlackoutManagerTests()
+    {
+        _manager = new BlackoutManager(_factory, _notifier, s_english);
+    }
 
     [Fact]
     [Trait("Requirement", "BLK-1")]
     [Trait("Requirement", "BLK-5")]
     [Trait("Requirement", "INV-3")]
+    [Trait("Requirement", "ERR-3")]
     internal void Toggle_InactiveMonitor_CreatesWindowAndRaisesEvent()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
+        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
         int changes = 0;
-        manager.ActiveCountChanged += () => changes++;
+        _manager.ActiveCountChanged += () => changes++;
 
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
+        _manager.Toggle(monitor);
 
-        Assert.Equal(1, manager.ActiveCount);
-        Assert.Contains("DISPLAY1", manager.ActiveDevicePaths);
-        Assert.Single(factory.Requests);
+        Assert.Equal(1, _manager.ActiveCount);
+        Assert.True(_manager.IsActive(monitor));
+        Assert.Equal([monitor], _factory.Requests);
         Assert.Equal(1, changes);
-    }
-
-    [Fact]
-    [Trait("Requirement", "LIFE-3")]
-    [Trait("Requirement", "INV-5")]
-    internal void CloseAllAtExit_OneWindowCannotBeClosed_ClosesTheOthersClearsIntentAndLogsWithoutNotification()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier, s_english);
-        MonitorInfo first = Monitor("DISPLAY1", Identity(1));
-        MonitorInfo second = Monitor("DISPLAY2", Identity(2));
-        manager.Toggle(first);
-        manager.Toggle(second);
-        factory.Windows[0].DestroySucceeds = false;
-        using var log = new LogCapture();
-
-        manager.CloseAllAtExit();
-
-        Assert.Equal(["DISPLAY1"], manager.ActiveDevicePaths);
-        Assert.Equal(1, factory.Windows[1].DestroyCalls);
-        Assert.Empty(notifier.Messages);
-        LogAssert.Logged(log, "WARN", "1 blackout window(s) could not be closed at exit");
-
-        // Intent is gone: a reconciliation restores neither monitor once the window disappears
-        factory.Windows[0].IsAlive = false;
-        manager.Reconcile([first, second]);
-        Assert.Equal(2, factory.Requests.Count);
+        Assert.Empty(_notifier.Messages);
     }
 
     [Fact]
     [Trait("Requirement", "BLK-2")]
-    internal void Toggle_ActiveMonitor_DestroysAndRemovesWindow()
+    [Trait("Requirement", "INV-4")]
+    internal void Toggle_ActiveMonitor_ClosesItsBlackoutAndClearsItsDesiredState()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
+        _manager.Toggle(monitor);
 
-        manager.Toggle(monitor);
+        _manager.Toggle(monitor);
 
-        Assert.Equal(0, manager.ActiveCount);
-        Assert.Equal(1, factory.Windows[0].DestroyCalls);
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.False(_factory.Windows[0].IsOpen);
+        _manager.Reconcile([monitor]);
+        Assert.Single(_factory.Requests);
+    }
+
+    [Fact]
+    [Trait("Requirement", "BLK-2")]
+    [Trait("Requirement", "ERR-4")]
+    internal void Toggle_DestroyFailure_PreservesActiveAndDesiredStateAndNotifies()
+    {
+        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
+        _manager.Toggle(monitor);
+        _factory.Windows[0].DestroySucceeds = false;
+
+        _manager.Toggle(monitor);
+
+        Assert.True(_manager.IsActive(monitor));
+        Assert.Equal(["Could not release the blackout on DISPLAY1."], _notifier.Messages);
+
+        // Still desired: closed for a disconnection, it is restored when the monitor returns
+        _factory.Windows[0].DestroySucceeds = true;
+        _manager.Reconcile([]);
+        _manager.Reconcile([monitor]);
+        Assert.Equal(2, _factory.Requests.Count);
+    }
+
+    [Fact]
+    [Trait("Requirement", "BLK-1")]
+    [Trait("Requirement", "ERR-3")]
+    internal void Toggle_FactoryFailure_LeavesTheMonitorInactiveAndNotifies()
+    {
+        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
+        _factory.ReturnFailure();
+
+        _manager.Toggle(monitor);
+
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Equal(["Could not black out DISPLAY1."], _notifier.Messages);
+        _manager.Reconcile([monitor]);
+        Assert.Single(_factory.Requests);
+    }
+
+    // A display device path that another monitor takes over carries no blackout with it
+    [Fact]
+    [Trait("Requirement", "INV-2")]
+    [Trait("Requirement", "DISP-2")]
+    [Trait("Requirement", "HK-2")]
+    internal void Toggle_PathTakenOverByAnotherMonitor_ActsOnlyOnTheMonitorItNames()
+    {
+        _manager.Toggle(Monitor("DISPLAY1", Identity(1)));
+        MonitorInfo newcomer = Monitor("DISPLAY1", Identity(2));
+
+        _manager.Toggle(newcomer);
+
+        Assert.Equal(2, _manager.ActiveCount);
+        Assert.Equal(0, _factory.Windows[0].DestroyCalls);
+        Assert.True(_manager.IsActive(newcomer));
+    }
+
+    [Fact]
+    [Trait("Requirement", "INV-2")]
+    internal void Toggle_MonitorWithoutIdentity_IsTrackedByItsPath()
+    {
+        MonitorInfo monitor = Monitor("DISPLAY1", null);
+        _manager.Toggle(monitor);
+
+        Assert.True(_manager.IsActive(monitor));
+        Assert.False(_manager.IsActive(Monitor("DISPLAY2", null)));
+        Assert.False(_manager.IsActive(Monitor("DISPLAY1", Identity(1))));
+
+        _manager.Toggle(monitor);
+        Assert.Equal(0, _manager.ActiveCount);
     }
 
     [Fact]
@@ -79,411 +131,270 @@ public sealed class BlackoutManagerTests
     [Trait("Requirement", "DISP-6")]
     internal void Toggle_ReconcileInsideChangeEvent_DoesNotRecreateWindow()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        manager.ActiveCountChanged += () => manager.Reconcile([monitor]);
+        _manager.ActiveCountChanged += () => _manager.Reconcile([monitor]);
 
-        manager.Toggle(monitor);
+        _manager.Toggle(monitor);
 
-        Assert.Single(factory.Requests);
-        Assert.Equal(0, manager.ActiveCount);
-    }
-
-    [Fact]
-    [Trait("Requirement", "BLK-2")]
-    [Trait("Requirement", "ERR-4")]
-    internal void Toggle_DestroyFailure_PreservesActiveAndDesiredState()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        FakeBlackoutWindow window = factory.Windows[0];
-        window.DestroySucceeds = false;
-        int changes = 0;
-        manager.ActiveCountChanged += () => changes++;
-
-        manager.Toggle(monitor);
-
-        Assert.Equal(1, manager.ActiveCount);
-        Assert.Contains("DISPLAY1", manager.ActiveDevicePaths);
-        Assert.Equal(0, changes);
-
-        window.IsAlive = false;
-        manager.Reconcile([monitor]);
-        Assert.Equal(2, factory.Requests.Count);
-    }
-
-    [Fact]
-    [Trait("Requirement", "BLK-1")]
-    [Trait("Requirement", "ERR-3")]
-    internal void Toggle_FactoryFailure_LeavesStateUnchanged()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        factory.ReturnFailure();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        int changes = 0;
-        manager.ActiveCountChanged += () => changes++;
-
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
-
-        Assert.Equal(0, manager.ActiveCount);
-        Assert.Equal(0, changes);
-        manager.Reconcile([Monitor("DISPLAY1", Identity(1))]);
-        Assert.Single(factory.Requests);
-    }
-
-    [Fact]
-    [Trait("Requirement", "DISP-5")]
-    [Trait("Requirement", "INV-4")]
-    internal void Toggle_DefaultIdentityAfterOsDismissal_DoesNotRestore()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        manager.Toggle(Monitor("DISPLAY1", default));
-        factory.Windows[0].Destroy();
-
-        manager.Reconcile([Monitor("DISPLAY1", default)]);
-
-        Assert.Single(factory.Requests);
-    }
-
-    [Fact]
-    [Trait("Requirement", "BLK-4")]
-    internal void ReleaseAll_NoWindows_DoesNothing()
-    {
-        var manager = new BlackoutManager(new FakeBlackoutWindowFactory(), new FakeUserNotifier(), s_english);
-        int changes = 0;
-        manager.ActiveCountChanged += () => changes++;
-
-        manager.ReleaseAll();
-
-        Assert.Equal(0, manager.ActiveCount);
-        Assert.Equal(0, changes);
-    }
-
-    [Fact]
-    [Trait("Requirement", "BLK-3")]
-    [Trait("Requirement", "BLK-4")]
-    internal void ReleaseAll_MultipleWindows_DestroysEveryWindow()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
-        manager.Toggle(Monitor("DISPLAY2", Identity(2)));
-
-        manager.ReleaseAll();
-
-        Assert.Equal(0, manager.ActiveCount);
-        Assert.All(factory.Windows, window => Assert.Equal(1, window.DestroyCalls));
+        Assert.Single(_factory.Requests);
+        Assert.Equal(1, _manager.ActiveCount);
     }
 
     [Fact]
     [Trait("Requirement", "BLK-4")]
     [Trait("Requirement", "ERR-5")]
-    internal void ReleaseAll_DestroyFailure_PreservesOnlyFailedWindowDesiredState()
+    internal void ReleaseAll_NoWindows_DoesNothing()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo failedMonitor = Monitor("DISPLAY1", Identity(1));
-        MonitorInfo releasedMonitor = Monitor("DISPLAY2", Identity(2));
-        manager.Toggle(failedMonitor);
-        manager.Toggle(releasedMonitor);
-        factory.Windows[0].DestroySucceeds = false;
+        _manager.ReleaseAll();
 
-        manager.ReleaseAll();
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Empty(_notifier.Messages);
+    }
 
-        Assert.Equal(1, manager.ActiveCount);
-        Assert.Contains("DISPLAY1", manager.ActiveDevicePaths);
-        Assert.DoesNotContain("DISPLAY2", manager.ActiveDevicePaths);
-        Assert.All(factory.Windows, window => Assert.Equal(1, window.DestroyCalls));
+    [Fact]
+    [Trait("Requirement", "BLK-3")]
+    [Trait("Requirement", "BLK-4")]
+    [Trait("Requirement", "ERR-5")]
+    internal void ReleaseAll_MultipleWindows_ClosesEveryWindowAndClearsTheirDesiredState()
+    {
+        MonitorInfo first = Monitor("DISPLAY1", Identity(1));
+        MonitorInfo second = Monitor("DISPLAY2", Identity(2));
+        _manager.Toggle(first);
+        _manager.Toggle(second);
 
-        factory.Windows[0].IsAlive = false;
-        manager.Reconcile([failedMonitor, releasedMonitor]);
+        _manager.ReleaseAll();
 
-        Assert.Equal(3, factory.Requests.Count);
-        Assert.Equal("DISPLAY1", factory.Requests[2].DevicePath);
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.All(_factory.Windows, window => Assert.False(window.IsOpen));
+        Assert.Empty(_notifier.Messages);
+        _manager.Reconcile([first, second]);
+        Assert.Equal(2, _factory.Requests.Count);
     }
 
     [Fact]
     [Trait("Requirement", "BLK-4")]
-    internal void ReleaseAll_DestroySucceeds_ClearsDesiredState()
+    [Trait("Requirement", "ERR-5")]
+    internal void ReleaseAll_DestroyFailure_KeepsOnlyThatWindowsDesiredStateAndNotifiesTheCount()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        manager.ReleaseAll();
+        MonitorInfo first = Monitor("DISPLAY1", Identity(1));
+        MonitorInfo second = Monitor("DISPLAY2", Identity(2));
+        _manager.Toggle(first);
+        _manager.Toggle(second);
+        _factory.Windows[0].DestroySucceeds = false;
 
-        manager.Reconcile([monitor]);
+        _manager.ReleaseAll();
 
-        Assert.Single(factory.Requests);
+        Assert.Equal(1, _manager.ActiveCount);
+        Assert.True(_manager.IsActive(first));
+        Assert.Equal(["1 blackout(s) could not be released."], _notifier.Messages);
+
+        // The first stays desired across a disconnection; the second is not restored
+        _factory.Windows[0].DestroySucceeds = true;
+        _manager.Reconcile([]);
+        _manager.Reconcile([first, second]);
+        Assert.Equal([first, second, first], _factory.Requests);
     }
 
     [Fact]
-    [Trait("Requirement", "DISP-6")]
-    internal void Reconcile_NoDesiredState_DoesNothing()
+    [Trait("Requirement", "BLK-4")]
+    [Trait("Requirement", "DISP-4")]
+    internal void ReleaseAll_DisconnectedDesiredMonitor_IsNotRestoredOnReconnection()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
+        MonitorInfo disconnected = Monitor("DISPLAY2", Identity(2));
+        MonitorInfo present = Monitor("DISPLAY1", Identity(1));
+        _manager.Toggle(present);
+        _manager.Toggle(disconnected);
+        _manager.Reconcile([present]);
 
-        manager.Reconcile([Monitor("DISPLAY1", Identity(1))]);
+        _manager.ReleaseAll();
+        _manager.Reconcile([present, disconnected]);
 
-        Assert.Empty(factory.Requests);
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Equal(2, _factory.Requests.Count);
     }
 
     [Fact]
-    [Trait("Requirement", "DISP-6")]
-    [Trait("Requirement", "INV-3")]
-    internal void Reconcile_StaleWindowWithNothingDesired_RemovesItAndRaisesEvent()
+    [Trait("Requirement", "LIFE-3")]
+    [Trait("Requirement", "INV-5")]
+    internal void CloseAllAtExit_OneWindowCannotBeClosed_ClosesTheOthersClearsIntentAndLogsWithoutNotification()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", default);
-        manager.Toggle(monitor);
-        factory.Windows[0].IsAlive = false;
-        int changes = 0;
-        manager.ActiveCountChanged += () => changes++;
+        MonitorInfo first = Monitor("DISPLAY1", Identity(1));
+        MonitorInfo second = Monitor("DISPLAY2", Identity(2));
+        _manager.Toggle(first);
+        _manager.Toggle(second);
+        _factory.Windows[0].DestroySucceeds = false;
+        using var log = new LogCapture();
 
-        manager.Reconcile([monitor]);
+        _manager.CloseAllAtExit();
 
-        Assert.Equal(0, manager.ActiveCount);
-        Assert.Equal(1, changes);
-        Assert.Single(factory.Requests);
+        Assert.True(_manager.IsActive(first));
+        Assert.False(_factory.Windows[1].IsOpen);
+        Assert.Empty(_notifier.Messages);
+        LogAssert.Logged(log, "WARN", "1 blackout window(s) could not be closed at exit");
+
+        // Intent is gone: neither monitor is restored after its blackout closes
+        _factory.Windows[0].DestroySucceeds = true;
+        _manager.Reconcile([]);
+        _manager.Reconcile([first, second]);
+        Assert.Equal(2, _factory.Requests.Count);
+    }
+
+    [Fact]
+    [Trait("Requirement", "DISP-7")]
+    [Trait("Requirement", "WIN-1")]
+    [Trait("Requirement", "DISP-6")]
+    internal void Reconcile_MonitorResizedOnAnotherPath_FitsTheLiveBlackoutWithoutRecreatingIt()
+    {
+        _manager.Toggle(Monitor("DISPLAY1", Identity(1)));
+        var resized = new RECT { Left = 1920, Top = -360, Right = 4480, Bottom = 1080 };
+
+        _manager.Reconcile([Monitor("DISPLAY3", Identity(1), resized)]);
+
+        Assert.Single(_factory.Requests);
+        Assert.Equal(resized, _factory.Windows[0].Bounds);
+        Assert.True(_factory.Windows[0].IsOpen);
     }
 
     [Fact]
     [Trait("Requirement", "DISP-2")]
-    [Trait("Requirement", "DISP-6")]
-    internal void Reconcile_StaleWindow_RemovesItAndRestoresDesiredMonitor()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        factory.Windows[0].IsAlive = false;
-
-        manager.Reconcile([monitor]);
-
-        Assert.Equal(2, factory.Requests.Count);
-        Assert.Equal(1, manager.ActiveCount);
-    }
-
-    [Fact]
     [Trait("Requirement", "DISP-3")]
-    internal void Reconcile_ReconnectedMonitorOnNewPath_RestoresBlackout()
+    [Trait("Requirement", "DISP-4")]
+    [Trait("Requirement", "INV-3")]
+    [Trait("Requirement", "INV-4")]
+    [Trait("Requirement", "MON-6")]
+    internal void Reconcile_MonitorDisconnected_ClosesItsBlackoutAndRestoresItOnReconnection()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo oldMonitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(oldMonitor);
-        factory.Windows[0].Destroy();
-        MonitorInfo reconnected = Monitor("DISPLAY9", Identity(1));
+        _manager.Toggle(Monitor("DISPLAY1", Identity(1)));
+        int changes = 0;
+        _manager.ActiveCountChanged += () => changes++;
 
-        manager.Reconcile([reconnected]);
+        _manager.Reconcile([]);
 
-        Assert.Contains("DISPLAY9", manager.ActiveDevicePaths);
-        Assert.Equal(2, factory.Requests.Count);
+        Assert.False(_factory.Windows[0].IsOpen);
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Equal(1, changes);
+
+        MonitorInfo reconnected = Monitor("DISPLAY2", Identity(1));
+        _manager.Reconcile([reconnected]);
+
+        Assert.Equal(reconnected, _factory.Requests[^1]);
+        Assert.True(_manager.IsActive(reconnected));
+        Assert.Equal(2, changes);
+        Assert.Empty(_notifier.Messages);
     }
 
     [Fact]
-    [Trait("Requirement", "DISP-6")]
-    [Trait("Requirement", "INV-2")]
-    internal void Reconcile_LiveWindow_DoesNotRecreateIt()
+    [Trait("Requirement", "DISP-2")]
+    internal void Reconcile_DisconnectedBlackoutCannotBeClosed_TriesAgainAtTheNextReconciliationWithoutNotification()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
+        _manager.Toggle(Monitor("DISPLAY1", Identity(1)));
+        _factory.Windows[0].DestroySucceeds = false;
 
-        manager.Reconcile([monitor]);
+        _manager.Reconcile([]);
 
-        Assert.Single(factory.Requests);
+        Assert.Equal(1, _manager.ActiveCount);
+        Assert.Empty(_notifier.Messages);
+
+        _factory.Windows[0].DestroySucceeds = true;
+        _manager.Reconcile([]);
+        Assert.Equal(2, _factory.Windows[0].DestroyCalls);
+        Assert.Equal(0, _manager.ActiveCount);
+    }
+
+    // Two monitors whose paths swap while one of them waits for restoration
+    [Fact]
+    [Trait("Requirement", "INV-2")]
+    [Trait("Requirement", "INV-3")]
+    [Trait("Requirement", "DISP-2")]
+    [Trait("Requirement", "DISP-3")]
+    internal void Reconcile_PathsSwapped_KeepsEveryBlackoutOnItsOwnMonitorAndWithinReach()
+    {
+        MonitorInfo first = Monitor("DISPLAY1", Identity(1));
+        MonitorInfo second = Monitor("DISPLAY2", Identity(2), new RECT { Left = 1920, Right = 3840, Bottom = 1080 });
+        _manager.Toggle(first);
+        _manager.Toggle(second);
+        _manager.Reconcile([second]);
+
+        _manager.Reconcile([second with { DevicePath = "DISPLAY1" }, first with { DevicePath = "DISPLAY2" }]);
+
+        Assert.Equal(2, _manager.ActiveCount);
+        Assert.Equal(second.Bounds, _factory.Windows[1].Bounds);
+        _manager.ReleaseAll();
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.All(_factory.Windows, window => Assert.False(window.IsOpen));
     }
 
     [Fact]
     [Trait("Requirement", "DISP-6")]
     internal void Reconcile_UndesiredMonitor_IsIgnored()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo desired = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(desired);
-        factory.Windows[0].Destroy();
+        _manager.Reconcile([Monitor("DISPLAY1", Identity(1))]);
 
-        manager.Reconcile([Monitor("DISPLAY2", Identity(2))]);
+        Assert.Empty(_factory.Requests);
+    }
 
-        Assert.Single(factory.Requests);
+    [Fact]
+    [Trait("Requirement", "DISP-5")]
+    internal void Reconcile_MonitorWithoutIdentity_ClosesItsBlackoutWhenGoneAndNeverRestoresIt()
+    {
+        MonitorInfo monitor = Monitor("DISPLAY1", null);
+        _manager.Toggle(monitor);
+
+        _manager.Reconcile([]);
+        _manager.Reconcile([monitor]);
+
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Single(_factory.Requests);
+    }
+
+    [Fact]
+    [Trait("Requirement", "WIN-4")]
+    [Trait("Requirement", "INV-4")]
+    internal void Reconcile_AfterUserDismissal_DoesNotRestore()
+    {
+        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
+        _manager.Toggle(monitor);
+
+        _factory.Windows[0].DismissByUser();
+        _manager.Reconcile([monitor]);
+
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Single(_factory.Requests);
     }
 
     [Fact]
     [Trait("Requirement", "ERR-6")]
-    internal void Reconcile_FactoryFailure_LeavesMonitorInactive()
+    internal void Reconcile_FactoryFailure_LeavesTheMonitorInactiveAndNotifies()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        factory.Windows[0].Destroy();
-        factory.ReturnFailure();
+        _manager.Toggle(monitor);
+        _manager.Reconcile([]);
+        _factory.ReturnFailure();
 
-        manager.Reconcile([monitor]);
+        _manager.Reconcile([monitor]);
 
-        Assert.Equal(0, manager.ActiveCount);
+        Assert.Equal(0, _manager.ActiveCount);
+        Assert.Equal(["Could not restore the blackout on DISPLAY1."], _notifier.Messages);
     }
 
     [Fact]
     [Trait("Requirement", "BLK-5")]
     [Trait("Requirement", "INV-3")]
-    internal void Reconcile_RepeatedCalls_RaisesEventOnlyWhenCountChanges()
+    internal void Reconcile_NothingChanges_RaisesNoEvent()
     {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
         MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
+        _manager.Toggle(monitor);
         int changes = 0;
-        manager.ActiveCountChanged += () => changes++;
+        _manager.ActiveCountChanged += () => changes++;
 
-        manager.Reconcile([monitor]);
-        factory.Windows[0].IsAlive = false;
-        manager.Reconcile([monitor]);
+        _manager.Reconcile([monitor]);
+        _manager.Reconcile([monitor]);
 
-        Assert.Equal(1, changes);
+        Assert.Equal(0, changes);
     }
 
-    [Theory]
-    [InlineData(true, 1)]
-    [InlineData(false, 2)]
-    [Trait("Requirement", "DISP-2")]
-    [Trait("Requirement", "WIN-4")]
-    [Trait("Requirement", "INV-4")]
-    internal void Reconcile_DestroyedWindow_RestoresOnlyWhenNotUserDismissed(bool userDismissed, int expectedRequests)
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        factory.Windows[0].UserDismissed = userDismissed;
-        factory.Windows[0].Destroy();
+    private static MonitorInfo Monitor(string path, MonitorIdentity? identity, RECT? bounds = null)
+        => new(path, path, bounds ?? s_fullHd, false, identity);
 
-        manager.Reconcile([monitor]);
-
-        Assert.Equal(expectedRequests, factory.Requests.Count);
-    }
-
-    [Fact]
-    [Trait("Requirement", "DISP-4")]
-    [Trait("Requirement", "MON-6")]
-    internal void Reconcile_DisconnectedDesiredMonitor_IsRestoredOnReconnection()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var manager = new BlackoutManager(factory, new FakeUserNotifier(), s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        factory.Windows[0].Destroy();
-
-        manager.Reconcile([]);
-        manager.Reconcile([monitor]);
-
-        Assert.Equal(2, factory.Requests.Count);
-        Assert.Contains("DISPLAY1", manager.ActiveDevicePaths);
-    }
-
-    [Fact]
-    [Trait("Requirement", "ERR-3")]
-    internal void Toggle_InactiveMonitor_DoesNotNotify()
-    {
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(new FakeBlackoutWindowFactory(), notifier, s_english);
-
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
-
-        Assert.Empty(notifier.Messages);
-    }
-
-    [Fact]
-    [Trait("Requirement", "ERR-3")]
-    internal void Toggle_FactoryFailure_NotifiesTheMonitor()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        factory.ReturnFailure();
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier, s_english);
-
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
-
-        Assert.Equal(["Could not black out DISPLAY1."], notifier.Messages);
-    }
-
-    [Fact]
-    [Trait("Requirement", "ERR-4")]
-    internal void Toggle_DestroyFailure_NotifiesTheMonitor()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier, s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        factory.Windows[0].DestroySucceeds = false;
-
-        manager.Toggle(monitor);
-
-        Assert.Equal(["Could not release the blackout on DISPLAY1."], notifier.Messages);
-    }
-
-    [Fact]
-    [Trait("Requirement", "ERR-5")]
-    internal void ReleaseAll_DestroyFailures_NotifiesTheRemainingCount()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier, s_english);
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
-        manager.Toggle(Monitor("DISPLAY2", Identity(2)));
-        manager.Toggle(Monitor("DISPLAY3", Identity(3)));
-        factory.Windows[0].DestroySucceeds = false;
-        factory.Windows[2].DestroySucceeds = false;
-
-        manager.ReleaseAll();
-
-        Assert.Equal(["2 blackout(s) could not be released."], notifier.Messages);
-    }
-
-    [Fact]
-    [Trait("Requirement", "ERR-5")]
-    internal void ReleaseAll_EveryWindowCloses_DoesNotNotify()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier, s_english);
-        manager.Toggle(Monitor("DISPLAY1", Identity(1)));
-
-        manager.ReleaseAll();
-
-        Assert.Empty(notifier.Messages);
-    }
-
-    [Fact]
-    [Trait("Requirement", "ERR-6")]
-    internal void Reconcile_FactoryFailure_NotifiesTheMonitor()
-    {
-        var factory = new FakeBlackoutWindowFactory();
-        var notifier = new FakeUserNotifier();
-        var manager = new BlackoutManager(factory, notifier, s_english);
-        MonitorInfo monitor = Monitor("DISPLAY1", Identity(1));
-        manager.Toggle(monitor);
-        factory.Windows[0].Destroy();
-        factory.ReturnFailure();
-
-        manager.Reconcile([monitor]);
-
-        Assert.Equal(["Could not restore the blackout on DISPLAY1."], notifier.Messages);
-    }
-
-    private static MonitorInfo Monitor(string path, MonitorIdentity identity)
-        => new(path, path, new RECT { Right = 1920, Bottom = 1080 }, false, identity);
-
-    private static MonitorIdentity Identity(ushort value) => new(value, value, value);
+    private static MonitorIdentity Identity(int value) => MonitorIdentity.For(null, $"connection {value}");
 }

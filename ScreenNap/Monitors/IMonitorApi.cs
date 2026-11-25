@@ -15,9 +15,9 @@ internal interface IMonitorApi
 
     bool GetMonitorInfo(IntPtr monitor, out RECT bounds, out uint flags, out string devicePath);
 
-    // The friendly name and identity of each active display path, keyed by GDI device name;
-    // empty when Windows cannot report them
-    Dictionary<string, MonitorDisplayInfo> QueryDisplayInfo();
+    // The monitor of each active display path, keyed by GDI device name; empty when Windows
+    // cannot report the display paths
+    Dictionary<string, DisplayTarget> QueryDisplayTargets();
 
     // Null when the display device has no name
     string? GetDisplayDeviceName(string devicePath);

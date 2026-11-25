@@ -1,21 +1,18 @@
 namespace ScreenNap.Monitors;
 
+// The order in which a monitor's name falls back (specification MON-3)
 internal static class MonitorNameResolver
 {
-    internal static (string FriendlyName, MonitorIdentity Identity) Resolve(
-        string devicePath,
-        MonitorDisplayInfo? qdcInfo,
-        string? enumDisplayDeviceName)
+    internal static string Resolve(string devicePath, string? friendlyName, string? displayDeviceName)
     {
-        if (qdcInfo is { } info && !string.IsNullOrWhiteSpace(info.FriendlyName))
-            return (info.FriendlyName, info.Identity);
+        if (!string.IsNullOrWhiteSpace(friendlyName))
+            return friendlyName;
 
-        if (!string.IsNullOrWhiteSpace(enumDisplayDeviceName))
-            return (enumDisplayDeviceName, default);
+        if (!string.IsNullOrWhiteSpace(displayDeviceName))
+            return displayDeviceName;
 
-        string name = devicePath.StartsWith(@"\\.\", StringComparison.Ordinal)
+        return devicePath.StartsWith(@"\\.\", StringComparison.Ordinal)
             ? devicePath[4..]
             : devicePath;
-        return (name, default);
     }
 }

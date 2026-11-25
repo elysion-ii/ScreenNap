@@ -9,6 +9,7 @@ internal static class MenuModelBuilder
     internal static IReadOnlyList<MenuItem> Build(
         IReadOnlyList<MonitorInfo> monitors,
         IReadOnlySet<string> activeDevicePaths,
+        int liveBlackoutCount,
         string versionText,
         CultureInfo culture)
     {
@@ -29,16 +30,23 @@ internal static class MenuModelBuilder
                 MonitorMenuLabel.Build(monitor, i + 1, isActive, culture)));
         }
 
-        if (activeDevicePaths.Count > 0)
+        // A live blackout counts even when its monitor is missing from the enumeration (MON-6)
+        if (liveBlackoutCount > 0)
         {
-            items.Add(Separator());
+            AddSeparator(items);
             items.Add(new MenuItem(false, false, MenuCommandIds.ReleaseAll, Strings.MenuReleaseAll(culture)));
         }
 
-        if (!items[^1].IsSeparator)
-            items.Add(Separator());
+        AddSeparator(items);
         items.Add(new MenuItem(false, false, MenuCommandIds.Exit, Strings.MenuExit(culture)));
         return items;
+    }
+
+    // Never two separators in a row (specification MENU-2)
+    private static void AddSeparator(List<MenuItem> items)
+    {
+        if (!items[^1].IsSeparator)
+            items.Add(Separator());
     }
 
     private static MenuItem Separator()

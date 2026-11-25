@@ -16,7 +16,9 @@ internal sealed class FakeWindowApi : IWindowApi
     public int LastError { get; private set; }
 
     internal Dictionary<IntPtr, FakeWindow> Windows { get; } = [];
-    internal HashSet<(IntPtr Window, nuint TimerId)> Timers { get; } = [];
+    // The interval of each running timer; a test tells timers apart by window and interval,
+    // which is what Windows knows of them
+    internal Dictionary<(IntPtr Window, nuint TimerId), uint> Timers { get; } = [];
     internal List<(IntPtr Window, IntPtr InsertAfter, int X, int Y, int Width, int Height, uint Flags)> Positions { get; } = [];
     internal List<string> UnregisteredClasses { get; } = [];
 
@@ -25,8 +27,9 @@ internal sealed class FakeWindowApi : IWindowApi
     internal HashSet<string> ClassesFailingCreation { get; } = new(StringComparer.Ordinal);
     internal HashSet<string> ClassesFailingDestruction { get; } = new(StringComparer.Ordinal);
     internal HashSet<string> ClassesFailingUnregistration { get; } = new(StringComparer.Ordinal);
-    internal HashSet<nuint> TimersFailingToStart { get; } = [];
-    internal HashSet<nuint> TimersFailingToStop { get; } = [];
+    // Whether starting or stopping the timer of an ID and interval fails
+    internal Func<nuint, uint, bool> TimerStartFails { get; set; } = (_, _) => false;
+    internal Func<nuint, uint, bool> TimerStopFails { get; set; } = (_, _) => false;
     internal bool SetWindowPosFails { get; set; }
     internal bool UpdateWindowFails { get; set; }
     // Zero stands for a DPI that cannot be read
@@ -37,6 +40,14 @@ internal sealed class FakeWindowApi : IWindowApi
 
     internal nint Send(IntPtr hwnd, uint message, nuint wParam = 0, nint lParam = 0)
         => _classes[Windows[hwnd].ClassName](hwnd, message, wParam, lParam);
+
+    // The ID of the window's running timer whose interval matches
+    private nuint TimerOf(IntPtr hwnd, Func<uint, bool>? interval)
+        => Timers.Single(timer => timer.Key.Window == hwnd && (interval is null || interval(timer.Value))).Key.TimerId;
+
+    // Delivers WM_TIMER for the window's running timer whose interval matches
+    internal nint Tick(IntPtr hwnd, Func<uint, bool>? interval = null)
+        => Send(hwnd, WindowStyles.WM_TIMER, TimerOf(hwnd, interval));
 
     public IntPtr GetModuleHandle() => ModuleHandleFails ? Fail(IntPtr.Zero) : ModuleHandle;
 
@@ -62,7 +73,7 @@ internal sealed class FakeWindowApi : IWindowApi
             return Fail(IntPtr.Zero);
 
         var handle = new IntPtr(_nextHandle++);
-        Windows[handle] = new FakeWindow(className, extendedStyle, style, x, y, width, height);
+        Windows[handle] = new FakeWindow(className, extendedStyle, x, y, width, height);
         return handle;
     }
 
@@ -73,11 +84,10 @@ internal sealed class FakeWindowApi : IWindowApi
 
         Send(hwnd, WindowStyles.WM_DESTROY);
         window.IsAlive = false;
-        Timers.RemoveWhere(timer => timer.Window == hwnd);
+        foreach ((IntPtr Window, nuint TimerId) timer in Timers.Keys.Where(timer => timer.Window == hwnd).ToList())
+            Timers.Remove(timer);
         return true;
     }
-
-    public bool IsWindow(IntPtr hwnd) => Windows.TryGetValue(hwnd, out FakeWindow? window) && window.IsAlive;
 
     public bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags)
     {
@@ -100,22 +110,28 @@ internal sealed class FakeWindowApi : IWindowApi
 
     public bool SetTimer(IntPtr hwnd, nuint timerId, uint intervalMs)
     {
-        if (TimersFailingToStart.Contains(timerId))
+        if (TimerStartFails(timerId, intervalMs))
             return Fail(false);
-        Timers.Add((hwnd, timerId));
+        Timers[(hwnd, timerId)] = intervalMs;
         return true;
     }
 
     public bool KillTimer(IntPtr hwnd, nuint timerId)
     {
-        if (TimersFailingToStop.Contains(timerId))
+        if (!Timers.TryGetValue((hwnd, timerId), out uint intervalMs) || TimerStopFails(timerId, intervalMs))
             return Fail(false);
-        return Timers.Remove((hwnd, timerId)) || Fail(false);
+        return Timers.Remove((hwnd, timerId));
     }
 
     public uint GetDpiForWindow(IntPtr hwnd) => Dpi;
 
-    public nint DefWindowProc(IntPtr hwnd, uint message, nuint wParam, nint lParam) => 0;
+    // Windows' DefWindowProc destroys a window asked to close
+    public nint DefWindowProc(IntPtr hwnd, uint message, nuint wParam, nint lParam)
+    {
+        if (message == WindowStyles.WM_CLOSE)
+            DestroyWindow(hwnd);
+        return 0;
+    }
 
     public IntPtr GetStockObject(int stockObject) => new(0x10 + stockObject);
 
@@ -131,11 +147,10 @@ internal sealed class FakeWindowApi : IWindowApi
         return result;
     }
 
-    internal sealed class FakeWindow(string className, uint extendedStyle, uint style, int x, int y, int width, int height)
+    internal sealed class FakeWindow(string className, uint extendedStyle, int x, int y, int width, int height)
     {
         internal string ClassName { get; } = className;
         internal uint ExtendedStyle { get; } = extendedStyle;
-        internal uint Style { get; } = style;
         internal (int X, int Y, int Width, int Height) CreatedBounds { get; } = (x, y, width, height);
         internal bool IsAlive { get; set; } = true;
         internal bool IsVisible { get; set; }

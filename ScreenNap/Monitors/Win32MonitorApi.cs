@@ -1,4 +1,7 @@
 using System.Runtime.InteropServices;
+using System.Security;
+using System.Text;
+using Microsoft.Win32;
 using ScreenNap.Logging;
 using ScreenNap.Native;
 
@@ -6,6 +9,8 @@ namespace ScreenNap.Monitors;
 
 internal sealed class Win32MonitorApi : IMonitorApi
 {
+    private const string EdidValueName = "EDID";
+
     public int LastError => Marshal.GetLastWin32Error();
 
     public bool EnumDisplayMonitors(Func<IntPtr, bool> onMonitor)
@@ -31,9 +36,9 @@ internal sealed class Win32MonitorApi : IMonitorApi
         return true;
     }
 
-    public Dictionary<string, MonitorDisplayInfo> QueryDisplayInfo()
+    public Dictionary<string, DisplayTarget> QueryDisplayTargets()
     {
-        var result = new Dictionary<string, MonitorDisplayInfo>(StringComparer.Ordinal);
+        var result = new Dictionary<string, DisplayTarget>(StringComparer.Ordinal);
 
         int status = DisplayConfig.GetDisplayConfigBufferSizes(
             WindowStyles.QDC_ONLY_ACTIVE_PATHS,
@@ -42,7 +47,7 @@ internal sealed class Win32MonitorApi : IMonitorApi
 
         if (status != 0)
         {
-            Logger.Warn("GetDisplayConfigBufferSizes failed; friendly monitor names are unavailable", status);
+            Logger.Warn("GetDisplayConfigBufferSizes failed; monitor names and identities are unavailable", status);
             return result;
         }
 
@@ -57,7 +62,7 @@ internal sealed class Win32MonitorApi : IMonitorApi
 
         if (status != 0)
         {
-            Logger.Warn("QueryDisplayConfig failed; friendly monitor names are unavailable", status);
+            Logger.Warn("QueryDisplayConfig failed; monitor names and identities are unavailable", status);
             return result;
         }
 
@@ -90,25 +95,63 @@ internal sealed class Win32MonitorApi : IMonitorApi
             }
 
             string friendlyName;
+            string connection;
             string gdiDeviceName;
             unsafe
             {
                 friendlyName = new string(deviceName.monitorFriendlyDeviceName);
+                connection = new string(deviceName.monitorDevicePath);
                 gdiDeviceName = new string(sourceName.viewGdiDeviceName);
             }
 
-            if (!string.IsNullOrWhiteSpace(friendlyName) &&
-                !string.IsNullOrWhiteSpace(gdiDeviceName))
-            {
-                var identity = new MonitorIdentity(
-                    deviceName.edidManufactureId,
-                    deviceName.edidProductCodeId,
-                    deviceName.connectorInstance);
-                result[gdiDeviceName] = new MonitorDisplayInfo(friendlyName, identity);
-            }
+            if (string.IsNullOrWhiteSpace(gdiDeviceName) || string.IsNullOrWhiteSpace(connection))
+                continue;
+
+            result[gdiDeviceName] = new DisplayTarget(friendlyName, connection, ReadEdid(connection));
         }
 
         return result;
+    }
+
+    // The EDID the display driver stores under the monitor's device node; null when it cannot be read
+    private static byte[]? ReadEdid(string connection)
+    {
+        string? instanceId = DeviceInstanceId(connection);
+        if (instanceId is null)
+            return null;
+
+        try
+        {
+            using RegistryKey? parameters = Registry.LocalMachine.OpenSubKey($@"SYSTEM\CurrentControlSet\Enum\{instanceId}\Device Parameters");
+            if (parameters?.GetValue(EdidValueName) is byte[] edid)
+                return edid;
+
+            Logger.Warn($"No EDID is stored for monitor {instanceId}");
+            return null;
+        }
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
+        {
+            Logger.Warn($"The EDID of monitor {instanceId} cannot be read: {ex.GetType().Name}");
+            return null;
+        }
+    }
+
+    private static string? DeviceInstanceId(string connection)
+    {
+        uint size = 0;
+        uint status = Cfgmgr32.CM_Get_Device_Interface_PropertyW(
+            connection, in WindowStyles.DEVPKEY_Device_InstanceId, out _, [], ref size, 0);
+        if (status == WindowStyles.CR_BUFFER_SMALL)
+        {
+            byte[] buffer = new byte[size];
+            status = Cfgmgr32.CM_Get_Device_Interface_PropertyW(
+                connection, in WindowStyles.DEVPKEY_Device_InstanceId, out uint type, buffer, ref size, 0);
+            if (status == WindowStyles.CR_SUCCESS && type == WindowStyles.DEVPROP_TYPE_STRING)
+                return Encoding.Unicode.GetString(buffer, 0, (int)size).TrimEnd('\0');
+        }
+
+        Logger.Warn($"CM_Get_Device_Interface_PropertyW failed for the device instance of {connection} (CONFIGRET: {status})");
+        return null;
     }
 
     public string? GetDisplayDeviceName(string devicePath)

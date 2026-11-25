@@ -18,7 +18,7 @@ internal sealed class FakeBlackoutWindowFactory : IBlackoutWindowFactory
         if (_results.Count > 0 && !_results.Dequeue())
             return null;
 
-        var window = new FakeBlackoutWindow(monitor.DevicePath, monitor.Identity);
+        var window = new FakeBlackoutWindow(monitor.DevicePath, monitor.Identity, monitor.Bounds);
         Windows.Add(window);
         return window;
     }

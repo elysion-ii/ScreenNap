@@ -1,4 +1,3 @@
-using ScreenNap.Logging;
 using Xunit;
 
 namespace ScreenNap.Tests.TestDoubles;

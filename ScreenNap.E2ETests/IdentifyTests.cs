@@ -6,8 +6,9 @@ namespace ScreenNap.E2ETests;
 
 public sealed class IdentifyTests
 {
-    private const int OverlayWidth = 200;
-    private const int OverlayHeight = 150;
+    private const int BaseOverlayWidth = 200;
+    private const int BaseOverlayHeight = 150;
+    private const uint DefaultDpi = 96;
     private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(10);
 
     public IdentifyTests() => TestAssets.RequireNoRunningScreenNap();
@@ -29,16 +30,19 @@ public sealed class IdentifyTests
 
         Keyboard.PressHotkey(0);
         Wait.Until(() => app.Overlays().Count == monitors.Count, s_timeout, "an overlay shows on every monitor");
-        var shown = Stopwatch.StartNew();
+        Stopwatch shown = Stopwatch.StartNew();
 
         IReadOnlyList<RECT> overlays = app.Overlays().Select(window => app.Measure(() => Desktop.Bounds(window))).ToList();
         foreach (RECT monitor in monitors)
         {
-            int expectedLeft = monitor.Left + (monitor.Width - OverlayWidth) / 2;
-            int expectedTop = monitor.Top + (monitor.Height - OverlayHeight) / 2;
+            uint dpi = app.Measure(() => Desktop.MonitorDpi(monitor));
+            int width = Scaled(BaseOverlayWidth, dpi);
+            int height = Scaled(BaseOverlayHeight, dpi);
+            int expectedLeft = monitor.Left + (monitor.Width - width) / 2;
+            int expectedTop = monitor.Top + (monitor.Height - height) / 2;
             Assert.Contains(overlays, overlay =>
                 overlay.Left == expectedLeft && overlay.Top == expectedTop
-                && overlay.Width == OverlayWidth && overlay.Height == OverlayHeight);
+                && overlay.Width == width && overlay.Height == height);
         }
         Assert.All(app.Overlays(), window =>
         {
@@ -53,6 +57,8 @@ public sealed class IdentifyTests
         Assert.True(shown.Elapsed >= TimeSpan.FromSeconds(2), $"The overlays closed after {shown.Elapsed.TotalSeconds:0.0}s, well before about three seconds");
     }
 
+    private static int Scaled(int value, uint dpi) => (int)(((long)value * dpi + DefaultDpi / 2) / DefaultDpi);
+
     [Fact]
     [Trait("Requirement", "IDN-4")]
     internal void IdentifyHotkey_WhileOverlaysShow_ClosesThemImmediately()
@@ -60,11 +66,47 @@ public sealed class IdentifyTests
         using ScreenNapApp app = ScreenNapApp.Start();
         Keyboard.PressHotkey(0);
         Wait.Until(() => app.Overlays().Count > 0, s_timeout, "the overlays show");
-        var pressed = Stopwatch.StartNew();
+        Stopwatch pressed = Stopwatch.StartNew();
 
         Keyboard.PressHotkey(0);
 
         Wait.Until(() => app.Overlays().Count == 0, s_timeout, "the overlays close");
         Assert.True(pressed.Elapsed < TimeSpan.FromSeconds(2), $"The overlays closed only after {pressed.Elapsed.TotalSeconds:0.0}s");
     }
+
+    // Long enough to span a blackout's one-second topmost reassertion twice, short of the
+    // overlays' automatic close after about three seconds
+    [Fact]
+    [Trait("Requirement", "IDN-7")]
+    internal void IdentifyHotkey_OverABlackout_KeepsTheOverlayAboveIt()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT monitor = app.Monitors()[0];
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        IntPtr blackout = app.WaitForBlackoutCovering(monitor);
+
+        Keyboard.PressHotkey(0);
+        Wait.Until(() => app.Overlays().Count > 0, s_timeout, "the overlays show");
+        IntPtr overlay = app.Overlays().Single(window => Covers(monitor, app.Measure(() => Desktop.Bounds(window))));
+        RECT bounds = app.Measure(() => Desktop.Bounds(overlay));
+        int x = bounds.Left + (bounds.Width / 2);
+        int y = bounds.Top + (bounds.Height / 2);
+
+        Stopwatch watched = Stopwatch.StartNew();
+        while (watched.Elapsed < TimeSpan.FromSeconds(2.2))
+        {
+            // A state that lasts no longer than one screen refresh is never seen
+            if (app.Measure(() => Desktop.WindowAt(x, y)) != overlay)
+            {
+                Thread.Sleep(20);
+                Assert.Equal(overlay, app.Measure(() => Desktop.WindowAt(x, y)));
+            }
+            Thread.Sleep(10);
+        }
+        Assert.Equal([blackout], app.BlackoutWindows());
+        Assert.Contains(overlay, app.Overlays());
+    }
+
+    private static bool Covers(RECT monitor, RECT window)
+        => window.Left >= monitor.Left && window.Right <= monitor.Right && window.Top >= monitor.Top && window.Bottom <= monitor.Bottom;
 }

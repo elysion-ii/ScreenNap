@@ -8,7 +8,7 @@ internal static class Wait
 
     internal static void Until(Func<bool> condition, TimeSpan timeout, string description)
     {
-        var stopwatch = Stopwatch.StartNew();
+        Stopwatch stopwatch = Stopwatch.StartNew();
         while (!condition())
         {
             if (stopwatch.Elapsed > timeout)

@@ -23,19 +23,25 @@ OutputDir=Installer
 OutputBaseFilename=ScreenNap-Setup-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
+; x64 Windows only: Arm64 Windows would run ScreenNap under emulation, which is not
+; supported (specification DIST-2, NFR-1)
+ArchitecturesAllowed=x64os
+ArchitecturesInstallIn64BitMode=x64os
 PrivilegesRequired=lowest
 
-; Update over a running installation. CloseApplications is Inno Setup's own
-; Restart Manager support: Setup detects the processes holding files this install
-; replaces, asks whether to close them, and restarts them afterwards. It is the
-; default value, and is stated here so the intent survives an edit of this file.
+; Update over a running installation (docs/specs/ScreenNap.md DIST-8, DIST-9).
+; CloseApplications is Inno Setup's own Restart Manager support: Setup detects the
+; processes holding files this install replaces and asks whether to close them; a
+; silent run closes them without asking and, when one does not close, replaces
+; nothing and exits non-zero. Setup restarts only applications that registered with
+; RegisterApplicationRestart, which ScreenNap does not, so ScreenNap is not started
+; again after an update. It is the default value, and is stated here so the intent
+; survives an edit of this file.
 ;
 ; AppMutex is deliberately NOT declared. AppMutex blocks at startup, before the
 ; Restart Manager page is reached, which would downgrade an update from "closed
-; and restarted automatically" to "close it yourself and start over". It also
-; cannot be limited to uninstall, which is the path that actually needs it.
+; automatically" to "close it yourself and start over". It also cannot be limited
+; to uninstall, which is the path that actually needs it.
 CloseApplications=yes
 
 [Languages]
@@ -48,7 +54,7 @@ Name: "startup"; Description: "Start with Windows"; Flags: unchecked
 
 [Files]
 ; Ship the whole publish output, not just the executable: a native dependency
-; adds files beside it (see docs/rules/dotnet.md, NATIVEDEP).
+; adds files beside it (see docs/rules/dotnet-client.md, NATIVEDEP).
 Source: "ScreenNap\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
@@ -60,6 +66,14 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch ScreenNap"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; ScreenNap's own logs in the default log directory: once ScreenNap is gone, no retention
+; deletes them (specification DIST-6, LOG-7). Other files there, and a directory named by
+; SCREENNAP_LOG_DIR, are left alone.
+Type: files; Name: "{localappdata}\ScreenNap\Logs\ScreenNap_*.log"
+Type: dirifempty; Name: "{localappdata}\ScreenNap\Logs"
+Type: dirifempty; Name: "{localappdata}\ScreenNap"
 
 [CustomMessages]
 AppRunningCaption={#MyAppName} is still running
@@ -252,10 +266,9 @@ begin
 
     if UninstallSilent then
     begin
-      // No dialog can be shown. Unattended deployment is what runs a silent
-      // uninstall, and stopping here would fail that deployment with nothing on
-      // screen to explain it, so the application is closed and the uninstall
-      // continues.
+      // No dialog can be shown. Silent uninstall requests a graceful close via
+      // Restart Manager (never force-closing) and returns False (exiting non-zero)
+      // if processes remain open (docs/rules/client.md).
       Result := CloseRunningProcesses;
       Exit;
     end;

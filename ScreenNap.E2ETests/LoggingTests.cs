@@ -19,6 +19,7 @@ public sealed partial class LoggingTests
     [Trait("Requirement", "LOG-4")]
     [Trait("Requirement", "LOG-5")]
     [Trait("Requirement", "LOG-6")]
+    [Trait("Requirement", "LOG-10")]
     internal void Start_LogDirectorySet_WritesFormattedEntriesThere()
     {
         using ScreenNapApp app = ScreenNapApp.Start();
@@ -30,6 +31,22 @@ public sealed partial class LoggingTests
         Assert.NotEmpty(logFiles);
         Assert.All(logFiles, file => Assert.Matches(LogFileName(), Path.GetFileName(file)));
         Assert.All(app.LogLines(), line => Assert.Matches(LogLine(), line));
+        Assert.All(logFiles, file =>
+        {
+            byte[] bytes = ReadShared(file);
+            Assert.False(bytes is [0xEF, 0xBB, 0xBF, ..], $"{Path.GetFileName(file)} starts with a byte order mark");
+            string text = new System.Text.UTF8Encoding(false, true).GetString(bytes);
+            Assert.EndsWith("\r\n", text, StringComparison.Ordinal);
+            Assert.Equal(text.Split("\r\n").Length - 1, text.Split('\n').Length - 1);
+        });
+    }
+
+    private static byte[] ReadShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
     }
 
     [Fact]

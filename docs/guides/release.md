@@ -27,7 +27,8 @@ gone — only the current version stays published.
 - `C:\Program Files (x86)\Microsoft Visual Studio\Installer` is on `PATH`; the MSVC
   environment script invokes `vswhere` by bare name, and the publish fails with
   `MSB3073` when the directory is missing from `PATH`
-- Inno Setup 6 or later is installed; `build/Installer.ps1` looks for `ISCC.exe` in the
+- Inno Setup 6.3 or later is installed (the installer script's `x64compatible`
+  architecture identifier needs 6.3); `build/Installer.ps1` looks for `ISCC.exe` in the
   Inno Setup uninstall entries, on `PATH`, through the `.iss` file association, and in
   the default install folders, and aborts when none of them holds it
 - `gh auth status` reports an account with push access to `elysion-ii/ScreenNap`
@@ -38,8 +39,10 @@ gone — only the current version stays published.
 
 Run `git switch main` and `git pull`, then `git switch -c {branch}`. `main` is
 protected, so the version commit is made on a branch and reaches `main` only through a
-pull request; `docs/rules/git.md` governs the branch name. When the version bump travels
-with the change being released, that change's own branch is the one.
+pull request. `{branch}` is a kebab-case name that states the change, such as
+`release-v{version}`, so the branch list shows what each branch carries. When the
+version bump travels with the change being released, that change's own branch is the
+one.
 
 Confirmation: `git status --porcelain` prints nothing, and `git branch --show-current`
 prints `{branch}`.
@@ -74,9 +77,16 @@ Confirmation: `git show --stat HEAD` lists both files in the same commit.
 
 ### 5. Merge the branch into `main`
 
-Push the branch, open a pull request, and merge it by the Merge Procedure in
-`docs/rules/git.md` — squash merge with an explicit subject and body, then delete the
-branch on both the remote and the local clone. Return to `main` and run `git pull`.
+Push the branch and open a pull request. Before merging, confirm with
+`gh pr view {number}` that the pull request holds the intended commits, its checks
+pass, and it has no merge conflict; stop on a failing check. Merge it as one squash
+commit whose message is written explicitly, because the default message copies the
+pull request title and co-author lines into `main`'s history:
+`gh pr merge {number} --squash --subject "{subject}" --body "{body}" --delete-branch`,
+where `{subject}` states in English what the change does and `{body}` summarizes what
+changed and why (`--body ""` when the subject says everything). `--delete-branch`
+deletes the branch on both the remote and the local clone. Return to `main` and run
+`git pull`, then `git fetch --prune`.
 
 Confirmation: `gh pr view {number} --json state` reports `MERGED`,
 `git branch --show-current` prints `main`, and `git log --oneline -1` shows the squash
@@ -92,8 +102,9 @@ published assets come from the workflow.
 ### 6. Build the portable EXE
 
 Run `powershell -ExecutionPolicy Bypass -File build/Build.ps1`. It checks the
-configuration files, verifies formatting, runs the test suite, and publishes the
-Native AOT single EXE; a failure in any gate stops it before publishing.
+configuration files, verifies formatting, checks that every requirement ID in the
+specification is named by a test, runs the test suite, and publishes the Native AOT
+single EXE; a failure in any gate stops it before publishing.
 
 Confirmation: the command exits 0, `build/ScreenNap/ScreenNap.exe` is the only file in
 `build/ScreenNap/`, and

@@ -81,6 +81,59 @@ public sealed class BlackoutTests
         Assert.DoesNotContain(app.OpenMenu(), entry => entry.Id == ScreenNapApp.ReleaseAllCommand);
     }
 
+    [Fact]
+    [Trait("Requirement", "WIN-7")]
+    internal void Blackout_OfThePrimaryMonitor_MakesWindowsSeeAFullScreenApplication()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        IReadOnlyList<RECT> monitors = app.Monitors();
+        int primary = monitors.ToList().FindIndex(monitor => monitor.Left == 0 && monitor.Top == 0);
+        Assert.False(NotificationStateIsBusy(), "Windows already sees a full-screen application; close it before this test");
+
+        app.Select(ScreenNapApp.MonitorCommandBase + (uint)primary);
+        app.WaitForBlackoutCovering(monitors[primary]);
+        Wait.Until(NotificationStateIsBusy, s_paintTimeout, "Windows sees a full-screen application");
+
+        app.Select(ScreenNapApp.MonitorCommandBase + (uint)primary);
+        app.WaitForBlackoutCount(0);
+        Wait.Until(() => !NotificationStateIsBusy(), s_paintTimeout, "Windows no longer sees a full-screen application");
+
+        // A blackout of another monitor leaves the notification state alone
+        if (monitors.Count > 1)
+        {
+            int other = primary == 0 ? 1 : 0;
+            app.Select(ScreenNapApp.MonitorCommandBase + (uint)other);
+            app.WaitForBlackoutCovering(monitors[other]);
+            Assert.False(NotificationStateIsBusy(), "A blackout of a monitor other than the primary one counts as a full-screen application");
+        }
+    }
+
+    private static bool NotificationStateIsBusy()
+    {
+        int result = Win32.SHQueryUserNotificationState(out int state);
+        if (result != 0)
+            throw new InvalidOperationException($"SHQueryUserNotificationState failed (HRESULT 0x{result:X8})");
+        return state == Win32.QUNS_BUSY;
+    }
+
+    [Fact]
+    [Trait("Requirement", "WIN-6")]
+    internal void CloseRequest_SentToTheBlackout_LeavesItOpen()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT monitor = app.Monitors()[0];
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        IntPtr blackout = app.WaitForBlackoutCovering(monitor);
+
+        if (!Win32.PostMessageW(blackout, Win32.WM_CLOSE, 0, 0))
+            throw new InvalidOperationException($"PostMessageW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+        // The menu opens after ScreenNap handled the close request posted before it
+        Assert.Contains(app.OpenMenu(), entry => entry.IsChecked);
+
+        Assert.Equal([blackout], app.BlackoutWindows());
+        Assert.True(ScreenNapApp.SameRect(app.Measure(() => Desktop.Bounds(blackout)), monitor));
+    }
+
     [Theory]
     [Trait("Requirement", "WIN-4")]
     [Trait("Requirement", "INV-4")]
@@ -103,14 +156,33 @@ public sealed class BlackoutTests
     }
 
     [Fact]
-    [Trait("Requirement", "WIN-5")]
     [Trait("Requirement", "WIN-3")]
-    internal void IdleCursor_OverTheBlackout_HidesAfterTenSecondsAndShowsOnMovement()
+    internal void TopmostPositionLost_LiveBlackout_IsRestoredWithoutMovingResizingOrActivating()
     {
         using ScreenNapApp app = ScreenNapApp.Start();
         RECT monitor = app.Monitors()[0];
         app.Select(ScreenNapApp.MonitorCommandBase);
         IntPtr blackout = app.WaitForBlackoutCovering(monitor);
+
+        // Another program taking the blackout out of the topmost band, as a topmost window
+        // shown later can push it under
+        if (!Win32.SetWindowPos(blackout, Win32.HWND_NOTOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE))
+            throw new InvalidOperationException($"SetWindowPos failed (Win32 error: {Marshal.GetLastWin32Error()})");
+        Assert.Equal(0, Desktop.ExtendedStyle(blackout) & Win32.WS_EX_TOPMOST);
+
+        Wait.Until(() => (Desktop.ExtendedStyle(blackout) & Win32.WS_EX_TOPMOST) != 0, s_paintTimeout, "ScreenNap restores the blackout's topmost position");
+        Assert.True(ScreenNapApp.SameRect(app.Measure(() => Desktop.Bounds(blackout)), monitor));
+        Assert.NotEqual(blackout, Win32.GetForegroundWindow());
+    }
+
+    [Fact]
+    [Trait("Requirement", "WIN-5")]
+    internal void IdleCursor_OverTheBlackout_HidesAfterTenSecondsAndShowsOnMovement()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT monitor = app.Monitors()[0];
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        app.WaitForBlackoutCovering(monitor);
         int centerX = monitor.Left + monitor.Width / 2;
         int centerY = monitor.Top + monitor.Height / 2;
         app.Measure(() => Desktop.MoveCursor(centerX, centerY));
@@ -119,7 +191,5 @@ public sealed class BlackoutTests
         Wait.Until(Desktop.CursorIsHidden, TimeSpan.FromSeconds(15), "the cursor hides over the idle blackout");
         app.Measure(() => Desktop.MoveCursor(centerX + 10, centerY + 10));
         Wait.Until(() => !Desktop.CursorIsHidden(), TimeSpan.FromSeconds(5), "the cursor shows again after it moves");
-
-        Assert.NotEqual(0, Desktop.ExtendedStyle(blackout) & Win32.WS_EX_TOPMOST);
     }
 }

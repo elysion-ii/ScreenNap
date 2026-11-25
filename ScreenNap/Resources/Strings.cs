@@ -11,49 +11,39 @@ internal static class Strings
         s_resourceManager ??= new ResourceManager("ScreenNap.Resources.Strings",
             typeof(Strings).Assembly);
 
-    internal static string MenuReleaseAll => Lookup(nameof(MenuReleaseAll));
+    internal static string MenuReleaseAll(CultureInfo culture) => Lookup(nameof(MenuReleaseAll), culture);
 
-    internal static string MenuExit => Lookup(nameof(MenuExit));
+    internal static string MenuExit(CultureInfo culture) => Lookup(nameof(MenuExit), culture);
 
-    internal static string MenuPrimary => Lookup(nameof(MenuPrimary));
+    internal static string MenuPrimary(CultureInfo culture) => Lookup(nameof(MenuPrimary), culture);
 
-    internal static string MenuActive => Lookup(nameof(MenuActive));
+    internal static string MenuActive(CultureInfo culture) => Lookup(nameof(MenuActive), culture);
 
-    internal static string TooltipNormal => Lookup(nameof(TooltipNormal));
+    internal static string TooltipNormal(CultureInfo culture) => Lookup(nameof(TooltipNormal), culture);
 
-    internal static string TooltipActive => Lookup(nameof(TooltipActive));
+    internal static string TooltipActive(CultureInfo culture) => Lookup(nameof(TooltipActive), culture);
 
-    internal static string NotifyAlreadyRunning => Lookup(nameof(NotifyAlreadyRunning));
+    internal static string NotifyAlreadyRunning(CultureInfo culture) => Lookup(nameof(NotifyAlreadyRunning), culture);
 
-    internal static string NotifyTitle => Lookup(nameof(NotifyTitle));
+    internal static string NotifyTitle(CultureInfo culture) => Lookup(nameof(NotifyTitle), culture);
 
-    internal static string NotifyStartFailed => Lookup(nameof(NotifyStartFailed));
+    internal static string NotifyStartFailed(CultureInfo culture) => Lookup(nameof(NotifyStartFailed), culture);
 
-    internal static string NotifyTrayFailed => Lookup(nameof(NotifyTrayFailed));
+    internal static string NotifyTrayFailed(CultureInfo culture) => Lookup(nameof(NotifyTrayFailed), culture);
 
-    internal static string NotifyBlackoutNotCreated => Lookup(nameof(NotifyBlackoutNotCreated));
+    internal static string NotifyStopped(CultureInfo culture) => Lookup(nameof(NotifyStopped), culture);
 
-    internal static string NotifyBlackoutNotClosed => Lookup(nameof(NotifyBlackoutNotClosed));
+    internal static string NotifyBlackoutNotCreated(CultureInfo culture) => Lookup(nameof(NotifyBlackoutNotCreated), culture);
 
-    internal static string NotifyReleaseAllIncomplete => Lookup(nameof(NotifyReleaseAllIncomplete));
+    internal static string NotifyBlackoutNotClosed(CultureInfo culture) => Lookup(nameof(NotifyBlackoutNotClosed), culture);
 
-    internal static string NotifyBlackoutNotRestored => Lookup(nameof(NotifyBlackoutNotRestored));
+    internal static string NotifyReleaseAllIncomplete(CultureInfo culture) => Lookup(nameof(NotifyReleaseAllIncomplete), culture);
 
-    internal static string NotifyHotkeysUnavailable => Lookup(nameof(NotifyHotkeysUnavailable));
+    internal static string NotifyBlackoutNotRestored(CultureInfo culture) => Lookup(nameof(NotifyBlackoutNotRestored), culture);
 
-    internal static string NotifyOverlaysNotCreated => Lookup(nameof(NotifyOverlaysNotCreated));
+    internal static string NotifyHotkeysUnavailable(CultureInfo culture) => Lookup(nameof(NotifyHotkeysUnavailable), culture);
 
-    internal static string Lookup(ResourceManager manager, string key)
-    {
-        try
-        {
-            return manager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
-        }
-        catch (MissingManifestResourceException)
-        {
-            return key;
-        }
-    }
+    internal static string NotifyOverlaysNotCreated(CultureInfo culture) => Lookup(nameof(NotifyOverlaysNotCreated), culture);
 
-    private static string Lookup(string key) => Lookup(ResourceManager, key);
+    private static string Lookup(string key, CultureInfo culture) => LocalizedText.Lookup(ResourceManager, key, culture);
 }

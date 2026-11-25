@@ -41,7 +41,7 @@ Default install path: `%LocalAppData%\Programs\ScreenNap`
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Visual Studio Build Tools with the C++ desktop workload (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) — the Native AOT publish links with MSVC
 - `C:\Program Files (x86)\Microsoft Visual Studio\Installer` on `PATH` — the MSVC environment script invokes `vswhere` by bare name, and the publish fails with `MSB3073` when the directory is missing from `PATH`
-- (Optional) [Inno Setup 6](https://jrsoftware.org/isdl.php) for creating the installer
+- (Optional) [Inno Setup 6.3 or later](https://jrsoftware.org/isdl.php) for creating the installer
 
 ### Build
 
@@ -70,7 +70,7 @@ Log files are written to `%LocalAppData%\ScreenNap\Logs\` with daily rotation an
 | Level | Description |
 |-------|-------------|
 | INFO | Application lifecycle, blackout events, monitor enumeration |
-| WARN | Non-critical failures (menu) |
+| WARN | Failures ScreenNap continues after (e.g., a hotkey another application holds, a rejected `SCREENNAP_LOG_DIR`, a Win32 call that failed) |
 | ERROR | Critical P/Invoke failures with Win32 error codes |
 
 ### Adding a Language
@@ -81,7 +81,7 @@ Create `ScreenNap/Resources/Strings.xx.resx` (where `xx` is the language code, e
 
 - **C#** on **.NET 10.0 LTS**
 - **Raw Win32 API** via P/Invoke (no WinForms, WPF, or WinUI)
-- Zero runtime NuGet dependencies; the build uses a private analyzer package
+- Zero runtime NuGet dependencies; the build uses private analyzer packages
 
 ## License
 

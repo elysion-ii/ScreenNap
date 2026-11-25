@@ -29,8 +29,10 @@ Three facts constrain an end-to-end test of ScreenNap:
 
 ## Decision
 
-- Deterministic decisions stay in `ScreenNap/Core/` and are unit-tested there, as ADR
-  0002 decided. Every input case of a decision is tested in the unit layer
+- Deterministic decisions stay in types that take their inputs as arguments, as ADR 0002
+  decided, and are unit-tested there; the folder each sits in is the one its feature
+  owns (`docs/adr/0004-feature-folders.md`). Every input case of a decision is tested in
+  the unit layer
 - `ScreenNap.E2ETests` starts the application as built from the repository, as its own
   process, and drives it only through its windows: it posts the tray callback and
   command messages to the hidden message window, injects the global hotkeys with

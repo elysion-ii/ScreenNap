@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <IsPackable>false</IsPackable>
+    <!-- The fakes of the Win32 interfaces read the fixed text buffers of native structures -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- CA1707: xUnit test names intentionally use Method_Scenario underscore convention -->
     <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>

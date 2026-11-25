@@ -1,0 +1,3 @@
+namespace ScreenNap.Tray;
+
+internal readonly record struct MenuCommand(MenuCommandKind Kind, int MonitorIndex = -1);

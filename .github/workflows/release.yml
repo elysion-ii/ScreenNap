@@ -23,7 +23,7 @@ jobs:
         run: choco install innosetup -y --no-progress
 
       # The MSVC environment script the Native AOT publish runs invokes vswhere by
-      # bare name (docs/rules/dotnet.md NATIVEDEP; README.md Prerequisites).
+      # bare name (docs/rules/dotnet-client.md NATIVEDEP; README.md Prerequisites).
       - name: Put vswhere on PATH
         shell: pwsh
         run: |

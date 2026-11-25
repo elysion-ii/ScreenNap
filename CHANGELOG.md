@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-25
+
+### Changed
+- ScreenNap now follows each monitor's scaling: the menu shows every monitor's resolution in physical pixels, and an identification overlay grows with its monitor's scale factor
+- An identification overlay whose number cannot be drawn is now reported in the same notification as an overlay that cannot be created
+- ScreenNap now stops with a message when its tray icon image cannot be loaded, because an invisible tray icon leaves no way to open the menu or exit, and when it can no longer receive messages from Windows
+- When `SCREENNAP_LOG_DIR` is not set, the log now records which directory it uses
+- A build without a declared version now fails instead of producing a ScreenNap that shows no usable version
+- A blacked-out monitor is now recognized by its serial number, or by the connection it is attached to when it reports none, so two monitors of the same model are told apart and a monitor without a reported name is restored too
+- When a blacked-out monitor is disconnected, ScreenNap now closes its blackout so that it cannot cover another monitor, and blacks the monitor out again when it returns
+- A blackout now follows its monitor when the monitor's resolution or position changes
+- A blackout can no longer be closed by another program; only your own actions and exiting ScreenNap close it
+- Identification overlays now stay above blackouts, so a blacked-out monitor can be identified
+- Uninstalling now removes ScreenNap's logs from the default log folder
+- When ScreenNap starts at sign-in before the taskbar is ready, it now waits up to a minute for the taskbar instead of stopping
+- The installer now installs on x64 Windows only; Arm64 Windows is not supported
+- While the primary monitor is blacked out, Windows treats ScreenNap like a full-screen application and holds back notifications, as it does for any full-screen application
+
+### Fixed
+- Pressing two monitor hotkeys together now acts only on the digit pressed first
+- The tray icon now returns after the Windows taskbar is recreated, for example after Explorer restarts
+- Identification overlays now close by themselves even when the first overlay cannot start the closing timer
+- The tray icon's tooltip (`ScreenNap`, or the number of blackouts) now appears when you point at the icon
+- A monitor name containing `&` now shows the `&` in the menu instead of underlining the next letter
+- The menu no longer shows two separators in a row when no monitor is listed while a blackout is on
+- Choosing a monitor in a menu that was opened before a display change now blacks out the monitor where it is now, and does nothing when the monitor is gone
+- A hotkey of a monitor whose display path moved to another monitor no longer removes the other monitor's blackout
+- Closing ScreenNap from another program, such as the installer, no longer logs false failures
+- Starting ScreenNap while a ScreenNap with other privileges (for example run as administrator) runs now shows the "already running" message instead of crashing
+- The tray icon is now sharp at 125 %, 150 %, and 200 % display scaling
+- The 1.6.0 notes said an update starts ScreenNap again after the install; it never did. An update closes a running ScreenNap and starts it only when you choose to launch it at the end of the installer
+
 ## [1.7.1] - 2026-11-10
 
 ### Changed

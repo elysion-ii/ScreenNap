@@ -14,7 +14,7 @@ Rule bodies live under `docs/rules/`. Edit this file, never `CLAUDE.md`.
 | Runtime | `net10.0-windows` (.NET 10 LTS) |
 | UI | Raw Win32 API via P/Invoke; no UI framework |
 | Target OS | Windows 10 / 11 (x64) |
-| Distribution | Native AOT single EXE + Inno Setup installer |
+| Distribution | Native AOT single EXE + Inno Setup installer (`docs/rules/dotnet-client.md`, NATIVEDEP) |
 | Runtime dependencies | Ahead-of-time compiled to native code; no .NET runtime, no external NuGet runtime packages |
 | License | MIT |
 
@@ -28,13 +28,13 @@ Rule bodies live under `docs/rules/`. Edit this file, never `CLAUDE.md`.
 
 Rules in `docs/rules/` are organized into three tiers:
 - **Application rules**: `docs/rules/ScreenNap.md` (this repository's own rules and overrides)
-- **Stack rules**: `docs/rules/dotnet.md` (.NET stack rules, managed by dev-standards)
-- **Core rules**: Shared engineering standards (`standard.md`, `documentation.md`, `git.md`, `specs.md`, `testing.md`, and the conditional core files `cli.md` and `db.md`; managed by dev-standards)
+- **Stack rules**: `docs/rules/dotnet.md`, plus every .NET facet rule file under `docs/rules/` (e.g., `dotnet-client.md`) (managed by dev-standards)
+- **Shared rules**: Universal engineering standards (`docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/specs.md`, `docs/rules/testing.md`), plus every conditional shared rule file under `docs/rules/` (managed by dev-standards)
 
-**Precedence on conflict**: Application rules > Stack rules > Core rules.
+**Precedence on conflict**: Application rules > Stack rules > Shared rules.
 
-- **Rule Scope**: which rule files and specification every change complies with, and when `cli.md` and `db.md` apply, is stated in `docs/rules/standard.md` (How to use these rules). The specification of ScreenNap is `docs/specs/ScreenNap.md`.
-- **Loading Rules**: Read this file and every file under `docs/rules/` before writing code (including when transitioning from a plan to implementation).
+- **Rule Scope**: which rule files and specification every change complies with — and when to report missing conditional shared rule domains — is stated in `docs/rules/standard.md` (How to Use These Rules). The specification of ScreenNap is `docs/specs/ScreenNap.md`.
+- **Loading Rules**: Read this file, every applicable file under `docs/rules/`, `docs/specs/ScreenNap.md`, and `docs/references/code-map.md` before writing code (including when transitioning from a plan to implementation).
 - **Completion Gate (AUDIT)**: Before reporting an implementation task as complete, pass the AUDIT gate in `docs/rules/standard.md`.
 - **File Ownership**: rule files under `docs/rules/` managed by dev-standards are copies of its pinned tag; repository- and application-specific rules are maintained in `docs/rules/ScreenNap.md`.
 
@@ -47,40 +47,12 @@ Rules in `docs/rules/` are organized into three tiers:
 | Build | `dotnet build ScreenNap/ScreenNap.csproj -c Release` |
 | Test | `dotnet test ScreenNap.Tests/ScreenNap.Tests.csproj` |
 | End-to-end test | `dotnet test ScreenNap.E2ETests/ScreenNap.E2ETests.csproj` |
-| Full build (format gate → tests → publish) | `build/Menu.bat` (interactive) or `powershell -ExecutionPolicy Bypass -File build/Build.ps1` |
+| Full build (gates → publish) | `build/Menu.bat` (interactive) or `powershell -ExecutionPolicy Bypass -File build/Build.ps1` |
 | Installer | `powershell -ExecutionPolicy Bypass -File build/Installer.ps1` |
 
-## Shared Knowledge
+## Code Map
 
-Where each piece of shared knowledge lives in ScreenNap (`docs/rules/standard.md` One Home per Piece of Knowledge).
-
-| Knowledge | Home |
-|---|---|
-| Which directory log files go to, how a log line is formatted and written, how a Win32 error code is appended to a log message, and which old log files are deleted | `Logger` (`ScreenNap/Logging/Logger.cs`) |
-| How a localized user-facing string is looked up, and what is shown when the lookup fails | `Strings` (`ScreenNap/Resources/Strings.cs`) |
-| The wording of every failure notification shown to the user | `FailureNotices` (`ScreenNap/Core/FailureNotices.cs`) |
-| How an operation's failure reaches the user | `IUserNotifier` (`ScreenNap/Core/IUserNotifier.cs`) |
-| How the product version is read and shown as `ScreenNap X.Y.Z` | `AppVersion` (`ScreenNap/App/AppVersion.cs`) |
-| How the active monitors are enumerated with their bounds, primary state, name, and identity | `MonitorEnumerator.EnumerateMonitors` (`ScreenNap/App/MonitorEnumerator.cs`) |
-| The order in which a monitor's friendly name falls back | `MonitorNameResolver` (`ScreenNap/Core/MonitorNameResolver.cs`) |
-| What identifies a physical monitor across display-path changes | `MonitorIdentity` (`ScreenNap/Core/MonitorIdentity.cs`) |
-| The global hotkey IDs, the action each ID selects, and how a hotkey combination is named | `HotkeyInterpreter` (`ScreenNap/Core/HotkeyInterpreter.cs`) |
-| The context-menu command IDs | `MenuCommandIds` (`ScreenNap/Core/MenuModel.cs`) |
-| Which overlays the identify hotkey shows or closes, and which failures it reports | `MonitorIdentifier` (`ScreenNap/App/MonitorIdentifier.cs`) |
-| How a window class is registered once and unregistered at shutdown | `WindowClass` (`ScreenNap/Native/WindowClass.cs`) |
-| How an embedded `.ico` resource becomes a tray icon handle | `IconHelper.LoadIconFromResource` (`ScreenNap/App/IconHelper.cs`) |
-| The P/Invoke declarations of one Win32 DLL | that DLL's class in `ScreenNap/Native/` (`User32`, `Gdi32`, `Shell32`, `Kernel32`, `DisplayConfigApi`) |
-| Win32 constants | `WindowStyles` (`ScreenNap/Native/WindowStyles.cs`) |
-| How a unit test sets the culture and restores it | `CultureScope` (`ScreenNap.Tests/TestDoubles/CultureScope.cs`) |
-| How a unit test substitutes blackout windows | `FakeBlackoutWindowFactory` (`ScreenNap.Tests/TestDoubles/FakeBlackoutWindowFactory.cs`) |
-| How a unit test substitutes identification overlays | `FakeIdentifyOverlays` (`ScreenNap.Tests/TestDoubles/FakeIdentifyOverlays.cs`) |
-| How a unit test captures user notifications | `FakeUserNotifier` (`ScreenNap.Tests/TestDoubles/FakeUserNotifier.cs`) |
-| How an end-to-end test starts the built ScreenNap with a log directory of its own, drives its message window and menu, and stops it | `ScreenNapApp` (`ScreenNap.E2ETests/Infrastructure/ScreenNapApp.cs`) |
-| Where an end-to-end test finds the built executable, the repository root, and the release assets, and how it creates and removes its scratch directories | `TestAssets` (`ScreenNap.E2ETests/Infrastructure/TestAssets.cs`) |
-| How an end-to-end test waits for an observable condition with a time limit | `Wait` (`ScreenNap.E2ETests/Infrastructure/Wait.cs`) |
-| How an end-to-end test reads windows, monitors, pixels, and the cursor in the DPI awareness of the window it measures | `Desktop` (`ScreenNap.E2ETests/Infrastructure/Desktop.cs`) |
-| How an end-to-end test presses a global hotkey and probes whether one is held | `Keyboard` (`ScreenNap.E2ETests/Infrastructure/Keyboard.cs`) |
-| The Win32 declarations and constants the end-to-end tests use | `Win32` (`ScreenNap.E2ETests/Infrastructure/Win32.cs`) |
+Feature folders and shared mechanism homes in ScreenNap are listed in `docs/references/code-map.md` (`docs/rules/documentation.md`, Code Map; `docs/rules/standard.md`, One Home per Piece of Knowledge).
 
 ## Directory Layout
 
@@ -88,17 +60,16 @@ Where each piece of shared knowledge lives in ScreenNap (`docs/rules/standard.md
 
 The main application project contains the source code.
 
-- `Program.cs` contains the application entry point, named mutex, and Win32 message loop
-- `Native/` contains P/Invoke declarations, Win32 constants, native structures, and the window-class registration helper
-- `Core/` contains shared contracts, domain types, and pure decision logic
-- `App/` contains application orchestration, including the tray icon, context menu, monitor enumeration, blackout lifecycle, global hotkeys, and monitor identification
-- `Blackout/` contains the blackout-window implementation
-- `Logging/` contains best-effort file logging and retention
-- `Resources/` contains localized string resources and icon assets
+- `Program.cs` contains the application entry point; it creates the Win32 implementations and starts `Lifetime/`
+- The feature folders are `Lifetime/` (startup, named mutex, hidden message window and its message routing, shutdown), `Tray/` (tray icon, tooltip, context menu), `Blackout/` (blackout windows and their restoration after display changes), `Hotkeys/` (global hotkeys), and `Identify/` (monitor-identification overlays)
+- The shared homes are `Monitors/` (monitor enumeration and identity), `Notifications/` (failure notification and its wording), `Versioning/` (product version), `Logging/` (best-effort file logging and retention), `Native/` (P/Invoke declarations, Win32 constants, native structures, the window-class registration helper, and the window-function interface several features share), and `Resources/` (localized string resources and icon assets)
+- What belongs in each folder and the permitted dependency directions are in `docs/rules/ScreenNap.md` (Architecture)
 
 ### `ScreenNap.Tests/`
 
-The xUnit unit-test project runs as a gate in `Build.ps1` before publishing.
+The xUnit unit-test project runs as a gate in `Build.ps1` before publishing. Its folders
+mirror those of `ScreenNap/`; `TestDoubles/` holds the test doubles several features'
+tests use.
 
 ### `ScreenNap.E2ETests/`
 
@@ -113,20 +84,24 @@ part of `Build.ps1`.
 
 ### `build/`
 
-The directory contains build scripts and installer configuration.
+Build scripts and installer configuration.
 
-- `Build.ps1` runs the configuration-file check, format verification, the requirement-coverage check, and tests, then publishes ScreenNap as a Native AOT single EXE to `build/ScreenNap/`; every check must pass before publish proceeds
-- `Installer.ps1` invokes Inno Setup on `Setup_ScreenNap.iss`; it reads `<Version>` from `Directory.Build.props`, injects `/DMyAppVersion`, and verifies the matching `CHANGELOG.md` heading
-- `build/ScreenNap/` and `build/Installer/` are generated, gitignored output directories
+- `Build.ps1` runs the configuration-file check, format verification (`dotnet format --verify-no-changes`), requirement-coverage check, and tests, then publishes ScreenNap as a Native AOT single EXE to `build/ScreenNap/`. All checks must pass before publish proceeds
+- `Menu.bat` is an interactive menu over `Build.ps1` and `Installer.ps1`
+- `Installer.ps1` invokes Inno Setup (ISCC.exe) on `Setup_ScreenNap.iss`; requires `build/ScreenNap/ScreenNap.exe` to exist. Before running ISCC it reads `<Version>` from `Directory.Build.props` (`docs/rules/dotnet.md`, VERSION), injects it via `/DMyAppVersion`, and verifies as its release packaging gate that `CHANGELOG.md` contains a heading for the current version (failing otherwise)
+- Output directories: `build/ScreenNap/` (publish output) and `build/Installer/` (installer package), both gitignored (`docs/rules/dotnet.md`, OUTPUT)
 
 ### `docs/`
 
-All non-source documents live in role-based subfolders. Before creating, changing,
-moving, renaming, archiving, or deleting a document, read
-`docs/rules/documentation.md` first. It defines placement, naming, and front matter.
+All non-source documents, placed in role-based subfolders (`rules/`, `adr/`, `specs/`,
+`guides/`, `references/`, `investigations/`, `notes/`, `plans/`, `inbox/`, `archive/`).
+Before creating, changing, moving, renaming, archiving, or deleting any document — or
+when unsure where one belongs — read `docs/rules/documentation.md` first; it defines
+placement, naming, and front matter.
 
-- `docs/rules/` contains `standard.md`, `documentation.md`, `git.md`, `specs.md`, `testing.md`, `cli.md`, `db.md`, and `dotnet.md` managed by dev-standards, plus `ScreenNap.md` (application rules)
-- `docs/specs/ScreenNap.md` defines ScreenNap behavior
-- `docs/adr/` contains active Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
-- `docs/guides/release.md` is the version bump → assets → tag → GitHub Release procedure
-- `docs/plans/` and `docs/archive/plans/` are gitignored working areas (`docs/rules/documentation.md`, `docs/plans/`)
+- `docs/rules/` — rule bodies: universal shared rules (`docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/specs.md`, `docs/rules/testing.md`), `docs/rules/dotnet.md`, the conditional shared and .NET facet rule files distributed to this repository (all managed by dev-standards), and `docs/rules/ScreenNap.md` (application rules)
+- `docs/specs/ScreenNap.md` — the ScreenNap specification: what it does
+- `docs/references/code-map.md` — feature folders and shared mechanism homes
+- `docs/adr/` — Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
+- `docs/guides/release.md` — the version bump → assets → tag → GitHub Release procedure
+- `docs/plans/` and `docs/archive/plans/` — working area for plans, gitignored (`docs/rules/documentation.md`, Category Notes — `docs/plans/`)

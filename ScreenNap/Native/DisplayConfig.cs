@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace ScreenNap.Native;
 
-internal static partial class DisplayConfigApi
+internal static partial class DisplayConfig
 {
     [LibraryImport("user32.dll", EntryPoint = "GetDisplayConfigBufferSizes", SetLastError = true)]
     internal static partial int GetDisplayConfigBufferSizes(uint flags, out uint numPathArrayElements, out uint numModeInfoArrayElements);

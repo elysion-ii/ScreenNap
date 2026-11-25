@@ -2,90 +2,6 @@ using System.Runtime.InteropServices;
 
 namespace ScreenNap.E2ETests.Infrastructure;
 
-internal delegate bool EnumWindowsProc(IntPtr hWnd, nint lParam);
-internal delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, nint dwData);
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct RECT
-{
-    internal int Left;
-    internal int Top;
-    internal int Right;
-    internal int Bottom;
-
-    internal readonly int Width => Right - Left;
-    internal readonly int Height => Bottom - Top;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct POINT
-{
-    internal int X;
-    internal int Y;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct MONITORINFO
-{
-    internal uint cbSize;
-    internal RECT rcMonitor;
-    internal RECT rcWork;
-    internal uint dwFlags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct CURSORINFO
-{
-    internal uint cbSize;
-    internal uint flags;
-    internal IntPtr hCursor;
-    internal POINT ptScreenPos;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct NOTIFYICONIDENTIFIER
-{
-    internal uint cbSize;
-    internal IntPtr hWnd;
-    internal uint uID;
-    internal Guid guidItem;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct MOUSEINPUT
-{
-    internal int dx;
-    internal int dy;
-    internal uint mouseData;
-    internal uint dwFlags;
-    internal uint time;
-    internal nuint dwExtraInfo;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct KEYBDINPUT
-{
-    internal ushort wVk;
-    internal ushort wScan;
-    internal uint dwFlags;
-    internal uint time;
-    internal nuint dwExtraInfo;
-}
-
-[StructLayout(LayoutKind.Explicit)]
-internal struct INPUTUNION
-{
-    [FieldOffset(0)] internal MOUSEINPUT mi;
-    [FieldOffset(0)] internal KEYBDINPUT ki;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct INPUT
-{
-    internal uint type;
-    internal INPUTUNION u;
-}
-
 internal static partial class Win32
 {
     internal const uint WM_CLOSE = 0x0010;
@@ -95,6 +11,7 @@ internal static partial class Win32
     internal const uint WM_LBUTTONUP = 0x0202;
     internal const uint WM_LBUTTONDBLCLK = 0x0203;
     internal const uint WM_RBUTTONUP = 0x0205;
+    internal const uint WM_HOTKEY = 0x0312;
     internal const uint WM_USER = 0x0400;
     internal const uint WM_TRAYICON = WM_USER + 1;
     internal const uint MN_GETHMENU = 0x01E1;
@@ -123,6 +40,26 @@ internal static partial class Win32
     internal const ushort VK_0 = 0x30;
 
     internal const uint CURSOR_SHOWING = 0x00000001;
+
+    internal const uint NIM_DELETE = 0x00000002;
+    internal const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
+    internal const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+    internal const int SM_CXSMICON = 49;
+    internal const int QUNS_BUSY = 2;
+    internal const int MDT_EFFECTIVE_DPI = 0;
+    internal const string TaskbarCreatedMessage = "TaskbarCreated";
+
+    internal static readonly IntPtr HWND_NOTOPMOST = new(-2);
+    internal const uint SWP_NOSIZE = 0x0001;
+    internal const uint SWP_NOMOVE = 0x0002;
+    internal const uint SWP_NOACTIVATE = 0x0010;
+
+    internal const uint SYNCHRONIZE = 0x00100000;
+    internal const uint SDDL_REVISION_1 = 1;
+    internal const uint THREAD_SUSPEND_RESUME = 0x0002;
+    internal const uint THREAD_QUERY_LIMITED_INFORMATION = 0x0800;
+    internal const uint SuspendThreadFailed = 0xFFFFFFFF;
+
 
     [LibraryImport("user32.dll", EntryPoint = "EnumWindows")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -216,6 +153,65 @@ internal static partial class Win32
     [LibraryImport("gdi32.dll", EntryPoint = "GetPixel")]
     internal static partial uint GetPixel(IntPtr hdc, int x, int y);
 
+    [LibraryImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool Shell_NotifyIconW(uint dwMessage, ref NOTIFYICONDATAW lpData);
+
+    [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial uint RegisterWindowMessageW(string lpString);
+
+    [LibraryImport("user32.dll", EntryPoint = "MonitorFromPoint")]
+    internal static partial IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [LibraryImport("shcore.dll", EntryPoint = "GetDpiForMonitor")]
+    internal static partial int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+
     [LibraryImport("shell32.dll", EntryPoint = "Shell_NotifyIconGetRect")]
     internal static partial int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
+
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowPos", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "OpenThread", SetLastError = true)]
+    internal static partial IntPtr OpenThread(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwThreadId);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "QueryThreadCycleTime", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool QueryThreadCycleTime(IntPtr threadHandle, out ulong cycleTime);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "SuspendThread", SetLastError = true)]
+    internal static partial uint SuspendThread(IntPtr hThread);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "ResumeThread", SetLastError = true)]
+    internal static partial uint ResumeThread(IntPtr hThread);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetSystemMetricsForDpi")]
+    internal static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
+    [LibraryImport("shell32.dll", EntryPoint = "SHQueryUserNotificationState")]
+    internal static partial int SHQueryUserNotificationState(out int state);
+
+    [LibraryImport("user32.dll", EntryPoint = "WindowFromPoint")]
+    internal static partial IntPtr WindowFromPoint(POINT point);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "OpenMutexW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial IntPtr OpenMutexW(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, string lpName);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateMutexW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial IntPtr CreateMutexW(in SECURITY_ATTRIBUTES lpMutexAttributes, [MarshalAs(UnmanagedType.Bool)] bool bInitialOwner, string lpName);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateEventW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial IntPtr CreateEventW(IntPtr lpEventAttributes, [MarshalAs(UnmanagedType.Bool)] bool bManualReset, [MarshalAs(UnmanagedType.Bool)] bool bInitialState, string lpName);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "ConvertStringSecurityDescriptorToSecurityDescriptorW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool ConvertStringSecurityDescriptorToSecurityDescriptorW(string stringSecurityDescriptor, uint stringSdRevision, out IntPtr securityDescriptor, IntPtr securityDescriptorSize);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "LocalFree")]
+    internal static partial IntPtr LocalFree(IntPtr hMem);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CloseHandle", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool CloseHandle(IntPtr hObject);
 }

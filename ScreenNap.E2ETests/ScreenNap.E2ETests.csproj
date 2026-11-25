@@ -7,6 +7,8 @@
     <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Drives the installer wizard through UI Automation, which invokes a control whichever window is active -->
+    <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
     <PackageReference Include="xunit" Version="2.*" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" />

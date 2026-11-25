@@ -2,9 +2,6 @@ using System.Runtime.InteropServices;
 
 namespace ScreenNap.Native;
 
-internal delegate nint WNDPROC(IntPtr hWnd, uint msg, nuint wParam, nint lParam);
-internal delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, nint dwData);
-
 internal static partial class User32
 {
     [LibraryImport("user32.dll", EntryPoint = "RegisterClassExW", SetLastError = true)]
@@ -42,10 +39,10 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "PostQuitMessage")]
     internal static partial void PostQuitMessage(int nExitCode);
 
-    // Message loop
+    // Message loop. GetMessageW returns a BOOL that is -1 on failure, 0 for WM_QUIT, and
+    // positive otherwise, so it is read as an int
     [LibraryImport("user32.dll", EntryPoint = "GetMessageW", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool GetMessageW(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+    internal static partial int GetMessageW(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
     [LibraryImport("user32.dll", EntryPoint = "TranslateMessage")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -91,11 +88,6 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetCursorPos(out POINT lpPoint);
 
-    // Window query
-    [LibraryImport("user32.dll", EntryPoint = "IsWindow")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool IsWindow(IntPtr hWnd);
-
     // Cursor
     [LibraryImport("user32.dll", EntryPoint = "LoadCursorW", SetLastError = true)]
     internal static partial IntPtr LoadCursorW(IntPtr hInstance, int lpCursorName);
@@ -121,7 +113,22 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetAsyncKeyState")]
+    internal static partial short GetAsyncKeyState(int vKey);
+
+    // Registered messages
+    [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial uint RegisterWindowMessageW(string lpString);
+
+    // DPI
+    [LibraryImport("user32.dll", EntryPoint = "GetDpiForWindow")]
+    internal static partial uint GetDpiForWindow(IntPtr hwnd);
+
     // Paint
+    [LibraryImport("user32.dll", EntryPoint = "UpdateWindow")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UpdateWindow(IntPtr hWnd);
+
     [LibraryImport("user32.dll", EntryPoint = "BeginPaint")]
     internal static partial IntPtr BeginPaint(IntPtr hWnd, out PAINTSTRUCT lpPaint);
 
@@ -133,6 +140,12 @@ internal static partial class User32
     internal static partial int DrawTextW(IntPtr hdc, string lpchText, int cchText, ref RECT lprc, uint format);
 
     // Icon
+    [LibraryImport("user32.dll", EntryPoint = "MonitorFromPoint")]
+    internal static partial IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetSystemMetricsForDpi")]
+    internal static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
     [LibraryImport("user32.dll", EntryPoint = "CreateIconFromResourceEx", SetLastError = true)]
     internal static partial IntPtr CreateIconFromResourceEx(IntPtr presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);
 

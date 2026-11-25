@@ -17,30 +17,35 @@ directory. On conflict, this file wins.
 
 - ScreenNap must use raw Win32 API through P/Invoke; do not introduce WinForms, WPF, WinUI, or another UI framework
 - Runtime functionality must use the .NET BCL and Win32 APIs without external NuGet runtime packages; centrally managed build-time analyzers with `PrivateAssets="all"` are permitted
-- Dependencies must follow these directions:
+- **Feature folders**: the source of `ScreenNap/` is grouped by feature, as `standard.md` Code Organization requires. The feature folders are `Lifetime/` (startup, the single instance, the hidden message window and the routing of its messages to the other features, and shutdown), `Tray/` (the tray icon, its tooltip, and the context menu), `Blackout/` (blackout windows and their restoration after a display change), `Hotkeys/` (the global hotkeys), and `Identify/` (the monitor-identification overlays). A type that one feature uses lives in that feature's folder. `Program.cs` only creates the Win32 implementations and starts `Lifetime/`
+- **Shared homes**: a type that two or more features use lives in a shared home, never in a feature folder. The shared homes are `Monitors/` (monitor enumeration, names, and identity), `Notifications/` (how a failure reaches the user, and its wording), `Versioning/` (the product version), `Logging/`, `Native/` (P/Invoke declarations, Win32 constants, and native structures), and `Resources/` (localized strings and icons). A type moves from a feature folder to a shared home in the change that gives it a second feature
+- **Dependency directions**: references between folders follow only these directions, so no feature depends on a feature that depends on it, and a shared home never depends on a feature:
 
 ```text
-Program.cs → App/, Blackout/, Logging/, Native/, Resources/
-App/ → Core/, Logging/, Native/, Resources/
-Blackout/ → Core/, Logging/, Native/
-Core/ → Native/, Resources/
-Logging/ → BCL only
-Native/ → no project dependencies
+Program.cs     → every folder
+Lifetime/      → Tray/, Blackout/, Hotkeys/, Identify/, Monitors/, Versioning/, Logging/, Native/, Resources/
+Tray/          → Blackout/, Monitors/, Notifications/, Versioning/, Logging/, Native/, Resources/
+Hotkeys/       → Blackout/, Identify/, Monitors/, Notifications/, Logging/, Native/
+Identify/      → Monitors/, Notifications/, Logging/, Native/
+Blackout/      → Monitors/, Notifications/, Logging/, Native/
+Monitors/      → Logging/, Native/
+Notifications/ → Resources/
+Versioning/    → BCL only
+Logging/       → BCL only
+Resources/     → BCL only
+Native/        → no project dependencies
 ```
 
-- `Native/` must not reference another project layer
-- `Blackout/` must not reference `App/`
-- `Core/` must not reference `App/`, `Blackout/`, or `Logging/`, and it must not call P/Invoke or I/O methods
-- The named mutex in `Program.cs` is the only permitted single-instance mechanism
+- The named mutex in `Lifetime/` is the only permitted single-instance mechanism
 
 ## Win32 and P/Invoke
 
 - Prefer `[LibraryImport]` over `[DllImport]` for new declarations
-- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, and `DisplayConfig.cs`
+- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, `Cfgmgr32.cs`, and `Shcore.cs`, with the display-configuration functions of user32.dll in `DisplayConfig.cs`
 - Use `IntPtr` for HWND, HMENU, HICON, and other Win32 handles
 - Native structures must use `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`
 - Check every P/Invoke return value and use `Marshal.GetLastWin32Error()` when the function documents `SetLastError = true`
-- Use explicit types for P/Invoke return values, overriding `dotnet.md` VAR when the type would otherwise be considered obvious
+- **Win32 behind an API interface**: code that decides an outcome the specification states for a failed Win32 call makes that call through the API interface of its feature (e.g., `Tray/ITrayIconApi`) or, for the window functions several features call, through `Native/IWindowApi` — never through the P/Invoke declarations directly — so a unit test can make the call fail and check that outcome (`testing.md` Requirement Coverage). The interface's Win32 implementation (e.g., `Tray/Win32TrayIconApi`) converts arguments and results (native structures, strings, embedded icon resources) and decides no such outcome
 - Place Win32 constants in `Native/WindowStyles.cs`
 - Display user-facing errors through a tray notification balloon or a Win32 `MessageBox`
 
@@ -51,11 +56,11 @@ Native/ → no project dependencies
 
 ## Window Procedures
 
-- Store WndProc delegates in static fields so garbage collection cannot reclaim them
+- Keep each WndProc delegate in a field of the `Native/WindowClass` that registers it, and keep that `WindowClass` in an object that lives until the class is unregistered at shutdown, so garbage collection cannot reclaim a delegate Windows can still call. The window procedure is an instance method of that object, so each window's state is found in the object rather than in static state
 - Call `DefWindowProc` for every message that is not handled explicitly
 - Do not use `async` or `await` inside a WndProc
-- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change `WM_TIMER`, and `WM_DESTROY`
-- The blackout window handles `WM_TIMER`, `WM_MOUSEMOVE`, `WM_SETCURSOR`, `WM_LBUTTONDBLCLK`, `WM_RBUTTONUP`, and `WM_DESTROY`
+- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change and tray-retry `WM_TIMER`, the registered `TaskbarCreated` message, and `WM_CLOSE`. `WM_CLOSE` ends the message loop without destroying the window, because the shutdown path still needs the window to unregister the hotkeys; the shutdown path destroys it
+- The blackout window handles `WM_TIMER`, `WM_MOUSEMOVE`, `WM_SETCURSOR`, `WM_LBUTTONDBLCLK`, `WM_RBUTTONUP`, `WM_CLOSE` (ignored, specification WIN-6), and `WM_DESTROY`
 - The identify overlay handles `WM_PAINT`, `WM_TIMER`, and `WM_DESTROY`
 
 ## System Tray Implementation
@@ -75,7 +80,7 @@ Native/ → no project dependencies
 ## Monitor Enumeration Implementation
 
 - Resolve friendly monitor names in this order: `QueryDisplayConfig` with `DisplayConfigGetDeviceInfo`, second-level `EnumDisplayDevices`, then `MONITORINFOEX.szDevice` with the `\\.\` prefix removed
-- Use EDID manufacturer ID, product code, and connector instance as the stable identity for restoring blackout state across display-path changes
+- Identify a physical monitor as `docs/adr/0005-monitor-identity-by-serial-number-or-connection.md` decides: the EDID read from the monitor's device node, or the monitor's device interface path from `DisplayConfigGetDeviceInfo`
 
 ## Internationalization Implementation
 
@@ -86,14 +91,8 @@ Native/ → no project dependencies
 
 ## Logging Override
 
-- This section overrides `dotnet.md` LOGGING: the default log directory is `{Environment.GetFolderPath(SpecialFolder.LocalApplicationData)}\ScreenNap\Logs\`, not `AppContext.BaseDirectory`, and the `SCREENNAP_LOG_DIR` environment variable replaces it as the specification states (LOG-1, LOG-2)
-- **Retention**: this section overrides the `dotnet.md` LOGGING default of 30 files. ScreenNap deletes its log files whose last write is older than 7 days, because ScreenNap is resident and writes a log file on every day it runs: the last 7 days cover the period in which a reported problem is investigated, and older files only occupy the user's disk
-- **Synchronous log I/O**: this section overrides `standard.md` Synchronous vs Asynchronous and `dotnet.md` ASYNC for `Logging/Logger.cs`. Log writes, the retention scan, and log deletion are synchronous, because their callers run on the UI thread inside a window procedure or the message loop, where Window Procedures in this file prohibits `async` and `await`
-- **The logger's own write failures**: this section overrides `dotnet.md` ERROR for the `catch` around a log-line write in `Logging/Logger.cs`. The `catch` swallows the failure, because the logger has no other channel to report its own failure, and the specification requires a logging failure to stay silent to the user
-
-## Documentation Override
-
-- **Front matter**: this section overrides the `documentation.md` front matter requirement for `CONTRIBUTING.md` at the repository root. Like `README.md` and `CHANGELOG.md`, `CONTRIBUTING.md` faces external readers, and GitHub renders front matter as a table above the document's content, so `CONTRIBUTING.md` carries no front matter
+- **Synchronous log I/O**: this section overrides `standard.md` Synchronous vs Asynchronous and `dotnet.md` ASYNC for `Logging/LogFile.cs`. Log writes, the retention scan, and log deletion are synchronous, because their callers run on the UI thread inside a window procedure or the message loop, where Window Procedures in this file prohibits `async` and `await`
+- **The logger's own write failures**: this section overrides `standard.md` Failure Handling and Reporting (Never swallow failures) for the `catch` around a log-line write in `Logging/LogFile.cs`. The `catch` swallows the failure, because the logger has no other channel to report its own failure, and the specification requires a logging failure to stay silent to the user
 
 ## Release Constraints
 

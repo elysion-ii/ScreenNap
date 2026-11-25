@@ -43,13 +43,13 @@ internal static class Desktop
         return monitors;
     }
 
-    internal static IReadOnlyList<IntPtr> TopLevelWindows(int processId, string className)
+    internal static IReadOnlyList<IntPtr> TopLevelWindows(int processId)
     {
         var windows = new List<IntPtr>();
         bool enumerated = Win32.EnumWindows((hWnd, lParam) =>
         {
             _ = Win32.GetWindowThreadProcessId(hWnd, out uint ownerId);
-            if (ownerId == (uint)processId && ClassName(hWnd) == className)
+            if (ownerId == (uint)processId)
                 windows.Add(hWnd);
             return true;
         }, 0);
@@ -57,24 +57,15 @@ internal static class Desktop
             throw new InvalidOperationException("EnumWindows failed");
         return windows;
     }
+
+    internal static IReadOnlyList<IntPtr> TopLevelWindows(int processId, string className)
+        => TopLevelWindows(processId).Where(hWnd => ClassName(hWnd) == className).ToList();
 
     internal static IReadOnlyList<IntPtr> VisibleTopLevelWindows(int processId, string className)
         => TopLevelWindows(processId, className).Where(Win32.IsWindowVisible).ToList();
 
     internal static IReadOnlyList<IntPtr> VisibleTopLevelWindows(int processId)
-    {
-        var windows = new List<IntPtr>();
-        bool enumerated = Win32.EnumWindows((hWnd, lParam) =>
-        {
-            _ = Win32.GetWindowThreadProcessId(hWnd, out uint ownerId);
-            if (ownerId == (uint)processId && Win32.IsWindowVisible(hWnd))
-                windows.Add(hWnd);
-            return true;
-        }, 0);
-        if (!enumerated)
-            throw new InvalidOperationException("EnumWindows failed");
-        return windows;
-    }
+        => TopLevelWindows(processId).Where(Win32.IsWindowVisible).ToList();
 
     internal static RECT Bounds(IntPtr hWnd)
     {
@@ -107,6 +98,9 @@ internal static class Desktop
         }
     }
 
+    // The window a click at the point would reach
+    internal static IntPtr WindowAt(int x, int y) => Win32.WindowFromPoint(new POINT { X = x, Y = y });
+
     internal static bool CursorIsHidden()
     {
         var info = new CURSORINFO { cbSize = (uint)Marshal.SizeOf<CURSORINFO>() };
@@ -119,6 +113,18 @@ internal static class Desktop
     {
         if (!Win32.SetCursorPos(x, y))
             throw new InvalidOperationException($"SetCursorPos failed (Win32 error: {Marshal.GetLastWin32Error()})");
+    }
+
+    // Call through ScreenNapApp.Measure: a DPI-unaware caller always reads 96
+    internal static uint MonitorDpi(RECT monitor)
+    {
+        IntPtr handle = Win32.MonitorFromPoint(
+            new POINT { X = monitor.Left + monitor.Width / 2, Y = monitor.Top + monitor.Height / 2 },
+            Win32.MONITOR_DEFAULTTONEAREST);
+        int result = Win32.GetDpiForMonitor(handle, Win32.MDT_EFFECTIVE_DPI, out uint dpi, out _);
+        if (result != 0)
+            throw new InvalidOperationException($"GetDpiForMonitor failed (HRESULT 0x{result:X8})");
+        return dpi;
     }
 
     internal static IntPtr First(IReadOnlyList<IntPtr> windows) => windows.Count > 0 ? windows[0] : IntPtr.Zero;

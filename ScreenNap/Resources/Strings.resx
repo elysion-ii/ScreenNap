@@ -69,6 +69,9 @@
   <data name="NotifyTrayFailed" xml:space="preserve">
     <value>ScreenNap could not create its tray icon and will exit.</value>
   </data>
+  <data name="NotifyStopped" xml:space="preserve">
+    <value>ScreenNap can no longer receive messages from Windows and will exit. See the log for details.</value>
+  </data>
   <data name="NotifyBlackoutNotCreated" xml:space="preserve">
     <value>Could not black out {0}.</value>
   </data>

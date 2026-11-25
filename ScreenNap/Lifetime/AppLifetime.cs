@@ -15,6 +15,12 @@ namespace ScreenNap.Lifetime;
 // ScreenNap down (specification LIFE-1 to LIFE-3, ERR-1, ERR-2, ERR-12)
 internal sealed class AppLifetime
 {
+    // How long and how often startup tries to add the tray icon before the taskbar is ready
+    // (specification ERR-2); its own ID on the message window, apart from the display debounce
+    private const nuint TrayRetryTimerId = 5;
+    private const uint TrayRetryIntervalMs = 1000;
+    private const int TrayRetryAttempts = 60;
+
     private readonly ILifetimeApi _lifetimeApi;
     private readonly IWindowApi _windowApi;
     private readonly ITrayIconApi _trayIconApi;
@@ -25,6 +31,7 @@ internal sealed class AppLifetime
     private readonly CultureInfo _culture;
     private readonly WindowClass _messageWindowClass;
     private uint _taskbarCreatedMessage;
+    private int _trayRetriesLeft;
     private Features? _features;
 
     internal AppLifetime(
@@ -50,8 +57,15 @@ internal sealed class AppLifetime
 
     internal void Run()
     {
-        using IDisposable? singleInstance = _lifetimeApi.AcquireSingleInstance();
-        if (singleInstance is null)
+        SingleInstanceState instance = _lifetimeApi.AcquireSingleInstance(out IDisposable? instanceLock);
+        using IDisposable? heldLock = instanceLock;
+        if (instance == SingleInstanceState.CheckFailed)
+        {
+            ShowFailure(Strings.NotifyStartFailed(_culture));
+            return;
+        }
+
+        if (instance == SingleInstanceState.HeldByAnotherInstance)
         {
             if (!_lifetimeApi.ShowMessage(
                 Strings.NotifyAlreadyRunning(_culture),
@@ -97,23 +111,73 @@ internal sealed class AppLifetime
         Features features = CreateFeatures(messageWindow);
         _features = features;
 
-        if (features.TrayIcon.Create())
+        switch (features.TrayIcon.Create())
         {
-            features.Hotkeys.Register(messageWindow);
-            // Without messages ScreenNap can react to no input (specification ERR-12)
-            if (!_lifetimeApi.RunMessageLoop())
-            {
-                Logger.Error("GetMessageW failed; ScreenNap can no longer receive messages", _lifetimeApi.LastError);
-                ShowFailure(Strings.NotifyStopped(_culture));
-            }
-        }
-        else
-        {
-            // Without the tray icon the user has no way to open the menu or exit (specification ERR-2)
-            ShowFailure(Strings.NotifyTrayFailed(_culture));
+            case TrayIconCreation.Created:
+                features.Hotkeys.Register(messageWindow);
+                RunMessageLoop();
+                break;
+
+            case TrayIconCreation.NotAdded when StartTrayRetry(messageWindow):
+                RunMessageLoop();
+                break;
+
+            default:
+                // Without the tray icon the user has no way to open the menu or exit (specification ERR-2)
+                ShowFailure(Strings.NotifyTrayFailed(_culture));
+                break;
         }
 
         Shutdown(features, messageWindow, hInstance);
+    }
+
+    // Without messages ScreenNap can react to no input (specification ERR-12)
+    private void RunMessageLoop()
+    {
+        if (!_lifetimeApi.RunMessageLoop())
+        {
+            Logger.Error("GetMessageW failed; ScreenNap can no longer receive messages", _lifetimeApi.LastError);
+            ShowFailure(Strings.NotifyStopped(_culture));
+        }
+    }
+
+    // The taskbar may not be ready yet, as at sign-in: adding the icon is tried again (ERR-2)
+    private bool StartTrayRetry(IntPtr messageWindow)
+    {
+        if (!_windowApi.SetTimer(messageWindow, TrayRetryTimerId, TrayRetryIntervalMs))
+        {
+            Logger.Error("SetTimer failed for the tray icon retry", _windowApi.LastError);
+            return false;
+        }
+
+        Logger.Warn($"The tray icon could not be added; trying again every second for {TrayRetryAttempts} seconds");
+        _trayRetriesLeft = TrayRetryAttempts;
+        return true;
+    }
+
+    private void RetryTrayIcon(IntPtr messageWindow, Features features)
+    {
+        if (features.TrayIcon.Restore(features.BlackoutManager.ActiveCount))
+        {
+            StopTrayRetry(messageWindow);
+            features.Hotkeys.Register(messageWindow);
+            return;
+        }
+
+        if (--_trayRetriesLeft > 0)
+            return;
+
+        StopTrayRetry(messageWindow);
+        Logger.Error($"The tray icon could not be added within {TrayRetryAttempts} seconds");
+        ShowFailure(Strings.NotifyTrayFailed(_culture));
+        _lifetimeApi.PostQuit();
+    }
+
+    private void StopTrayRetry(IntPtr messageWindow)
+    {
+        _trayRetriesLeft = 0;
+        if (!_windowApi.KillTimer(messageWindow, TrayRetryTimerId))
+            Logger.Warn("KillTimer failed for the tray icon retry", _windowApi.LastError);
     }
 
     private Features CreateFeatures(IntPtr messageWindow)
@@ -178,7 +242,10 @@ internal sealed class AppLifetime
         // A failed registration leaves zero, the value of WM_NULL, which the menu posts (TRAY-5)
         if (_taskbarCreatedMessage != 0 && msg == _taskbarCreatedMessage)
         {
-            features.TrayIcon.Restore(features.BlackoutManager.ActiveCount);
+            if (_trayRetriesLeft > 0)
+                RetryTrayIcon(hWnd, features);
+            else
+                features.TrayIcon.Restore(features.BlackoutManager.ActiveCount);
             return 0;
         }
 
@@ -200,6 +267,10 @@ internal sealed class AppLifetime
 
             case WindowStyles.WM_DISPLAYCHANGE:
                 features.DisplayChange.OnDisplayChange(hWnd);
+                return 0;
+
+            case WindowStyles.WM_TIMER when wParam == TrayRetryTimerId:
+                RetryTrayIcon(hWnd, features);
                 return 0;
 
             case WindowStyles.WM_TIMER when wParam == DisplayChangeDebounce.TimerId:

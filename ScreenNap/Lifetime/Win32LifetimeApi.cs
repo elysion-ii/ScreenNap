@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ScreenNap.Logging;
 using ScreenNap.Native;
 
 namespace ScreenNap.Lifetime;
@@ -9,14 +10,32 @@ internal sealed class Win32LifetimeApi : ILifetimeApi
 
     public int LastError => Marshal.GetLastWin32Error();
 
-    public IDisposable? AcquireSingleInstance()
+    public SingleInstanceState AcquireSingleInstance(out IDisposable? instanceLock)
     {
-        var mutex = new Mutex(true, MutexName, out bool createdNew);
-        if (createdNew)
-            return mutex;
+        instanceLock = null;
+        try
+        {
+            var mutex = new Mutex(true, MutexName, out bool createdNew);
+            if (createdNew)
+            {
+                instanceLock = mutex;
+                return SingleInstanceState.Acquired;
+            }
 
-        mutex.Dispose();
-        return null;
+            mutex.Dispose();
+            return SingleInstanceState.HeldByAnotherInstance;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // The mutex exists, created by a ScreenNap with other privileges (for example
+            // elevated) whose lock this process may not open
+            return SingleInstanceState.HeldByAnotherInstance;
+        }
+        catch (Exception ex) when (ex is WaitHandleCannotBeOpenedException or IOException)
+        {
+            Logger.Error($"The single-instance check failed: {ex.GetType().Name}: {ex.Message}");
+            return SingleInstanceState.CheckFailed;
+        }
     }
 
     public bool ShowMessage(string text, string caption, uint type) => User32.MessageBoxW(IntPtr.Zero, text, caption, type) != 0;

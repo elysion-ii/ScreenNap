@@ -8,9 +8,8 @@ namespace ScreenNap.Tray;
 internal static class IconHelper
 {
     private const uint IconResourceVersion = 0x00030000;
-    private const int TrayIconSize = 16;
 
-    internal static IntPtr LoadIconFromResource(string resourceFileName)
+    internal static IntPtr LoadIconFromResource(string resourceFileName, int pixelSize)
     {
         string resourceName = $"ScreenNap.Resources.{resourceFileName}";
         Assembly assembly = Assembly.GetExecutingAssembly();
@@ -25,12 +24,12 @@ internal static class IconHelper
         byte[] icoData = new byte[stream.Length];
         stream.ReadExactly(icoData);
 
-        return CreateIconFromIcoData(icoData);
+        return CreateIconFromIcoData(icoData, pixelSize);
     }
 
-    private static IntPtr CreateIconFromIcoData(byte[] icoData)
+    private static IntPtr CreateIconFromIcoData(byte[] icoData, int pixelSize)
     {
-        if (!IcoParser.TryGetFirstImage(icoData, out int imageOffset, out int imageSize))
+        if (!IcoParser.TryGetImage(icoData, pixelSize, out int imageOffset, out int imageSize))
             return IntPtr.Zero;
 
         IntPtr buffer = Marshal.AllocHGlobal(imageSize);
@@ -40,7 +39,7 @@ internal static class IconHelper
 
             IntPtr hIcon = User32.CreateIconFromResourceEx(
                 buffer, (uint)imageSize, true, IconResourceVersion,
-                TrayIconSize, TrayIconSize, WindowStyles.LR_DEFAULTCOLOR);
+                pixelSize, pixelSize, WindowStyles.LR_DEFAULTCOLOR);
 
             if (hIcon == IntPtr.Zero)
                 Logger.Warn("CreateIconFromResourceEx failed", Marshal.GetLastWin32Error());

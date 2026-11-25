@@ -85,15 +85,20 @@ public sealed class TrayIconTests
 
     [Fact]
     [Trait("Requirement", "ERR-2")]
-    internal void Create_WindowsRejectsTheIcon_LogsItAndReportsFailure()
+    internal void Create_WindowsRejectsTheIcon_LogsItAndKeepsTheImagesForAnotherTry()
     {
         var api = new FakeTrayIconApi();
         api.FailingCommands.Add(WindowStyles.NIM_ADD);
         var trayIcon = new TrayIcon(s_messageWindow, s_english, api);
         using var log = new LogCapture();
 
-        Assert.False(trayIcon.Create());
-        LogAssert.Logged(log, "ERROR", "Shell_NotifyIconW(NIM_ADD) failed");
+        Assert.Equal(TrayIconCreation.NotAdded, trayIcon.Create());
+        LogAssert.Logged(log, "WARN", "Shell_NotifyIconW(NIM_ADD) failed");
+        Assert.Empty(api.DestroyedIcons);
+
+        api.FailingCommands.Remove(WindowStyles.NIM_ADD);
+        Assert.True(trayIcon.Restore(0));
+        Assert.Equal((true, FakeTrayIconApi.NormalIcon), (api.IconShown, api.ShownIcon));
     }
 
     [Theory]
@@ -107,7 +112,7 @@ public sealed class TrayIconTests
         var trayIcon = new TrayIcon(s_messageWindow, s_english, api);
         using var log = new LogCapture();
 
-        Assert.False(trayIcon.Create());
+        Assert.Equal(TrayIconCreation.ImageMissing, trayIcon.Create());
         Assert.Equal(0, api.Count(WindowStyles.NIM_ADD));
         LogAssert.Logged(log, "ERROR", $"Tray icon image could not be loaded ({missingImage})");
     }
@@ -142,10 +147,37 @@ public sealed class TrayIconTests
         Assert.Equal(0, api.Calls.Count(call => (call.Flags & WindowStyles.NIF_INFO) != 0));
     }
 
+    [Theory]
+    [Trait("Requirement", "TRAY-7")]
+    [InlineData(16)]
+    [InlineData(24)]
+    [InlineData(32)]
+    internal void Construct_AnyScaling_LoadsBothIconsAtTheSmallIconSize(int pixels)
+    {
+        var api = new FakeTrayIconApi { SmallIconPixels = pixels };
+
+        _ = new TrayIcon(s_messageWindow, s_english, api);
+
+        Assert.Equal([pixels, pixels], api.LoadedSizes);
+    }
+
+    [Fact]
+    [Trait("Requirement", "TRAY-7")]
+    internal void Construct_ScalingCannotBeRead_LoadsTheIconsAtTheHundredPercentSizeAndLogsIt()
+    {
+        var api = new FakeTrayIconApi { SmallIconPixels = 0 };
+        using var log = new LogCapture();
+
+        _ = new TrayIcon(s_messageWindow, s_english, api);
+
+        Assert.Equal([16, 16], api.LoadedSizes);
+        LogAssert.Logged(log, "WARN", "The display scaling cannot be read; drawing the tray icon at 16 pixels");
+    }
+
     private static TrayIcon CreatedTrayIcon(FakeTrayIconApi api)
     {
         var trayIcon = new TrayIcon(s_messageWindow, s_english, api);
-        Assert.True(trayIcon.Create());
+        Assert.Equal(TrayIconCreation.Created, trayIcon.Create());
         return trayIcon;
     }
 }

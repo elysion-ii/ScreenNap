@@ -85,9 +85,19 @@ internal sealed class FakeTrayIconApi : ITrayIconApi
         _version = 0;
     }
 
-    public IntPtr LoadIcon(string resourceFileName)
-        => IconsFailingToLoad.Contains(resourceFileName) ? IntPtr.Zero
+    // The small-icon size Windows reports; zero stands for a scaling that cannot be read
+    internal int SmallIconPixels { get; set; } = 16;
+    // The size each icon was loaded at
+    internal List<int> LoadedSizes { get; } = [];
+
+    public int SmallIconSize() => SmallIconPixels;
+
+    public IntPtr LoadIcon(string resourceFileName, int pixelSize)
+    {
+        LoadedSizes.Add(pixelSize);
+        return IconsFailingToLoad.Contains(resourceFileName) ? IntPtr.Zero
             : resourceFileName.Contains("active", StringComparison.Ordinal) ? ActiveIcon : NormalIcon;
+    }
 
     public bool DestroyIcon(IntPtr icon)
     {

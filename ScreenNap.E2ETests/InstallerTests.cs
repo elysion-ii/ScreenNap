@@ -226,6 +226,18 @@ public sealed class InstallerTests : IDisposable
         Assert.Contains(Section(script, "Run"), line => line.Contains("postinstall", StringComparison.Ordinal));
     }
 
+    // Arm64 Windows is not available to the test run, so the script's setting is what can be checked
+    [Fact]
+    [Trait("Requirement", "DIST-2")]
+    [Trait("Requirement", "NFR-1")]
+    internal void InstallerScript_Architecture_AllowsOnlyX64Windows()
+    {
+        string[] setup = Section(File.ReadAllLines(TestAssets.InstallerScript), "Setup");
+
+        Assert.Contains("ArchitecturesAllowed=x64os", setup);
+        Assert.Contains("ArchitecturesInstallIn64BitMode=x64os", setup);
+    }
+
     public void Dispose()
     {
         try

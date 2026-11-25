@@ -45,11 +45,15 @@ installer behavior.
 ScreenNap starts without displaying a main window and remains resident through a
 system-tray icon and registered global hotkeys.
 
-#### LIFE-2: Only one ScreenNap process runs at a time in a logon session
+#### LIFE-2: Only one ScreenNap process runs at a time in a Windows session
 
-A second launch in the same Windows logon session displays a localized informational
-message and exits without affecting the running process. Each logon session (another
-user, or another sign-in of the same user) runs its own ScreenNap.
+A second launch in the same Windows session (the desktop a user signed in to) displays a
+localized informational message and exits without affecting the running process, also
+when the two launches run with different privileges (for example one of them elevated)
+and the second cannot open what the first holds. Each Windows session (another user, or
+another sign-in through Remote Desktop or user switching) runs its own ScreenNap. When
+the check itself fails, for example because another program holds an object of the same
+name, ScreenNap reports a startup failure (ERR-1).
 When this message, or a startup-failure message (ERR-1, ERR-2), cannot be shown,
 ScreenNap logs that failure and ends as it would have after the message.
 
@@ -180,6 +184,15 @@ failure and keeps running without adding the icon again.
 A tray notification's text is cut to its first 255 characters and its title to its first
 63 characters, the Windows notification-icon limits.
 
+#### TRAY-7: The tray icon is sharp at the display scaling
+
+The tray icon is drawn from the icon image whose size is the one Windows uses for small
+icons at the primary monitor's scaling when ScreenNap starts (16 pixels at 100%, 24 at
+150%, 32 at 200%), or from the next larger image when the icon has no image of exactly
+that size, so Windows never stretches a smaller image. Like the other startup values
+(RUN-2), a later change of the scaling takes effect at the next start. When the scaling
+cannot be read, the icon is drawn at its 100% size and the failure is logged.
+
 ### Context menu
 
 #### MENU-1: The menu opens with the version item and a separator
@@ -303,6 +316,14 @@ dismisses it and clears the user's desired blackout state for that physical moni
 
 The cursor hides after 10 seconds without a position change over the blackout window. A
 later position change shows the cursor and restarts the inactivity period.
+
+#### WIN-7: A blackout of the primary monitor counts as a full-screen application
+
+Because a blackout covers its whole monitor above every ordinary window (WIN-1, WIN-2),
+Windows treats a blackout of the primary monitor as a full-screen application and holds
+back notifications while it is live, as it does for any full-screen application; this
+includes ScreenNap's own failure notifications (ERR-3 to ERR-8). A blackout of another
+monitor does not change how Windows shows notifications.
 
 #### WIN-6: Only the user and ScreenNap close a blackout
 
@@ -527,8 +548,9 @@ require a separately installed .NET runtime.
 
 #### DIST-2: The installer installs per user on x64
 
-The installer targets x64-compatible Windows and performs a user-level installation
-without requiring administrator privileges.
+The installer installs on x64 Windows only and refuses to install on any other
+architecture, including Arm64 Windows, where ScreenNap would run under emulation. It
+performs a user-level installation without requiring administrator privileges.
 
 #### DIST-3: The installer installs the executable and the selected shortcuts
 
@@ -601,10 +623,14 @@ is available, is reported to the user in a localized message box, and stops star
 
 #### ERR-2: A missing tray icon is shown to the user and stops ScreenNap
 
-When the tray icon cannot be created, or its normal or active image cannot be loaded at
-startup, ScreenNap logs the failure, reports it to the user in a localized message box,
-and shuts down normally, because without a visible tray icon the user has no way to open
-the menu or exit.
+When the normal or active tray icon image cannot be loaded at startup, or the tray icon
+cannot be added within 60 seconds of startup, ScreenNap logs the failure, reports it to
+the user in a localized message box, and shuts down normally, because without a visible
+tray icon the user has no way to open the menu or exit. When the icon cannot be added
+at once, as when ScreenNap starts at sign-in before the taskbar is ready, ScreenNap
+logs it and tries again every second and whenever Windows reports the taskbar created
+(TRAY-5), registering its hotkeys once the icon is added; when it cannot start the
+one-second retry, it reports the failure at once.
 
 #### ERR-12: Losing Windows' messages is shown to the user and stops ScreenNap
 
@@ -696,7 +722,8 @@ visible windows.
 
 #### NFR-1: ScreenNap runs on supported x64 Windows
 
-ScreenNap operates on x64 Windows systems supported by its self-contained runtime.
+ScreenNap operates on x64 Windows systems supported by its self-contained runtime;
+Arm64 Windows is not supported (DIST-2).
 
 #### NFR-2: ScreenNap stays idle when nothing is shown
 

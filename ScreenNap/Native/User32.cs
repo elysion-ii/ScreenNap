@@ -140,6 +140,12 @@ internal static partial class User32
     internal static partial int DrawTextW(IntPtr hdc, string lpchText, int cchText, ref RECT lprc, uint format);
 
     // Icon
+    [LibraryImport("user32.dll", EntryPoint = "MonitorFromPoint")]
+    internal static partial IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetSystemMetricsForDpi")]
+    internal static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
     [LibraryImport("user32.dll", EntryPoint = "CreateIconFromResourceEx", SetLastError = true)]
     internal static partial IntPtr CreateIconFromResourceEx(IntPtr presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);
 

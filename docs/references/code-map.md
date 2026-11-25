@@ -14,7 +14,7 @@ Feature folders and homes of cross-cutting mechanisms in ScreenNap (`docs/rules/
 | `ScreenNap/Blackout/` | Feature: blackout windows, which physical monitors are blacked out and which should be restored, waiting for display changes to settle, then closing, fitting, and restoring blackouts, and hiding the idle cursor |
 | `ScreenNap/Hotkeys/` | Feature: the global hotkeys, their registration, and the action each one selects |
 | `ScreenNap/Identify/` | Feature: the monitor-identification overlays and which failures showing them reports |
-| `ScreenNap/Native/` | The P/Invoke declarations, one class per Win32 DLL (`User32`, `Gdi32`, `Shell32`, `Kernel32`, `Cfgmgr32`) plus `DisplayConfig` for the display-configuration functions of user32.dll, and the native structures and delegates they take, one file per type |
+| `ScreenNap/Native/` | The P/Invoke declarations, one class per Win32 DLL (`User32`, `Gdi32`, `Shell32`, `Kernel32`, `Cfgmgr32`, `Shcore`) plus `DisplayConfig` for the display-configuration functions of user32.dll, and the native structures and delegates they take, one file per type |
 | `ScreenNap/app.manifest` | That ScreenNap is aware of each monitor's DPI, so it works in physical pixels |
 | `ScreenNap/Native/WindowStyles.cs` | Win32 constants |
 | `ScreenNap/Native/IWindowApi.cs` | The window functions several features call (creation, destruction, position, timers, DPI), behind one interface so unit tests can make them fail; `Win32WindowApi.cs` beside it is the Win32 implementation. Each feature's own Win32 calls sit behind its own `I*Api` interface in its folder |

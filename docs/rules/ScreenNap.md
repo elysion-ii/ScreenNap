@@ -41,7 +41,7 @@ Native/        → no project dependencies
 ## Win32 and P/Invoke
 
 - Prefer `[LibraryImport]` over `[DllImport]` for new declarations
-- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, and `Cfgmgr32.cs`, with the display-configuration functions of user32.dll in `DisplayConfig.cs`
+- Group declarations by DLL in `User32.cs`, `Gdi32.cs`, `Shell32.cs`, `Kernel32.cs`, `Cfgmgr32.cs`, and `Shcore.cs`, with the display-configuration functions of user32.dll in `DisplayConfig.cs`
 - Use `IntPtr` for HWND, HMENU, HICON, and other Win32 handles
 - Native structures must use `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`
 - Check every P/Invoke return value and use `Marshal.GetLastWin32Error()` when the function documents `SetLastError = true`
@@ -59,7 +59,7 @@ Native/        → no project dependencies
 - Keep each WndProc delegate in a field of the `Native/WindowClass` that registers it, and keep that `WindowClass` in an object that lives until the class is unregistered at shutdown, so garbage collection cannot reclaim a delegate Windows can still call. The window procedure is an instance method of that object, so each window's state is found in the object rather than in static state
 - Call `DefWindowProc` for every message that is not handled explicitly
 - Do not use `async` or `await` inside a WndProc
-- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change `WM_TIMER`, the registered `TaskbarCreated` message, and `WM_CLOSE`. `WM_CLOSE` ends the message loop without destroying the window, because the shutdown path still needs the window to unregister the hotkeys; the shutdown path destroys it
+- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change and tray-retry `WM_TIMER`, the registered `TaskbarCreated` message, and `WM_CLOSE`. `WM_CLOSE` ends the message loop without destroying the window, because the shutdown path still needs the window to unregister the hotkeys; the shutdown path destroys it
 - The blackout window handles `WM_TIMER`, `WM_MOUSEMOVE`, `WM_SETCURSOR`, `WM_LBUTTONDBLCLK`, `WM_RBUTTONUP`, `WM_CLOSE` (ignored, specification WIN-6), and `WM_DESTROY`
 - The identify overlay handles `WM_PAINT`, `WM_TIMER`, and `WM_DESTROY`
 

@@ -23,8 +23,10 @@ OutputDir=Installer
 OutputBaseFilename=ScreenNap-Setup-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
+; x64 Windows only: Arm64 Windows would run ScreenNap under emulation, which is not
+; supported (specification DIST-2, NFR-1)
+ArchitecturesAllowed=x64os
+ArchitecturesInstallIn64BitMode=x64os
 PrivilegesRequired=lowest
 
 ; Update over a running installation (docs/specs/ScreenNap.md DIST-8, DIST-9).

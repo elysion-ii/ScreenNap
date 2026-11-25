@@ -53,7 +53,7 @@ public sealed class AppLifetimeTests
     internal void Run_AnotherInstanceRuns_ShowsTheMessageAndEndsWithoutStarting()
     {
         var harness = new Harness();
-        harness.Lifetime.AnotherInstanceRuns = true;
+        harness.Lifetime.Instance = SingleInstanceState.HeldByAnotherInstance;
 
         harness.Run();
 
@@ -70,13 +70,30 @@ public sealed class AppLifetimeTests
     internal void Run_AnotherInstanceRunsAndTheMessageCannotBeShown_LogsItAndEndsAsAfterTheMessage()
     {
         var harness = new Harness();
-        harness.Lifetime.AnotherInstanceRuns = true;
+        harness.Lifetime.Instance = SingleInstanceState.HeldByAnotherInstance;
         harness.Lifetime.MessageBoxFails = true;
         using var log = new LogCapture();
 
         harness.Run();
 
         LogAssert.Logged(log, "ERROR", "MessageBoxW failed for the single-instance notification");
+        Assert.Empty(harness.Windows.Windows);
+        Assert.Equal(0, harness.Lifetime.LoopRuns);
+    }
+
+    [Fact]
+    [Trait("Requirement", "LIFE-2")]
+    [Trait("Requirement", "ERR-1")]
+    internal void Run_SingleInstanceCheckFails_ShowsTheStartupFailureAndEndsWithoutStarting()
+    {
+        var harness = new Harness();
+        harness.Lifetime.Instance = SingleInstanceState.CheckFailed;
+
+        harness.Run();
+
+        (string text, _, uint type) = Assert.Single(harness.Lifetime.Messages);
+        Assert.Equal(Strings.NotifyStartFailed(s_english), text);
+        Assert.Equal(WindowStyles.MB_ICONERROR, type & WindowStyles.MB_ICONERROR);
         Assert.Empty(harness.Windows.Windows);
         Assert.Equal(0, harness.Lifetime.LoopRuns);
     }
@@ -119,26 +136,106 @@ public sealed class AppLifetimeTests
         Assert.Equal(0, harness.Lifetime.LoopRuns);
     }
 
-    [Theory]
+    [Fact]
     [Trait("Requirement", "ERR-2")]
-    [InlineData(false, "Shell_NotifyIconW(NIM_ADD) failed")]
-    [InlineData(true, "Tray icon image could not be loaded (icon-active.ico)")]
-    internal void Run_TrayIconCannotBeCreated_LogsItShowsTheFailureAndShutsDownNormally(bool imageMissing, string logged)
+    internal void Run_TrayIconImageCannotBeLoaded_LogsItShowsTheFailureAndShutsDownNormally()
     {
         var harness = new Harness();
-        if (imageMissing)
-            harness.Tray.IconsFailingToLoad.Add("icon-active.ico");
-        else
-            harness.Tray.FailingCommands.Add(WindowStyles.NIM_ADD);
+        harness.Tray.IconsFailingToLoad.Add("icon-active.ico");
         using var log = new LogCapture();
 
         harness.Run();
 
-        LogAssert.Logged(log, "ERROR", logged);
+        LogAssert.Logged(log, "ERROR", "Tray icon image could not be loaded (icon-active.ico)");
+        AssertTrayFailureShownAndShutDown(harness, log);
+        Assert.Equal(0, harness.Lifetime.LoopRuns);
+    }
+
+    // The taskbar is not ready at startup, as at sign-in, and never becomes ready
+    [Fact]
+    [Trait("Requirement", "ERR-2")]
+    internal void Run_TrayIconNotAddedForSixtySeconds_ShowsTheFailureAndShutsDownNormally()
+    {
+        var harness = new Harness();
+        harness.Tray.FailingCommands.Add(WindowStyles.NIM_ADD);
+        int quitsBeforeTheLastTry = -1;
+        harness.Lifetime.Loop = () =>
+        {
+            for (int second = 1; second < 60; second++)
+                harness.Windows.Tick(harness.MessageWindow, IsTrayRetry);
+            quitsBeforeTheLastTry = harness.Lifetime.QuitRequests;
+            harness.Windows.Tick(harness.MessageWindow, IsTrayRetry);
+        };
+        using var log = new LogCapture();
+
+        harness.Run();
+
+        Assert.Equal(0, quitsBeforeTheLastTry);
+        Assert.Equal(1, harness.Lifetime.QuitRequests);
+        Assert.Equal(61, harness.Tray.Count(WindowStyles.NIM_ADD));
+        LogAssert.Logged(log, "ERROR", "The tray icon could not be added within 60 seconds");
+        AssertTrayFailureShownAndShutDown(harness, log);
+    }
+
+    [Theory]
+    [Trait("Requirement", "ERR-2")]
+    [Trait("Requirement", "TRAY-5")]
+    [InlineData(false)]
+    [InlineData(true)]
+    internal void Run_TaskbarReadyAfterStartup_AddsTheIconAndRegistersTheHotkeys(bool announcedByTheTaskbar)
+    {
+        var harness = new Harness();
+        harness.Tray.FailingCommands.Add(WindowStyles.NIM_ADD);
+        bool waitingWithoutHotkeys = false;
+        bool retryStopped = false;
+        int hotkeysAfterTheIcon = 0;
+        harness.Lifetime.Loop = () =>
+        {
+            harness.Windows.Tick(harness.MessageWindow, IsTrayRetry);
+            waitingWithoutHotkeys = !harness.Tray.IconShown && harness.Hotkeys.Registered.Count == 0;
+
+            harness.Tray.FailingCommands.Remove(WindowStyles.NIM_ADD);
+            if (announcedByTheTaskbar)
+                harness.Send(FakeLifetimeApi.RegisteredTaskbarCreated);
+            else
+                harness.Windows.Tick(harness.MessageWindow, IsTrayRetry);
+
+            retryStopped = !harness.Windows.Timers.Keys.Any(timer => timer.Window == harness.MessageWindow);
+            hotkeysAfterTheIcon = harness.Tray.IconShown ? harness.Hotkeys.Registered.Count : 0;
+        };
+
+        harness.Run();
+
+        Assert.True(waitingWithoutHotkeys);
+        Assert.True(retryStopped);
+        Assert.Equal(HotkeyInterpreter.HotkeyIds.Count, hotkeysAfterTheIcon);
+        Assert.Empty(harness.Lifetime.Messages);
+    }
+
+    [Fact]
+    [Trait("Requirement", "ERR-2")]
+    internal void Run_TrayRetryCannotStart_ShowsTheFailureAtOnce()
+    {
+        var harness = new Harness();
+        harness.Tray.FailingCommands.Add(WindowStyles.NIM_ADD);
+        harness.Windows.TimerStartFails = (_, _) => true;
+        using var log = new LogCapture();
+
+        harness.Run();
+
+        LogAssert.Logged(log, "ERROR", "SetTimer failed for the tray icon retry");
+        AssertTrayFailureShownAndShutDown(harness, log);
+        Assert.Equal(0, harness.Lifetime.LoopRuns);
+    }
+
+    // The tray retry is the message window's one-second timer, apart from the display debounce
+    private static bool IsTrayRetry(uint intervalMs) => intervalMs == 1000;
+
+    private static void AssertTrayFailureShownAndShutDown(Harness harness, LogCapture log)
+    {
         (string text, _, uint type) = Assert.Single(harness.Lifetime.Messages);
         Assert.Equal(Strings.NotifyTrayFailed(s_english), text);
         Assert.Equal(WindowStyles.MB_ICONERROR, type & WindowStyles.MB_ICONERROR);
-        Assert.Equal(0, harness.Lifetime.LoopRuns);
         Assert.Empty(harness.Hotkeys.Registered);
         Assert.False(harness.Windows.Windows[harness.MessageWindow].IsAlive);
         Assert.Contains(MessageWindowClass, harness.Windows.UnregisteredClasses);

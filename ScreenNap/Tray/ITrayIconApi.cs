@@ -11,8 +11,12 @@ internal interface ITrayIconApi
 
     bool NotifyIcon(uint command, ref NOTIFYICONDATAW data);
 
-    // Zero when the icon cannot be loaded
-    IntPtr LoadIcon(string resourceFileName);
+    // The size in pixels Windows uses for small icons at the primary monitor's scaling; zero
+    // when the scaling cannot be read
+    int SmallIconSize();
+
+    // The icon drawn at the size from the image IcoParser chooses; zero when it cannot be loaded
+    IntPtr LoadIcon(string resourceFileName, int pixelSize);
 
     bool DestroyIcon(IntPtr icon);
 }

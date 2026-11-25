@@ -12,6 +12,8 @@ internal sealed class TrayIcon : IUserNotifier
     private const uint IconId = 1;
     private const string NormalIconResource = "icon-normal.ico";
     private const string ActiveIconResource = "icon-active.ico";
+    // The small-icon size at 100% scaling
+    private const int DefaultIconSize = 16;
     // Version 4 icons show the standard tooltip only with NIF_SHOWTIP (specification TRAY-1, TRAY-2)
     private const uint TipFlags = WindowStyles.NIF_TIP | WindowStyles.NIF_SHOWTIP;
 
@@ -27,34 +29,42 @@ internal sealed class TrayIcon : IUserNotifier
         _hwnd = messageWindowHandle;
         _culture = culture;
         _api = api;
-        _iconNormal = api.LoadIcon(NormalIconResource);
-        _iconActive = api.LoadIcon(ActiveIconResource);
+        int iconSize = api.SmallIconSize();
+        if (iconSize == 0)
+        {
+            Logger.Warn($"The display scaling cannot be read; drawing the tray icon at {DefaultIconSize} pixels");
+            iconSize = DefaultIconSize;
+        }
+        Logger.Info($"Tray icon size: {iconSize} pixels");
+        _iconNormal = api.LoadIcon(NormalIconResource, iconSize);
+        _iconActive = api.LoadIcon(ActiveIconResource, iconSize);
     }
 
-    // An icon without its image is invisible in the tray, so it counts as no icon (specification ERR-2)
-    internal bool Create()
+    // An icon without its image is invisible in the tray, so it counts as no icon; an icon
+    // Windows did not take keeps its images for another try (specification ERR-2)
+    internal TrayIconCreation Create()
     {
         if (_iconNormal == IntPtr.Zero || _iconActive == IntPtr.Zero)
         {
             Logger.Error($"Tray icon image could not be loaded ({(_iconNormal == IntPtr.Zero ? NormalIconResource : ActiveIconResource)})");
             DestroyIcons();
-            return false;
+            return TrayIconCreation.ImageMissing;
         }
 
         if (!Add(0))
-        {
-            DestroyIcons();
-            return false;
-        }
+            return TrayIconCreation.NotAdded;
         Logger.Info("Tray icon created");
-        return true;
+        return TrayIconCreation.Created;
     }
 
-    // A recreated taskbar holds none of the icons added before it (specification TRAY-5)
-    internal void Restore(int activeCount)
+    // Adds the icon after the taskbar was recreated, or after it was not ready at startup
+    // (specification TRAY-5, ERR-2); false while Windows does not take it
+    internal bool Restore(int activeCount)
     {
-        if (Add(activeCount))
-            Logger.Info("Tray icon added again after the taskbar was recreated");
+        if (!Add(activeCount))
+            return false;
+        Logger.Info("Tray icon added after the taskbar was created");
+        return true;
     }
 
     private bool Add(int activeCount)
@@ -69,7 +79,7 @@ internal sealed class TrayIcon : IUserNotifier
         _created = _api.NotifyIcon(WindowStyles.NIM_ADD, ref nid);
         if (!_created)
         {
-            Logger.Error("Shell_NotifyIconW(NIM_ADD) failed", _api.LastError);
+            Logger.Warn("Shell_NotifyIconW(NIM_ADD) failed", _api.LastError);
             return false;
         }
 

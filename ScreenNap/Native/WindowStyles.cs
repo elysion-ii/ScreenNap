@@ -113,6 +113,9 @@ internal static class WindowStyles
 
     // DPI
     internal const uint USER_DEFAULT_SCREEN_DPI = 96;
+    internal const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
+    internal const int MDT_EFFECTIVE_DPI = 0;
+    internal const int SM_CXSMICON = 49;
 
     // DrawText flags
     internal const uint DT_CENTER = 0x01;

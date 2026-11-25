@@ -82,6 +82,41 @@ public sealed class BlackoutTests
     }
 
     [Fact]
+    [Trait("Requirement", "WIN-7")]
+    internal void Blackout_OfThePrimaryMonitor_MakesWindowsSeeAFullScreenApplication()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        IReadOnlyList<RECT> monitors = app.Monitors();
+        int primary = monitors.ToList().FindIndex(monitor => monitor.Left == 0 && monitor.Top == 0);
+        Assert.False(NotificationStateIsBusy(), "Windows already sees a full-screen application; close it before this test");
+
+        app.Select(ScreenNapApp.MonitorCommandBase + (uint)primary);
+        app.WaitForBlackoutCovering(monitors[primary]);
+        Wait.Until(NotificationStateIsBusy, s_paintTimeout, "Windows sees a full-screen application");
+
+        app.Select(ScreenNapApp.MonitorCommandBase + (uint)primary);
+        app.WaitForBlackoutCount(0);
+        Wait.Until(() => !NotificationStateIsBusy(), s_paintTimeout, "Windows no longer sees a full-screen application");
+
+        // A blackout of another monitor leaves the notification state alone
+        if (monitors.Count > 1)
+        {
+            int other = primary == 0 ? 1 : 0;
+            app.Select(ScreenNapApp.MonitorCommandBase + (uint)other);
+            app.WaitForBlackoutCovering(monitors[other]);
+            Assert.False(NotificationStateIsBusy(), "A blackout of a monitor other than the primary one counts as a full-screen application");
+        }
+    }
+
+    private static bool NotificationStateIsBusy()
+    {
+        int result = Win32.SHQueryUserNotificationState(out int state);
+        if (result != 0)
+            throw new InvalidOperationException($"SHQueryUserNotificationState failed (HRESULT 0x{result:X8})");
+        return state == Win32.QUNS_BUSY;
+    }
+
+    [Fact]
     [Trait("Requirement", "WIN-6")]
     internal void CloseRequest_SentToTheBlackout_LeavesItOpen()
     {

@@ -12,7 +12,7 @@ internal sealed class FakeLifetimeApi : ILifetimeApi
 
     public int LastError { get; private set; }
 
-    internal bool AnotherInstanceRuns { get; set; }
+    internal SingleInstanceState Instance { get; set; } = SingleInstanceState.Acquired;
     internal bool MessageBoxFails { get; set; }
     internal bool RegistrationFails { get; set; }
     // The message loop ends because Windows can no longer deliver messages
@@ -25,7 +25,11 @@ internal sealed class FakeLifetimeApi : ILifetimeApi
     internal int QuitRequests { get; private set; }
     internal bool MutexReleased { get; private set; }
 
-    public IDisposable? AcquireSingleInstance() => AnotherInstanceRuns ? null : new InstanceHold(this);
+    public SingleInstanceState AcquireSingleInstance(out IDisposable? instanceLock)
+    {
+        instanceLock = Instance == SingleInstanceState.Acquired ? new InstanceHold(this) : null;
+        return Instance;
+    }
 
     public bool ShowMessage(string text, string caption, uint type)
     {

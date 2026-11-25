@@ -7,8 +7,8 @@ internal interface ILifetimeApi
     // The Win32 error code the most recent call left
     int LastError { get; }
 
-    // Holds the single-instance mutex until disposed; null while another ScreenNap holds it
-    IDisposable? AcquireSingleInstance();
+    // On Acquired, the lock holds the single-instance mutex until disposed; otherwise it is null
+    SingleInstanceState AcquireSingleInstance(out IDisposable? instanceLock);
 
     // False when the message box cannot be shown
     bool ShowMessage(string text, string caption, uint type);

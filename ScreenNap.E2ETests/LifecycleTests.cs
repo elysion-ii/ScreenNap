@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using ScreenNap.E2ETests.Infrastructure;
 using Xunit;
 
@@ -85,15 +86,88 @@ public sealed class LifecycleTests
         }
     }
 
-    // The single-instance lock lives in the logon session's namespace, not the global one
+    // The single-instance lock lives in the Windows session's namespace, not the global one
     [Fact]
     [Trait("Requirement", "LIFE-2")]
-    internal void Start_NoOtherInstance_HoldsItsSingleInstanceLockForTheLogonSessionOnly()
+    internal void Start_NoOtherInstance_HoldsItsSingleInstanceLockForTheWindowsSessionOnly()
     {
         using ScreenNapApp app = ScreenNapApp.Start();
 
         Assert.True(MutexExists(@"Local\" + SingleInstanceMutex), "ScreenNap holds no lock in the logon session");
         Assert.False(MutexExists(@"Global\" + SingleInstanceMutex), "ScreenNap holds a lock for every session");
+    }
+
+    [Fact]
+    [Trait("Requirement", "TRAY-7")]
+    internal void Start_AnyScaling_DrawsTheTrayIconAtTheSmallIconSizeOfThePrimaryMonitor()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        int expected = app.Measure(() =>
+        {
+            IntPtr primary = Win32.MonitorFromPoint(default, Win32.MONITOR_DEFAULTTOPRIMARY);
+            if (Win32.GetDpiForMonitor(primary, Win32.MDT_EFFECTIVE_DPI, out uint dpi, out _) != 0)
+                throw new InvalidOperationException("GetDpiForMonitor failed for the primary monitor");
+            return Win32.GetSystemMetricsForDpi(Win32.SM_CXSMICON, dpi);
+        });
+
+        app.WaitForLog($"Tray icon size: {expected} pixels");
+    }
+
+    // What an elevated ScreenNap leaves to a ScreenNap without elevation: a lock it may not open
+    [Fact]
+    [Trait("Requirement", "LIFE-2")]
+    internal void Start_LockHeldThatCannotBeOpened_ShowsTheAlreadyRunningMessageInsteadOfFailing()
+    {
+        IntPtr securityDescriptor = DenyEveryone();
+        IntPtr held;
+        try
+        {
+            var attributes = new SECURITY_ATTRIBUTES
+            {
+                nLength = (uint)Marshal.SizeOf<SECURITY_ATTRIBUTES>(),
+                lpSecurityDescriptor = securityDescriptor,
+            };
+            held = Win32.CreateMutexW(in attributes, false, SingleInstanceMutex);
+        }
+        finally
+        {
+            _ = Win32.LocalFree(securityDescriptor);
+        }
+        if (held == IntPtr.Zero)
+            throw new InvalidOperationException($"CreateMutexW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+
+        try
+        {
+            IReadOnlyList<string> log = StartAndCloseItsMessage();
+
+            Assert.DoesNotContain(log, line => line.Contains("[ERROR]", StringComparison.Ordinal));
+            Assert.DoesNotContain(log, line => line.Contains("Application started", StringComparison.Ordinal));
+        }
+        finally
+        {
+            _ = Win32.CloseHandle(held);
+        }
+    }
+
+    [Fact]
+    [Trait("Requirement", "LIFE-2")]
+    [Trait("Requirement", "ERR-1")]
+    internal void Start_NameTakenByAnotherKindOfObject_ReportsAStartupFailure()
+    {
+        IntPtr squatter = Win32.CreateEventW(IntPtr.Zero, true, false, SingleInstanceMutex);
+        if (squatter == IntPtr.Zero)
+            throw new InvalidOperationException($"CreateEventW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+
+        try
+        {
+            IReadOnlyList<string> log = StartAndCloseItsMessage();
+
+            Assert.Contains(log, line => line.Contains("[ERROR] The single-instance check failed", StringComparison.Ordinal));
+        }
+        finally
+        {
+            _ = Win32.CloseHandle(squatter);
+        }
     }
 
     [Fact]
@@ -153,7 +227,7 @@ public sealed class LifecycleTests
         app.SendTaskbarCreated();
 
         Wait.Until(app.TrayIconExists, TimeSpan.FromSeconds(10), "ScreenNap adds its tray icon again");
-        app.WaitForLog("Tray icon added again");
+        app.WaitForLog("Tray icon added after the taskbar was created");
     }
 
     [Fact]
@@ -188,5 +262,46 @@ public sealed class LifecycleTests
             return false;
         _ = Win32.CloseHandle(handle);
         return true;
+    }
+
+    // Starts ScreenNap, closes the message box it shows, and returns its log once it ends normally
+    private static IReadOnlyList<string> StartAndCloseItsMessage()
+    {
+        string logDirectory = TestAssets.CreateScratchDirectory();
+        try
+        {
+            var startInfo = new ProcessStartInfo(TestAssets.ScreenNapExe) { UseShellExecute = false };
+            startInfo.Environment["SCREENNAP_LOG_DIR"] = logDirectory;
+            using Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("ScreenNap did not start");
+            try
+            {
+                IntPtr messageBox = ScreenNapApp.WaitForMessageBox(process);
+                Assert.Equal("ScreenNap", Desktop.Text(messageBox));
+                if (!Win32.PostMessageW(messageBox, Win32.WM_CLOSE, 0, 0))
+                    throw new InvalidOperationException("PostMessageW could not close the message box");
+
+                Assert.True(process.WaitForExit(TimeSpan.FromSeconds(10)), "ScreenNap did not end after its message");
+                Assert.Equal(0, process.ExitCode);
+            }
+            finally
+            {
+                if (!process.HasExited)
+                    process.Kill();
+            }
+
+            return [.. Directory.GetFiles(logDirectory, "ScreenNap_*.log").SelectMany(File.ReadAllLines)];
+        }
+        finally
+        {
+            TestAssets.DeleteScratchDirectory(logDirectory);
+        }
+    }
+
+    // A security descriptor with an empty access list, which grants nothing to anyone
+    private static IntPtr DenyEveryone()
+    {
+        if (!Win32.ConvertStringSecurityDescriptorToSecurityDescriptorW("D:", Win32.SDDL_REVISION_1, out IntPtr descriptor, IntPtr.Zero))
+            throw new InvalidOperationException($"ConvertStringSecurityDescriptorToSecurityDescriptorW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+        return descriptor;
     }
 }

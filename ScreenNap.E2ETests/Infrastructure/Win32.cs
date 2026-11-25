@@ -42,7 +42,10 @@ internal static partial class Win32
     internal const uint CURSOR_SHOWING = 0x00000001;
 
     internal const uint NIM_DELETE = 0x00000002;
+    internal const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
     internal const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+    internal const int SM_CXSMICON = 49;
+    internal const int QUNS_BUSY = 2;
     internal const int MDT_EFFECTIVE_DPI = 0;
     internal const string TaskbarCreatedMessage = "TaskbarCreated";
 
@@ -52,6 +55,7 @@ internal static partial class Win32
     internal const uint SWP_NOACTIVATE = 0x0010;
 
     internal const uint SYNCHRONIZE = 0x00100000;
+    internal const uint SDDL_REVISION_1 = 1;
     internal const uint THREAD_SUSPEND_RESUME = 0x0002;
     internal const uint THREAD_QUERY_LIMITED_INFORMATION = 0x0800;
     internal const uint SuspendThreadFailed = 0xFFFFFFFF;
@@ -182,11 +186,30 @@ internal static partial class Win32
     [LibraryImport("kernel32.dll", EntryPoint = "ResumeThread", SetLastError = true)]
     internal static partial uint ResumeThread(IntPtr hThread);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetSystemMetricsForDpi")]
+    internal static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
+    [LibraryImport("shell32.dll", EntryPoint = "SHQueryUserNotificationState")]
+    internal static partial int SHQueryUserNotificationState(out int state);
+
     [LibraryImport("user32.dll", EntryPoint = "WindowFromPoint")]
     internal static partial IntPtr WindowFromPoint(POINT point);
 
     [LibraryImport("kernel32.dll", EntryPoint = "OpenMutexW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     internal static partial IntPtr OpenMutexW(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, string lpName);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateMutexW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial IntPtr CreateMutexW(in SECURITY_ATTRIBUTES lpMutexAttributes, [MarshalAs(UnmanagedType.Bool)] bool bInitialOwner, string lpName);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateEventW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial IntPtr CreateEventW(IntPtr lpEventAttributes, [MarshalAs(UnmanagedType.Bool)] bool bManualReset, [MarshalAs(UnmanagedType.Bool)] bool bInitialState, string lpName);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "ConvertStringSecurityDescriptorToSecurityDescriptorW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool ConvertStringSecurityDescriptorToSecurityDescriptorW(string stringSecurityDescriptor, uint stringSdRevision, out IntPtr securityDescriptor, IntPtr securityDescriptorSize);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "LocalFree")]
+    internal static partial IntPtr LocalFree(IntPtr hMem);
 
     [LibraryImport("kernel32.dll", EntryPoint = "CloseHandle", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

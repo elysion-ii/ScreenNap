@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+- ScreenNap now follows each monitor's scaling: the menu shows every monitor's resolution in physical pixels, and an identification overlay grows with its monitor's scale factor
+- An identification overlay whose number cannot be drawn is now reported in the same notification as an overlay that cannot be created
+- ScreenNap now stops with a message when its tray icon image cannot be loaded, because an invisible tray icon leaves no way to open the menu or exit, and when it can no longer receive messages from Windows
+- When `SCREENNAP_LOG_DIR` is not set, the log now records which directory it uses
+- A build without a declared version now fails instead of producing a ScreenNap that shows no usable version
+
+### Fixed
+- Pressing two monitor hotkeys together now acts only on the digit pressed first
+- The tray icon now returns after the Windows taskbar is recreated, for example after Explorer restarts
+- Identification overlays now close by themselves even when the first overlay cannot start the closing timer
+- The 1.6.0 notes said an update starts ScreenNap again after the install; it never did. An update closes a running ScreenNap and starts it only when you choose to launch it at the end of the installer
+
 ## [1.7.1] - 2026-11-10
 
 ### Changed

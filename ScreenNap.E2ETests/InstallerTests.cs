@@ -11,7 +11,17 @@ public sealed class InstallerTests : IDisposable
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string RunValue = "ScreenNap";
     private const string ShortcutName = "ScreenNap.lnk";
+    private const string SilentUninstallArguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART";
+
+    // The English wizard's control captions as it shows them, without their access-key ampersands
+    private const string AcceptLicense = "I accept the agreement";
+    private const string NextButton = "Next";
+    private const string InstallButton = "Install";
+    private const string FinishButton = "Finish";
+    private const string CloseApplications = "Automatically close the applications";
+    private const string LaunchOption = "Launch ScreenNap";
     private static readonly TimeSpan s_installTimeout = TimeSpan.FromMinutes(2);
+    private static readonly DateTime s_untouchedTime = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private readonly string _scratch;
     private readonly string _installDirectory;
@@ -82,6 +92,93 @@ public sealed class InstallerTests : IDisposable
     }
 
     [Fact]
+    [Trait("Requirement", "DIST-7")]
+    internal void SilentUninstall_ScreenNapDoesNotClose_RemovesNothingAndFails()
+    {
+        Install("startmenu");
+        using ScreenNapApp app = ScreenNapApp.Start(InstalledExe);
+
+        int exitCode;
+        using (app.SuspendUiThread())
+            exitCode = RunForExitCode(Uninstaller, SilentUninstallArguments);
+
+        Assert.NotEqual(0, exitCode);
+        Assert.False(app.Process.HasExited);
+        Assert.True(File.Exists(InstalledExe));
+        Assert.True(File.Exists(Uninstaller));
+        Assert.True(File.Exists(StartMenuShortcut));
+    }
+
+    [Fact]
+    [Trait("Requirement", "DIST-8")]
+    internal void InteractiveUpdate_ScreenNapRunning_OffersToCloseItAndDoesNotStartItAgain()
+    {
+        Install("startmenu");
+        using ScreenNapApp app = ScreenNapApp.Start(InstalledExe);
+        using SetupWizard wizard = SetupWizard.Start(TestAssets.Installer);
+
+        // License, tasks, ready, then the page that lists the applications to close
+        wizard.Select(AcceptLicense);
+        wizard.Press(NextButton);
+        wizard.Press(NextButton);
+        wizard.Press(InstallButton);
+
+        Assert.True(wizard.IsSelected(CloseApplications), "The wizard does not offer to close ScreenNap by default");
+        Assert.Contains("ScreenNap", wizard.MemoText(), StringComparison.OrdinalIgnoreCase);
+        Assert.False(app.Process.HasExited, "ScreenNap closed before the user chose to close it");
+
+        wizard.Press(NextButton);
+        wizard.WaitForButton(FinishButton);
+        Assert.True(app.Process.WaitForExit(TimeSpan.FromSeconds(30)), "The update did not close ScreenNap");
+
+        // Leaves the launch offered after installation (DIST-4) unchosen
+        wizard.Uncheck(LaunchOption);
+        wizard.PressFinish(FinishButton);
+        wizard.WaitForExit();
+
+        Process[] running = Process.GetProcessesByName("ScreenNap");
+        foreach (Process process in running)
+            process.Dispose();
+        Assert.Empty(running);
+        Assert.True(File.Exists(InstalledExe));
+    }
+
+    [Fact]
+    [Trait("Requirement", "DIST-9")]
+    internal void SilentUpdate_ScreenNapDoesNotClose_ReplacesNothingAndFails()
+    {
+        Install("startmenu");
+        // A last-write time no installer writes shows whether the update replaced the file
+        File.SetLastWriteTimeUtc(InstalledExe, s_untouchedTime);
+        using ScreenNapApp app = ScreenNapApp.Start(InstalledExe);
+
+        int exitCode;
+        using (app.SuspendUiThread())
+            exitCode = RunForExitCode(TestAssets.Installer, SilentInstallArguments("startmenu"));
+
+        Assert.NotEqual(0, exitCode);
+        Assert.False(app.Process.HasExited);
+        Assert.Equal(s_untouchedTime, File.GetLastWriteTimeUtc(InstalledExe));
+    }
+
+    [Fact]
+    [Trait("Requirement", "DIST-8")]
+    internal void SilentUpdate_ScreenNapRunning_ClosesItWithoutStartingItAgain()
+    {
+        Install("startmenu");
+        using ScreenNapApp app = ScreenNapApp.Start(InstalledExe);
+
+        RunInstaller("startmenu");
+
+        Assert.True(app.Process.WaitForExit(TimeSpan.FromSeconds(30)), "The update did not close ScreenNap");
+        Process[] running = Process.GetProcessesByName("ScreenNap");
+        foreach (Process process in running)
+            process.Dispose();
+        Assert.Empty(running);
+        Assert.True(File.Exists(InstalledExe));
+    }
+
+    [Fact]
     [Trait("Requirement", "DIST-4")]
     [Trait("Requirement", "DIST-5")]
     internal void InstallerScript_Wizard_OffersALaunchAndShowsOnlyEnglish()
@@ -131,14 +228,22 @@ public sealed class InstallerTests : IDisposable
     private void Install(string tasks)
     {
         RequireNotInstalled();
+        RunInstaller(tasks);
+    }
+
+    private string SilentInstallArguments(string tasks)
+        => $"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=\"{_installDirectory}\" /TASKS=\"{tasks}\"";
+
+    private void RunInstaller(string tasks)
+    {
         RequireFile(TestAssets.Installer, "Run build/Build.ps1 and build/Installer.ps1 before the installer end-to-end tests.");
-        Run(TestAssets.Installer, $"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=\"{_installDirectory}\" /TASKS=\"{tasks}\"");
+        Run(TestAssets.Installer, SilentInstallArguments(tasks));
         Wait.Until(() => File.Exists(InstalledExe), s_installTimeout, "the installer places ScreenNap.exe");
     }
 
     private void Uninstall()
     {
-        Run(Uninstaller, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART");
+        Run(Uninstaller, SilentUninstallArguments);
         Wait.Until(
             () => !File.Exists(Uninstaller) && RunEntry() is null && !File.Exists(StartMenuShortcut) && !File.Exists(DesktopShortcut),
             s_installTimeout,
@@ -147,11 +252,17 @@ public sealed class InstallerTests : IDisposable
 
     private static void Run(string executable, string arguments)
     {
+        int exitCode = RunForExitCode(executable, arguments);
+        if (exitCode != 0)
+            throw new InvalidOperationException($"{Path.GetFileName(executable)} exited with code {exitCode}");
+    }
+
+    private static int RunForExitCode(string executable, string arguments)
+    {
         using Process process = Process.Start(new ProcessStartInfo(executable, arguments) { UseShellExecute = false })
             ?? throw new InvalidOperationException($"{executable} did not start");
         if (!process.WaitForExit(s_installTimeout))
             throw new TimeoutException($"{Path.GetFileName(executable)} did not finish");
-        if (process.ExitCode != 0)
-            throw new InvalidOperationException($"{Path.GetFileName(executable)} exited with code {process.ExitCode}");
+        return process.ExitCode;
     }
 }

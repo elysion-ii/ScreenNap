@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.InteropServices;
 using ScreenNap.Blackout;
 using ScreenNap.Logging;
 using ScreenNap.Monitors;
@@ -11,23 +10,29 @@ namespace ScreenNap.Tray;
 internal sealed class ContextMenu
 {
     private readonly BlackoutManager _manager;
+    private readonly Func<IReadOnlyList<MonitorInfo>> _enumerateMonitors;
+    private readonly IPopupMenuApi _api;
+    private readonly Action _exit;
     private readonly CultureInfo _culture;
-    private List<MonitorInfo> _lastMonitors = [];
+    private IReadOnlyList<MonitorInfo> _lastMonitors = [];
 
-    internal ContextMenu(BlackoutManager manager, CultureInfo culture)
+    internal ContextMenu(BlackoutManager manager, Func<IReadOnlyList<MonitorInfo>> enumerateMonitors, IPopupMenuApi api, Action exit, CultureInfo culture)
     {
         _manager = manager;
+        _enumerateMonitors = enumerateMonitors;
+        _api = api;
+        _exit = exit;
         _culture = culture;
     }
 
     internal void Show(IntPtr hwnd)
     {
-        _lastMonitors = MonitorEnumerator.EnumerateMonitors();
+        _lastMonitors = _enumerateMonitors();
 
-        IntPtr hMenu = User32.CreatePopupMenu();
+        IntPtr hMenu = _api.CreatePopupMenu();
         if (hMenu == IntPtr.Zero)
         {
-            Logger.Warn("CreatePopupMenu failed", Marshal.GetLastWin32Error());
+            Logger.Warn("CreatePopupMenu failed", _api.LastError);
             return;
         }
 
@@ -44,28 +49,29 @@ internal sealed class ContextMenu
             if (item.Disabled)
                 flags |= WindowStyles.MF_GRAYED;
 
-            if (!User32.AppendMenuW(hMenu, flags, (nuint)item.CommandId, item.Text))
-                Logger.Warn($"AppendMenuW failed for command {item.CommandId}", Marshal.GetLastWin32Error());
+            if (!_api.AppendMenu(hMenu, flags, (nuint)item.CommandId, item.Text))
+                Logger.Warn($"AppendMenuW failed for command {item.CommandId}", _api.LastError);
         }
 
         // Required for menu to dismiss on outside click (KB Q135788)
-        if (!User32.SetForegroundWindow(hwnd))
+        if (!_api.SetForegroundWindow(hwnd))
             Logger.Warn("SetForegroundWindow failed before displaying context menu");
 
-        if (!User32.GetCursorPos(out POINT pt))
+        // Without a cursor position the menu still opens, at the screen origin (specification TRAY-4)
+        if (!_api.GetCursorPos(out POINT pt))
         {
-            Logger.Warn("GetCursorPos failed before displaying context menu", Marshal.GetLastWin32Error());
+            Logger.Warn("GetCursorPos failed before displaying context menu; opening it at 0,0", _api.LastError);
             pt = default;
         }
-        if (!User32.TrackPopupMenuEx(hMenu, WindowStyles.TPM_RIGHTBUTTON, pt.X, pt.Y, hwnd, IntPtr.Zero))
-            Logger.Warn("TrackPopupMenuEx failed", Marshal.GetLastWin32Error());
+        if (!_api.TrackPopupMenu(hMenu, WindowStyles.TPM_RIGHTBUTTON, pt.X, pt.Y, hwnd))
+            Logger.Warn("TrackPopupMenuEx failed", _api.LastError);
 
         // Post WM_NULL to fix menu tracking (KB Q135788)
-        if (!User32.PostMessageW(hwnd, WindowStyles.WM_NULL, 0, 0))
-            Logger.Warn("PostMessageW failed after displaying context menu", Marshal.GetLastWin32Error());
+        if (!_api.PostMessage(hwnd, WindowStyles.WM_NULL, 0, 0))
+            Logger.Warn("PostMessageW failed after displaying context menu", _api.LastError);
 
-        if (!User32.DestroyMenu(hMenu))
-            Logger.Warn("DestroyMenu failed for context menu", Marshal.GetLastWin32Error());
+        if (!_api.DestroyMenu(hMenu))
+            Logger.Warn("DestroyMenu failed for context menu", _api.LastError);
     }
 
     internal void HandleCommand(int commandId)
@@ -73,7 +79,7 @@ internal sealed class ContextMenu
         MenuCommand command = MenuCommandInterpreter.Interpret(commandId, _lastMonitors.Count);
         if (command.Kind == MenuCommandKind.Exit)
         {
-            User32.PostQuitMessage(0);
+            _exit();
             return;
         }
 

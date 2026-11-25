@@ -13,6 +13,7 @@ public sealed class MonitorMenuLabelTests
     [InlineData("en-US", 2, true, false, "&2  Display  1920x1080  [Primary]")]
     [InlineData("en-US", 3, false, true, "&3  Display  1920x1080  (Active)")]
     [InlineData("en-US", 4, true, true, "&4  Display  1920x1080  [Primary]  (Active)")]
+    [InlineData("en-US", 10, false, false, "&10  Display  1920x1080")]
     [InlineData("ja-JP", 1, false, false, "&1  Display  1920x1080")]
     [InlineData("ja-JP", 2, true, false, "&2  Display  1920x1080  [メイン]")]
     [InlineData("ja-JP", 3, false, true, "&3  Display  1920x1080  (暗転中)")]
@@ -20,6 +21,7 @@ public sealed class MonitorMenuLabelTests
     [Trait("Requirement", "MENU-4")]
     [Trait("Requirement", "MON-4")]
     [Trait("Requirement", "L10N-1")]
+    [Trait("Requirement", "MENU-9")]
     internal void Build_AnyCultureAndState_FormatsLocalizedLabel(
         string culture,
         int number,

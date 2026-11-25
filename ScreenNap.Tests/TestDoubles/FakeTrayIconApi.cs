@@ -1,0 +1,86 @@
+using ScreenNap.Native;
+using ScreenNap.Tray;
+
+namespace ScreenNap.Tests.TestDoubles;
+
+// Stands in for the notification area: it keeps what the tray shows, which only a call that
+// succeeds changes, and fails the calls a test names
+internal sealed class FakeTrayIconApi : ITrayIconApi
+{
+    internal const int FailureError = 1460;
+    internal static readonly IntPtr NormalIcon = new(0x501);
+    internal static readonly IntPtr ActiveIcon = new(0x502);
+
+    public int LastError { get; private set; }
+
+    internal List<(uint Command, uint Flags, string Tip, string Info)> Calls { get; } = [];
+    internal HashSet<uint> FailingCommands { get; } = [];
+    internal bool DestroyIconFails { get; set; }
+    internal HashSet<string> IconsFailingToLoad { get; } = new(StringComparer.Ordinal);
+    internal List<IntPtr> DestroyedIcons { get; } = [];
+
+    internal bool IconShown { get; private set; }
+    internal IntPtr ShownIcon { get; private set; }
+    internal string ShownTip { get; private set; } = string.Empty;
+    internal List<string> ShownNotifications { get; } = [];
+
+    internal int Count(uint command) => Calls.Count(call => call.Command == command);
+
+    public unsafe bool NotifyIcon(uint command, ref NOTIFYICONDATAW data)
+    {
+        string tip;
+        string info;
+        fixed (char* tipBuffer = data.szTip)
+            tip = new string(tipBuffer);
+        fixed (char* infoBuffer = data.szInfo)
+            info = new string(infoBuffer);
+        Calls.Add((command, data.uFlags, tip, info));
+
+        if (FailingCommands.Contains(command) || (command != WindowStyles.NIM_ADD && !IconShown))
+        {
+            LastError = FailureError;
+            return false;
+        }
+
+        switch (command)
+        {
+            case WindowStyles.NIM_ADD:
+                if (IconShown)
+                {
+                    LastError = FailureError;
+                    return false;
+                }
+                IconShown = true;
+                break;
+            case WindowStyles.NIM_DELETE:
+                IconShown = false;
+                return true;
+        }
+
+        if ((data.uFlags & WindowStyles.NIF_ICON) != 0)
+            ShownIcon = data.hIcon;
+        if ((data.uFlags & WindowStyles.NIF_TIP) != 0)
+            ShownTip = tip;
+        if ((data.uFlags & WindowStyles.NIF_INFO) != 0)
+            ShownNotifications.Add(info);
+        return true;
+    }
+
+    // Explorer drops every tray icon when the taskbar is recreated
+    internal void RecreateTaskbar() => IconShown = false;
+
+    public IntPtr LoadIcon(string resourceFileName)
+        => IconsFailingToLoad.Contains(resourceFileName) ? IntPtr.Zero
+            : resourceFileName.Contains("active", StringComparison.Ordinal) ? ActiveIcon : NormalIcon;
+
+    public bool DestroyIcon(IntPtr icon)
+    {
+        if (DestroyIconFails)
+        {
+            LastError = FailureError;
+            return false;
+        }
+        DestroyedIcons.Add(icon);
+        return true;
+    }
+}

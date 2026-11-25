@@ -27,15 +27,19 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 
-; Update over a running installation. CloseApplications is Inno Setup's own
-; Restart Manager support: Setup detects the processes holding files this install
-; replaces, asks whether to close them, and restarts them afterwards. It is the
-; default value, and is stated here so the intent survives an edit of this file.
+; Update over a running installation (docs/specs/ScreenNap.md DIST-8, DIST-9).
+; CloseApplications is Inno Setup's own Restart Manager support: Setup detects the
+; processes holding files this install replaces and asks whether to close them; a
+; silent run closes them without asking and, when one does not close, replaces
+; nothing and exits non-zero. Setup restarts only applications that registered with
+; RegisterApplicationRestart, which ScreenNap does not, so ScreenNap is not started
+; again after an update. It is the default value, and is stated here so the intent
+; survives an edit of this file.
 ;
 ; AppMutex is deliberately NOT declared. AppMutex blocks at startup, before the
 ; Restart Manager page is reached, which would downgrade an update from "closed
-; and restarted automatically" to "close it yourself and start over". It also
-; cannot be limited to uninstall, which is the path that actually needs it.
+; automatically" to "close it yourself and start over". It also cannot be limited
+; to uninstall, which is the path that actually needs it.
 CloseApplications=yes
 
 [Languages]

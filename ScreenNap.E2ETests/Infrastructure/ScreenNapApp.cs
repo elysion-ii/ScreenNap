@@ -127,6 +127,67 @@ internal sealed class ScreenNapApp : IDisposable
             throw new InvalidOperationException($"PostMessageW failed (Win32 error: {Marshal.GetLastWin32Error()})");
     }
 
+    // Explorer drops every tray icon when it restarts; deleting ScreenNap's icon reproduces that
+    internal void RemoveTrayIcon()
+    {
+        var data = new NOTIFYICONDATAW
+        {
+            cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATAW>(),
+            hWnd = MessageWindow,
+            uID = TrayIconId,
+        };
+        if (!Win32.Shell_NotifyIconW(Win32.NIM_DELETE, ref data))
+            throw new InvalidOperationException($"Shell_NotifyIconW(NIM_DELETE) failed (Win32 error: {Marshal.GetLastWin32Error()})");
+    }
+
+    internal void SendTaskbarCreated()
+    {
+        uint message = Win32.RegisterWindowMessageW(Win32.TaskbarCreatedMessage);
+        if (message == 0)
+            throw new InvalidOperationException($"RegisterWindowMessageW failed (Win32 error: {Marshal.GetLastWin32Error()})");
+        Post(message, 0, 0);
+    }
+
+    // The thread that owns ScreenNap's windows, which runs its message loop
+    internal uint UiThreadId => Win32.GetWindowThreadProcessId(MessageWindow, out _);
+
+    internal ThreadSuspension SuspendUiThread() => ThreadSuspension.Suspend(UiThreadId);
+
+    // A thread waiting for messages runs no CPU cycles; a timer or any other message wakes it
+    internal ulong UiThreadCycles()
+    {
+        IntPtr thread = Win32.OpenThread(Win32.THREAD_QUERY_LIMITED_INFORMATION, false, UiThreadId);
+        if (thread == IntPtr.Zero)
+            throw new InvalidOperationException($"OpenThread failed for ScreenNap's UI thread (Win32 error: {Marshal.GetLastWin32Error()})");
+        try
+        {
+            if (!Win32.QueryThreadCycleTime(thread, out ulong cycles))
+                throw new InvalidOperationException($"QueryThreadCycleTime failed (Win32 error: {Marshal.GetLastWin32Error()})");
+            return cycles;
+        }
+        finally
+        {
+            _ = Win32.CloseHandle(thread);
+        }
+    }
+
+    // Waits until ScreenNap's UI thread has run no cycle for a whole quiet period
+    internal void WaitForIdleUiThread(TimeSpan quietPeriod, TimeSpan timeout)
+    {
+        ulong last = UiThreadCycles();
+        Stopwatch unchanged = Stopwatch.StartNew();
+        Wait.Until(() =>
+        {
+            ulong now = UiThreadCycles();
+            if (now != last)
+            {
+                last = now;
+                unchanged.Restart();
+            }
+            return unchanged.Elapsed >= quietPeriod;
+        }, timeout, $"ScreenNap's UI thread stays idle for {quietPeriod.TotalSeconds:0.#}s");
+    }
+
     internal IReadOnlyList<IntPtr> BlackoutWindows() => Desktop.VisibleTopLevelWindows(Process.Id, BlackoutClass);
 
     internal IReadOnlyList<IntPtr> Overlays() => Desktop.VisibleTopLevelWindows(Process.Id, OverlayClass);

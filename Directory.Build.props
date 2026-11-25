@@ -7,6 +7,10 @@
          this value (see docs/rules/dotnet.md, VERSION). -->
     <Version>1.7.1</Version>
 
+    <!-- The SDK supplies 1.0.0 for a missing <Version>, so the guard below compares what
+         this file declared, captured before the SDK's default applies. -->
+    <DeclaredVersion>$(Version)</DeclaredVersion>
+
     <!-- Keep AssemblyInformationalVersion equal to <Version> by default: the SDK otherwise
          appends "+<git sha>", and ScreenNap displays the bare <Version>
          (see docs/rules/dotnet.md, VERSION; docs/rules/standard.md, Version Display). -->
@@ -49,6 +53,13 @@
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
     </ItemGroup>
+  </Target>
+
+  <!-- Every build carries the product version ScreenNap displays (specification VER-1);
+       a build without one fails instead of producing an executable with no version. -->
+  <Target Name="RequireDeclaredVersion" BeforeTargets="BeforeBuild"
+          Condition="'$(DeclaredVersion)' == ''">
+    <Error Text="Directory.Build.props declares no &lt;Version&gt;. Define the product version there (docs/rules/dotnet.md, VERSION)." />
   </Target>
 
   <!-- A single file that unpacks itself at run time is prohibited: it writes a

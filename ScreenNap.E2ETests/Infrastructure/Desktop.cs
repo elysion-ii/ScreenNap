@@ -121,6 +121,18 @@ internal static class Desktop
             throw new InvalidOperationException($"SetCursorPos failed (Win32 error: {Marshal.GetLastWin32Error()})");
     }
 
+    // Call through ScreenNapApp.Measure: a DPI-unaware caller always reads 96
+    internal static uint MonitorDpi(RECT monitor)
+    {
+        IntPtr handle = Win32.MonitorFromPoint(
+            new POINT { X = monitor.Left + monitor.Width / 2, Y = monitor.Top + monitor.Height / 2 },
+            Win32.MONITOR_DEFAULTTONEAREST);
+        int result = Win32.GetDpiForMonitor(handle, Win32.MDT_EFFECTIVE_DPI, out uint dpi, out _);
+        if (result != 0)
+            throw new InvalidOperationException($"GetDpiForMonitor failed (HRESULT 0x{result:X8})");
+        return dpi;
+    }
+
     internal static IntPtr First(IReadOnlyList<IntPtr> windows) => windows.Count > 0 ? windows[0] : IntPtr.Zero;
 
     private static unsafe string ClassName(IntPtr hWnd)

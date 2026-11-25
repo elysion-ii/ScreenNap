@@ -9,7 +9,7 @@ internal static class Keyboard
     internal static void PressHotkey(int digit)
     {
         ushort digitKey = (ushort)(Win32.VK_0 + digit);
-        INPUT[] inputs =
+        Send(
         [
             Key(Win32.VK_CONTROL, false),
             Key(Win32.VK_SHIFT, false),
@@ -19,11 +19,35 @@ internal static class Keyboard
             Key(Win32.VK_MENU, true),
             Key(Win32.VK_SHIFT, true),
             Key(Win32.VK_CONTROL, true),
-        ];
+        ]);
+    }
 
+    // Holds Ctrl+Shift+Alt and the digit, which presses the digit's hotkey, until disposed
+    internal static HeldHotkey HoldHotkey(int digit)
+    {
+        ushort digitKey = (ushort)(Win32.VK_0 + digit);
+        Send([Key(Win32.VK_CONTROL, false), Key(Win32.VK_SHIFT, false), Key(Win32.VK_MENU, false), Key(digitKey, false)]);
+        return new HeldHotkey(digitKey);
+    }
+
+    // Presses and releases one digit key; inside HoldHotkey it presses that digit's hotkey too
+    internal static void TapDigit(int digit)
+    {
+        ushort digitKey = (ushort)(Win32.VK_0 + digit);
+        Send([Key(digitKey, false), Key(digitKey, true)]);
+    }
+
+    private static void Send(INPUT[] inputs)
+    {
         uint sent = Win32.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
         if (sent != inputs.Length)
             throw new InvalidOperationException($"SendInput sent {sent} of {inputs.Length} key events (Win32 error: {Marshal.GetLastWin32Error()})");
+    }
+
+    internal sealed class HeldHotkey(ushort digitKey) : IDisposable
+    {
+        public void Dispose()
+            => Send([Key(digitKey, true), Key(Win32.VK_MENU, true), Key(Win32.VK_SHIFT, true), Key(Win32.VK_CONTROL, true)]);
     }
 
     // A hotkey another process holds cannot be registered again; registering and releasing it probes that

@@ -6,16 +6,23 @@ namespace ScreenNap.Tests.Versioning;
 public sealed class AppVersionTests
 {
     [Theory]
-    [InlineData(null, "unknown")]
-    [InlineData("", "unknown")]
-    [InlineData("   ", "unknown")]
-    [InlineData("+abc1234", "unknown")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("+abc1234")]
+    [Trait("Requirement", "VER-1")]
+    internal void Normalize_NoVersion_Throws(string? informationalVersion)
+    {
+        Assert.Throws<InvalidOperationException>(() => AppVersion.Normalize(informationalVersion));
+    }
+
+    [Theory]
     [InlineData("1.4.0", "1.4.0")]
     [InlineData("  1.4.0  ", "1.4.0")]
     [InlineData("1.4.0+abc1234", "1.4.0")]
     [InlineData("1.4.0-beta.1", "1.4.0-beta.1")]
     [Trait("Requirement", "VER-1")]
-    internal void Normalize_AnyInformationalVersion_ReturnsVersionWithoutMetadata(string? informationalVersion, string expected)
+    internal void Normalize_AnyVersion_ReturnsItWithoutMetadata(string informationalVersion, string expected)
     {
         Assert.Equal(expected, AppVersion.Normalize(informationalVersion));
     }
@@ -32,6 +39,5 @@ public sealed class AppVersionTests
     internal void Current_BuiltAssembly_ReturnsVersionWithoutMetadata()
     {
         Assert.DoesNotContain('+', AppVersion.Current);
-        Assert.NotEqual(AppVersion.Unknown, AppVersion.Current);
     }
 }

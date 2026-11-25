@@ -10,42 +10,71 @@ namespace ScreenNap.Tray;
 internal sealed class TrayIcon : IUserNotifier
 {
     private const uint IconId = 1;
+    private const string NormalIconResource = "icon-normal.ico";
+    private const string ActiveIconResource = "icon-active.ico";
 
     private readonly IntPtr _hwnd;
     private readonly CultureInfo _culture;
+    private readonly ITrayIconApi _api;
     private IntPtr _iconNormal;
     private IntPtr _iconActive;
     private bool _created;
 
-    internal TrayIcon(IntPtr messageWindowHandle, CultureInfo culture)
+    internal TrayIcon(IntPtr messageWindowHandle, CultureInfo culture, ITrayIconApi api)
     {
         _hwnd = messageWindowHandle;
         _culture = culture;
-        _iconNormal = IconHelper.LoadIconFromResource("icon-normal.ico");
-        _iconActive = IconHelper.LoadIconFromResource("icon-active.ico");
+        _api = api;
+        _iconNormal = api.LoadIcon(NormalIconResource);
+        _iconActive = api.LoadIcon(ActiveIconResource);
     }
 
+    // An icon without its image is invisible in the tray, so it counts as no icon (specification ERR-2)
     internal bool Create()
     {
-        NOTIFYICONDATAW nid = CreateBaseData();
-        nid.uFlags = WindowStyles.NIF_MESSAGE | WindowStyles.NIF_ICON | WindowStyles.NIF_TIP;
-        nid.uCallbackMessage = WindowStyles.WM_TRAYICON;
-        nid.hIcon = _iconNormal;
-        SetTipText(ref nid, Strings.TooltipNormal(_culture));
-
-        _created = Shell32.Shell_NotifyIconW(WindowStyles.NIM_ADD, ref nid);
-        if (!_created)
+        if (_iconNormal == IntPtr.Zero || _iconActive == IntPtr.Zero)
         {
-            Logger.Error("Shell_NotifyIconW(NIM_ADD) failed", Marshal.GetLastWin32Error());
+            Logger.Error($"Tray icon image could not be loaded ({(_iconNormal == IntPtr.Zero ? NormalIconResource : ActiveIconResource)})");
+            DestroyIcons();
+            return false;
+        }
+
+        if (!Add(0))
+        {
             DestroyIcons();
             return false;
         }
         Logger.Info("Tray icon created");
+        return true;
+    }
+
+    // A recreated taskbar holds none of the icons added before it (specification TRAY-5)
+    internal void Restore(int activeCount)
+    {
+        if (Add(activeCount))
+            Logger.Info("Tray icon added again after the taskbar was recreated");
+    }
+
+    private bool Add(int activeCount)
+    {
+        TrayState state = TrayState.For(activeCount, _culture);
+        NOTIFYICONDATAW nid = CreateBaseData();
+        nid.uFlags = WindowStyles.NIF_MESSAGE | WindowStyles.NIF_ICON | WindowStyles.NIF_TIP;
+        nid.uCallbackMessage = WindowStyles.WM_TRAYICON;
+        nid.hIcon = state.UseActiveIcon ? _iconActive : _iconNormal;
+        SetTipText(ref nid, state.TipText);
+
+        _created = _api.NotifyIcon(WindowStyles.NIM_ADD, ref nid);
+        if (!_created)
+        {
+            Logger.Error("Shell_NotifyIconW(NIM_ADD) failed", _api.LastError);
+            return false;
+        }
 
         NOTIFYICONDATAW versionData = CreateBaseData();
         versionData.uVersion = WindowStyles.NOTIFYICON_VERSION_4;
-        if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_SETVERSION, ref versionData))
-            Logger.Warn("Shell_NotifyIconW(NIM_SETVERSION) failed", Marshal.GetLastWin32Error());
+        if (!_api.NotifyIcon(WindowStyles.NIM_SETVERSION, ref versionData))
+            Logger.Warn("Shell_NotifyIconW(NIM_SETVERSION) failed", _api.LastError);
         return true;
     }
 
@@ -62,8 +91,8 @@ internal sealed class TrayIcon : IUserNotifier
         nid.dwInfoFlags = WindowStyles.NIIF_WARNING;
         SetInfoText(ref nid, TrayState.TruncateInfoTitle(Strings.NotifyTitle(_culture)), TrayState.TruncateInfo(message));
 
-        if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_MODIFY, ref nid))
-            Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed for a tray notification", Marshal.GetLastWin32Error());
+        if (!_api.NotifyIcon(WindowStyles.NIM_MODIFY, ref nid))
+            Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed for a tray notification", _api.LastError);
     }
 
     internal void Remove()
@@ -71,8 +100,8 @@ internal sealed class TrayIcon : IUserNotifier
         if (_created)
         {
             NOTIFYICONDATAW nid = CreateBaseData();
-            if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_DELETE, ref nid))
-                Logger.Warn("Shell_NotifyIconW(NIM_DELETE) failed", Marshal.GetLastWin32Error());
+            if (!_api.NotifyIcon(WindowStyles.NIM_DELETE, ref nid))
+                Logger.Warn("Shell_NotifyIconW(NIM_DELETE) failed", _api.LastError);
             _created = false;
             Logger.Info("Tray icon removed");
         }
@@ -84,17 +113,17 @@ internal sealed class TrayIcon : IUserNotifier
     {
         if (_iconNormal != IntPtr.Zero)
         {
-            if (User32.DestroyIcon(_iconNormal))
+            if (_api.DestroyIcon(_iconNormal))
                 _iconNormal = IntPtr.Zero;
             else
-                Logger.Warn("DestroyIcon failed for normal tray icon", Marshal.GetLastWin32Error());
+                Logger.Warn("DestroyIcon failed for normal tray icon", _api.LastError);
         }
         if (_iconActive != IntPtr.Zero)
         {
-            if (User32.DestroyIcon(_iconActive))
+            if (_api.DestroyIcon(_iconActive))
                 _iconActive = IntPtr.Zero;
             else
-                Logger.Warn("DestroyIcon failed for active tray icon", Marshal.GetLastWin32Error());
+                Logger.Warn("DestroyIcon failed for active tray icon", _api.LastError);
         }
     }
 
@@ -110,8 +139,8 @@ internal sealed class TrayIcon : IUserNotifier
         nid.hIcon = state.UseActiveIcon ? _iconActive : _iconNormal;
         SetTipText(ref nid, state.TipText);
 
-        if (!Shell32.Shell_NotifyIconW(WindowStyles.NIM_MODIFY, ref nid))
-            Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed", Marshal.GetLastWin32Error());
+        if (!_api.NotifyIcon(WindowStyles.NIM_MODIFY, ref nid))
+            Logger.Warn("Shell_NotifyIconW(NIM_MODIFY) failed for the tray state; the next change of the blackout count tries again", _api.LastError);
     }
 
     private NOTIFYICONDATAW CreateBaseData()

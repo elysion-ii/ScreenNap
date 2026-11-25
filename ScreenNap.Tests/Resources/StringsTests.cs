@@ -15,6 +15,7 @@ public sealed class StringsTests
     [Trait("Requirement", "LIFE-2")]
     [Trait("Requirement", "ERR-1")]
     [Trait("Requirement", "ERR-2")]
+    [Trait("Requirement", "ERR-12")]
     [InlineData("fr-FR", nameof(Strings.MenuReleaseAll), "Release All")]
     [InlineData("en-US", nameof(Strings.MenuReleaseAll), "Release All")]
     [InlineData("ja-JP", nameof(Strings.MenuReleaseAll), "すべて解除")]
@@ -45,6 +46,9 @@ public sealed class StringsTests
     [InlineData("fr-FR", nameof(Strings.NotifyTrayFailed), "ScreenNap could not create its tray icon and will exit.")]
     [InlineData("en-US", nameof(Strings.NotifyTrayFailed), "ScreenNap could not create its tray icon and will exit.")]
     [InlineData("ja-JP", nameof(Strings.NotifyTrayFailed), "ScreenNap はトレイアイコンを作成できなかったため終了します。")]
+    [InlineData("fr-FR", nameof(Strings.NotifyStopped), "ScreenNap can no longer receive messages from Windows and will exit. See the log for details.")]
+    [InlineData("en-US", nameof(Strings.NotifyStopped), "ScreenNap can no longer receive messages from Windows and will exit. See the log for details.")]
+    [InlineData("ja-JP", nameof(Strings.NotifyStopped), "ScreenNap は Windows からのメッセージを受け取れなくなったため終了します。詳細はログを参照してください。")]
     [InlineData("fr-FR", nameof(Strings.NotifyBlackoutNotCreated), "Could not black out {0}.")]
     [InlineData("en-US", nameof(Strings.NotifyBlackoutNotCreated), "Could not black out {0}.")]
     [InlineData("ja-JP", nameof(Strings.NotifyBlackoutNotCreated), "{0} を暗転できませんでした。")]
@@ -108,6 +112,7 @@ public sealed class StringsTests
         nameof(Strings.NotifyTitle) => Strings.NotifyTitle(culture),
         nameof(Strings.NotifyStartFailed) => Strings.NotifyStartFailed(culture),
         nameof(Strings.NotifyTrayFailed) => Strings.NotifyTrayFailed(culture),
+        nameof(Strings.NotifyStopped) => Strings.NotifyStopped(culture),
         nameof(Strings.NotifyBlackoutNotCreated) => Strings.NotifyBlackoutNotCreated(culture),
         nameof(Strings.NotifyBlackoutNotClosed) => Strings.NotifyBlackoutNotClosed(culture),
         nameof(Strings.NotifyReleaseAllIncomplete) => Strings.NotifyReleaseAllIncomplete(culture),

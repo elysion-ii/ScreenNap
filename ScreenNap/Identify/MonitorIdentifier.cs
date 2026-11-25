@@ -29,12 +29,17 @@ internal sealed class MonitorIdentifier
 
         IReadOnlyList<MonitorInfo> monitors = _enumerateMonitors();
         var failedNumbers = new List<int>();
+        bool closingTimerStarted = false;
         for (int i = 0; i < monitors.Count; i++)
         {
             int displayNumber = i + 1;
-            // Only monitor 1's overlay closes every overlay after the delay (specification IDN-3)
-            if (!_overlays.Show(displayNumber, monitors[i].Bounds, closesAllAfterDelay: displayNumber == 1))
+            // One timer closes every overlay; each overlay offers to start it until one has (specification IDN-3)
+            OverlayShowResult result = _overlays.Show(displayNumber, monitors[i].Bounds, startsClosingTimer: !closingTimerStarted);
+            // An overlay without its number shows the user nothing, as a missing overlay does (specification ERR-8)
+            if (!result.Shown || !result.NumberDrawn)
                 failedNumbers.Add(displayNumber);
+            if (result.StartedClosingTimer)
+                closingTimerStarted = true;
         }
 
         if (failedNumbers.Count > 0)

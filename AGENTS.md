@@ -60,9 +60,9 @@ Feature folders and shared mechanism homes in ScreenNap are listed in `docs/refe
 
 The main application project contains the source code.
 
-- `Program.cs` contains the application entry point, named mutex, and Win32 message loop
-- The feature folders are `Tray/` (tray icon, tooltip, context menu), `Blackout/` (blackout windows and their restoration after display changes), `Hotkeys/` (global hotkeys), and `Identify/` (monitor-identification overlays)
-- The shared homes are `Monitors/` (monitor enumeration and identity), `Notifications/` (failure notification and its wording), `Versioning/` (product version), `Logging/` (best-effort file logging and retention), `Native/` (P/Invoke declarations, Win32 constants, native structures, and the window-class registration helper), and `Resources/` (localized string resources and icon assets)
+- `Program.cs` contains the application entry point; it creates the Win32 implementations and starts `Lifetime/`
+- The feature folders are `Lifetime/` (startup, named mutex, hidden message window and its message routing, shutdown), `Tray/` (tray icon, tooltip, context menu), `Blackout/` (blackout windows and their restoration after display changes), `Hotkeys/` (global hotkeys), and `Identify/` (monitor-identification overlays)
+- The shared homes are `Monitors/` (monitor enumeration and identity), `Notifications/` (failure notification and its wording), `Versioning/` (product version), `Logging/` (best-effort file logging and retention), `Native/` (P/Invoke declarations, Win32 constants, native structures, the window-class registration helper, and the window-function interface several features share), and `Resources/` (localized string resources and icon assets)
 - What belongs in each folder and the permitted dependency directions are in `docs/rules/ScreenNap.md` (Architecture)
 
 ### `ScreenNap.Tests/`
@@ -102,8 +102,6 @@ placement, naming, and front matter.
 - `docs/rules/` — rule bodies: universal shared rules (`docs/rules/standard.md`, `docs/rules/documentation.md`, `docs/rules/specs.md`, `docs/rules/testing.md`), `docs/rules/dotnet.md`, the conditional shared and .NET facet rule files distributed to this repository (all managed by dev-standards), and `docs/rules/ScreenNap.md` (application rules)
 - `docs/specs/ScreenNap.md` — the ScreenNap specification: what it does
 - `docs/references/code-map.md` — feature folders and shared mechanism homes
-- `docs/references/ScreenNap/violating-behavior.md` — ScreenNap behavior that breaks a rule and awaits its fix, read together with the specification (`docs/rules/specs.md`, Ledgers)
-- `docs/notes/ScreenNap/deferred-violations.md` — code and document violations deferred by the maintainer (`docs/rules/standard.md`, AUDIT)
 - `docs/adr/` — Architecture Decision Records; retired ADRs move to `docs/adr/archive/`
 - `docs/guides/release.md` — the version bump → assets → tag → GitHub Release procedure
 - `docs/plans/` and `docs/archive/plans/` — working area for plans, gitignored (`docs/rules/documentation.md`, Category Notes — `docs/plans/`)

@@ -60,6 +60,118 @@ public sealed class LoggerTests
         Assert.Equal(expected, Logger.IsUsableDirectorySetting(value));
     }
 
+    [Theory]
+    [Trait("Requirement", "LOG-1")]
+    [Trait("Requirement", "LOG-2")]
+    [Trait("Requirement", "LOG-9")]
+    [Trait("Requirement", "LOG-11")]
+    [InlineData(null, true, true, @"D:\default", "INFO", @"SCREENNAP_LOG_DIR is not set; logging to D:\default")]
+    [InlineData("", true, true, @"D:\default", "INFO", @"SCREENNAP_LOG_DIR is not set; logging to D:\default")]
+    [InlineData(null, true, false, null, null, null)]
+    [InlineData("logs", true, true, @"D:\default", "WARN", @"SCREENNAP_LOG_DIR ""logs"" is not an absolute directory path that can be created; logging to D:\default")]
+    [InlineData(@"C:\logs", true, true, @"C:\logs", null, null)]
+    [InlineData(@"C:\logs", false, true, @"D:\default", "WARN", @"SCREENNAP_LOG_DIR ""C:\logs"" is not an absolute directory path that can be created; logging to D:\default")]
+    [InlineData(@"C:\logs", false, false, null, null, null)]
+    internal void ChooseDirectory_AnySettingAndDirectories_ChoosesTheDirectoryAndItsNotice(
+        string? configured,
+        bool configuredCreatable,
+        bool defaultCreatable,
+        string? expectedDirectory,
+        string? expectedLevel,
+        string? expectedNotice)
+    {
+        const string DefaultDirectory = @"D:\default";
+        bool TryCreate(string directory) => directory == DefaultDirectory ? defaultCreatable : configuredCreatable;
+
+        LogDirectoryChoice choice = Logger.ChooseDirectory(configured, DefaultDirectory, TryCreate);
+
+        Assert.Equal(new LogDirectoryChoice(expectedDirectory, expectedLevel, expectedNotice), choice);
+    }
+
+    [Theory]
+    [Trait("Requirement", "LOG-2")]
+    [InlineData("logs")]
+    [InlineData(@"C:logs")]
+    internal void Open_RejectedSetting_WritesOneWarningNamingTheValueAndTheDefaultDirectory(string configured)
+    {
+        string defaultDirectory = ScratchDirectory();
+        try
+        {
+            string? directory = Logger.Open(configured, defaultDirectory, CreateDirectory);
+
+            Assert.Equal(defaultDirectory, directory);
+            Assert.Equal(
+                [$"[WARN] SCREENNAP_LOG_DIR \"{configured}\" is not an absolute directory path that can be created; logging to {defaultDirectory}"],
+                LoggedEntries(defaultDirectory));
+        }
+        finally
+        {
+            Directory.Delete(defaultDirectory, true);
+        }
+    }
+
+    [Theory]
+    [Trait("Requirement", "LOG-11")]
+    [InlineData(null)]
+    [InlineData("")]
+    internal void Open_SettingUnset_WritesOneInfoEntryNamingTheDefaultDirectory(string? configured)
+    {
+        string defaultDirectory = ScratchDirectory();
+        try
+        {
+            string? directory = Logger.Open(configured, defaultDirectory, CreateDirectory);
+
+            Assert.Equal(defaultDirectory, directory);
+            Assert.Equal([$"[INFO] SCREENNAP_LOG_DIR is not set; logging to {defaultDirectory}"], LoggedEntries(defaultDirectory));
+        }
+        finally
+        {
+            Directory.Delete(defaultDirectory, true);
+        }
+    }
+
+    [Fact]
+    [Trait("Requirement", "LOG-1")]
+    internal void Open_UsableSetting_WritesNoNotice()
+    {
+        string configuredDirectory = ScratchDirectory();
+        string defaultDirectory = ScratchDirectory();
+        try
+        {
+            string? directory = Logger.Open(configuredDirectory, defaultDirectory, CreateDirectory);
+
+            Assert.Equal(configuredDirectory, directory);
+            Assert.Empty(Directory.GetFiles(configuredDirectory));
+            Assert.Empty(Directory.GetFiles(defaultDirectory));
+        }
+        finally
+        {
+            Directory.Delete(configuredDirectory, true);
+            Directory.Delete(defaultDirectory, true);
+        }
+    }
+
+    // A directory of the test's own under the temporary directory; Open writes no file into
+    // it unless the test expects one
+    private static string ScratchDirectory()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), $"ScreenNapTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
+    private static bool CreateDirectory(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        return true;
+    }
+
+    // Each entry without its timestamp, which comes from the clock
+    private static List<string> LoggedEntries(string directory)
+        => [.. Directory.GetFiles(directory, "ScreenNap_*.log")
+            .SelectMany(File.ReadAllLines)
+            .Select(line => line[(line.IndexOf('[', StringComparison.Ordinal))..])];
+
     [Fact]
     [Trait("Requirement", "LOG-7")]
     internal void SelectExpiredLogs_EmptyInput_ReturnsEmpty()

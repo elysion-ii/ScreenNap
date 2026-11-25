@@ -94,6 +94,13 @@ internal static class WindowStyles
     internal const uint MOD_NOREPEAT = 0x4000;
     internal const uint VK_0 = 0x30;
     internal const uint VK_1 = 0x31;
+    internal const short KEY_DOWN_MASK = unchecked((short)0x8000);
+
+    // Registered message names
+    internal const string TaskbarCreatedMessage = "TaskbarCreated";
+
+    // DPI
+    internal const uint USER_DEFAULT_SCREEN_DPI = 96;
 
     // DrawText flags
     internal const uint DT_CENTER = 0x01;

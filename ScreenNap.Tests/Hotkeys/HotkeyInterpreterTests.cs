@@ -37,4 +37,38 @@ public sealed class HotkeyInterpreterTests
 
         Assert.Equal(expected, HotkeyInterpreter.CombinationFor(digit));
     }
+
+    [Theory]
+    [Trait("Requirement", "HK-1")]
+    [Trait("Requirement", "HK-3")]
+    [InlineData(3000, 1, 0x31u)]
+    [InlineData(3008, 9, 0x39u)]
+    [InlineData(3009, 0, 0x30u)]
+    internal void DigitAndVirtualKeyFor_AnyHotkeyId_NameItsDigitKey(int id, int expectedDigit, uint expectedVirtualKey)
+    {
+        Assert.Equal(expectedDigit, HotkeyInterpreter.DigitFor(id));
+        Assert.Equal(expectedVirtualKey, HotkeyInterpreter.VirtualKeyFor(id));
+    }
+
+    [Fact]
+    [Trait("Requirement", "HK-1")]
+    [Trait("Requirement", "HK-3")]
+    internal void HotkeyIds_Always_ListsDigitsOneToNineThenZero()
+    {
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 0], HotkeyInterpreter.HotkeyIds.Select(HotkeyInterpreter.DigitFor));
+    }
+
+    [Theory]
+    [Trait("Requirement", "HK-5")]
+    [InlineData(null, 3001, false, false)]
+    [InlineData(3000, 3000, true, false)]
+    [InlineData(3000, 3001, false, false)]
+    [InlineData(3000, 3001, true, true)]
+    [InlineData(3001, 3000, true, true)]
+    [InlineData(3000, 3009, true, true)]
+    [InlineData(3009, 3000, true, true)]
+    internal void IsChordedPress_AnyHeldState_IgnoresOnlyAnotherDigitWhileTheFirstIsHeld(int? lastActed, int pressed, bool lastActedKeyHeld, bool expected)
+    {
+        Assert.Equal(expected, HotkeyInterpreter.IsChordedPress(lastActed, pressed, lastActedKeyHeld));
+    }
 }

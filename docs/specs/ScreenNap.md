@@ -49,16 +49,41 @@ system-tray icon and registered global hotkeys.
 
 A second launch displays a localized informational message and exits without affecting
 the running process.
+When this message, or a startup-failure message (ERR-1, ERR-2), cannot be shown,
+ScreenNap logs that failure and ends as it would have after the message.
 
 #### LIFE-3: Normal shutdown releases everything ScreenNap holds
 
 On normal shutdown, ScreenNap unregisters its global hotkeys, removes its tray icon,
 closes all blackout and identification windows, and releases its window resources.
+When a blackout window cannot be closed at that point, ScreenNap logs the failure, shows
+no notification, and ends; Windows removes the windows of the ended process.
 
 #### LIFE-4: Nothing persists across restarts
 
 Blackout choices exist only for the current process lifetime; ScreenNap persists neither
 blackout state nor user configuration across restarts.
+
+### Processing and timing
+
+#### RUN-1: ScreenNap handles one event at a time
+
+ScreenNap handles every menu command, hotkey, mouse action, timer, and display change
+one at a time, in the order Windows delivers them, so no event changes blackout, overlay,
+or tray state while ScreenNap decides another. Only one ScreenNap process runs (LIFE-2).
+
+#### RUN-2: Startup values stay fixed while ScreenNap runs
+
+The Windows UI language, the `SCREENNAP_LOG_DIR` value, and the set of hotkeys that could
+be registered are read once at startup. A change to any of them takes effect at the next
+start; a hotkey another application held at startup stays unavailable until then.
+
+#### RUN-3: Every input from the user's session is the user's action
+
+The tray-icon and menu messages ScreenNap acts on may come from any process of the
+user's Windows session, and ScreenNap treats each as the user's action. The
+`SCREENNAP_LOG_DIR` value comes from the environment the user or an administrator sets.
+No input decides an identity, a permission, or another effect the user may not choose.
 
 ### Monitor discovery, names, and numbering
 
@@ -87,7 +112,16 @@ and stable physical identity when Windows supplies that identity.
 #### MON-5: One monitor's failure does not hide the others
 
 Failure to obtain information for one monitor does not prevent other monitors from being
-returned.
+returned. The monitor whose information cannot be obtained is left out of the
+enumeration, and the monitors after it take the following one-based numbers (MON-2).
+
+#### MON-6: A failed enumeration uses the monitors found before the failure
+
+When the enumeration itself fails, ScreenNap uses the monitors it obtained before the
+failure, possibly none, logs the failure, and shows no notification. With no monitor, the
+menu holds only the version item, a separator, and `Exit` (MENU-8), monitor hotkeys and
+the identify hotkey do nothing (HK-2, IDN-6), and reconciliation keeps every desired
+blackout pending (DISP-4).
 
 ### Tray icon and tooltip
 
@@ -109,6 +143,20 @@ The tooltip does not exceed the Windows notification-icon limit of 127 character
 
 Either a left-button release or a right-button release on the tray icon opens the
 context menu at the current cursor position.
+When the cursor position cannot be obtained, the menu opens at screen coordinates
+(0, 0), and the failure is logged.
+
+#### TRAY-5: The tray icon returns after the taskbar is recreated
+
+When the Windows taskbar is recreated (for example after Explorer restarts), ScreenNap
+adds its tray icon again, with the icon and tooltip of the current live blackout count.
+When ScreenNap cannot register at startup for the taskbar's notification, it logs the
+failure and keeps running without adding the icon again.
+
+#### TRAY-6: A notification fits the Windows limits
+
+A tray notification's text is cut to its first 255 characters and its title to its first
+63 characters, the Windows notification-icon limits.
 
 ### Context menu
 
@@ -127,8 +175,9 @@ The menu lists every currently enumerated monitor before its action items.
 
 #### MENU-4: A monitor item describes its monitor
 
-Each monitor item contains its one-based accelerator number, friendly name, resolution,
-localized primary marker when applicable, and localized active marker when blacked out.
+Each monitor item contains its one-based accelerator number, friendly name, resolution
+in physical pixels, localized primary marker when applicable, and localized active marker
+when blacked out.
 
 #### MENU-5: A blacked-out monitor's item is checked
 
@@ -148,6 +197,12 @@ it attempts to close every live blackout window.
 
 `Exit` always appears, including when no monitor is available, and terminates the
 application through normal shutdown.
+
+#### MENU-9: Monitors beyond the ninth keep their numbers
+
+With ten or more monitors, every monitor is listed with its one-based number; the
+accelerator of a number with two or more digits is its first digit. A menu command that
+matches no item of the menu snapshot does nothing.
 
 ### Version display
 
@@ -189,6 +244,9 @@ it has a stable physical identity, retains only its own desired state.
 #### BLK-5: The tray follows the live blackout count
 
 The tray state is updated whenever the live blackout count changes.
+When Windows rejects an icon, tooltip, or notification update, ScreenNap logs the
+failure and the tray keeps what it showed before; the next change of the live blackout
+count tries the update again.
 
 ### Blackout window behavior
 
@@ -224,6 +282,9 @@ later position change shows the cursor and restarts the inactivity period.
 ScreenNap waits approximately 500 milliseconds after a display-change notification
 before reconciling blackout state, so a burst of topology changes is handled as one
 settled configuration.
+When the debounce timer cannot be started, ScreenNap logs the failure and does not
+reconcile for that notification; the next display-change notification starts the
+debounce again.
 
 #### DISP-2: A blackout Windows destroyed stays desired
 
@@ -272,6 +333,12 @@ monitor-identification overlays.
 Failure to register one hotkey does not prevent registration or use of the remaining
 hotkeys.
 
+#### HK-5: A second digit pressed with the first is ignored
+
+While the digit key of the ScreenNap hotkey that ScreenNap last acted on is still held,
+every other ScreenNap hotkey does nothing, so pressing two digits together acts only on
+the digit pressed first.
+
 ### Monitor-identification overlays
 
 #### IDN-1: The identify hotkey shows an overlay on each monitor
@@ -281,14 +348,18 @@ monitors and shows a centered overlay on each monitor.
 
 #### IDN-2: An overlay shows the monitor number
 
-Each overlay is a 200 by 150 pixel black, topmost, non-activating tool window containing
-the monitor's one-based number in large white text.
+Each overlay is a black, topmost, non-activating tool window containing the monitor's
+one-based number in large white text. It is 200 by 150 pixels at 100% scaling and grows
+with the monitor's scale factor (for example 300 by 225 pixels at 150%).
+When the scale factor cannot be read, the overlay uses its 100% size and the failure is
+logged.
 
 #### IDN-3: Overlays close themselves after about three seconds
 
-Identification overlays remain above ordinary windows. When the overlay for monitor 1 is
-created successfully, all identification overlays close automatically after
-approximately three seconds.
+Identification overlays remain above ordinary windows. All identification overlays close
+automatically approximately three seconds after the first overlay that could start the
+closing timer appeared. When no overlay can start the timer, the overlays stay until the
+identify hotkey closes them (IDN-4).
 
 #### IDN-4: The identify hotkey closes visible overlays
 
@@ -298,6 +369,11 @@ Invoking `Ctrl+Shift+Alt+0` while overlays are visible closes all overlays immed
 
 Failure to create one monitor's overlay does not prevent overlays from being created for
 other monitors.
+
+#### IDN-6: No monitor means no overlay
+
+When the enumeration finds no monitor, the identify hotkey shows nothing and shows no
+notification.
 
 ### Localization
 
@@ -371,6 +447,23 @@ last-write time is older than seven days. A file that cannot be deleted is logge
 Directory creation, log writes, retention scans, and log deletion failures do not
 terminate the application.
 
+#### LOG-9: With no usable log directory, ScreenNap runs without logs
+
+When neither the `SCREENNAP_LOG_DIR` directory nor the default directory can be created,
+ScreenNap writes no log and shows no notification.
+
+#### LOG-10: Log files are UTF-8 text with CRLF line ends
+
+Log files are UTF-8 without a byte order mark, and each line ends with CRLF. Each line is
+appended with one write, so a process ended during that write can leave its last line
+incomplete.
+
+#### LOG-11: An unset log directory is reported once
+
+When `SCREENNAP_LOG_DIR` is not set or is empty, ScreenNap writes one `INFO` entry at
+startup that names the variable, states that it is not set, and names the default
+directory applied.
+
 ### Distribution and installer
 
 #### DIST-1: The portable distribution is one self-contained executable
@@ -409,6 +502,19 @@ uninstall asks ScreenNap to close without force-closing it and continues once Sc
 has exited; when ScreenNap is still running after that request, the silent uninstall
 removes nothing and ends with a non-zero exit code.
 
+#### DIST-8: Updating closes a running ScreenNap without restarting it
+
+When ScreenNap is running, the interactive installer offers to close it before replacing
+its files, and ScreenNap is not started again after the update unless the user chooses
+the launch offered by DIST-4.
+
+#### DIST-9: A silent update never force-closes ScreenNap
+
+A silent update asks a running ScreenNap to close without force-closing it and continues
+once ScreenNap has exited. When ScreenNap is still running after that request, the silent
+update replaces nothing and ends with a non-zero exit code, so a deployment can be run
+again once ScreenNap has closed.
+
 ## Inputs and Outputs
 
 | Input | Observable output | Requirements |
@@ -417,11 +523,12 @@ removes nothing and ends with a non-zero exit code.
 | Monitor menu item | Blackout toggled for that menu entry | MENU-6, BLK-1, BLK-2 |
 | `Release All` | All closable blackouts dismissed | MENU-7, BLK-4 |
 | `Exit` | Normal application shutdown | MENU-8, LIFE-3 |
-| `Ctrl+Shift+Alt+1` through `9` | Corresponding current monitor toggled when present | HK-1, HK-2 |
+| `Ctrl+Shift+Alt+1` through `9` | Corresponding current monitor toggled when present | HK-1, HK-2, HK-5 |
 | `Ctrl+Shift+Alt+0` | Identification overlays shown or dismissed | HK-3, IDN-1 to IDN-4 |
 | Blackout-window left double-click or right-button release | That blackout dismissed by the user | WIN-4 |
 | Cursor position changes over a blackout | Cursor restored and inactivity timer restarted | WIN-5 |
 | Display configuration change | Desired blackout state reconciled after debounce | DISP-1 to DISP-6 |
+| Taskbar recreated | Tray icon added again with the current state | TRAY-5 |
 | `SCREENNAP_LOG_DIR` | Log directory | LOG-1, LOG-2 |
 | Application and operational events | Daily English log entries when logging is available | LOG-3 to LOG-6 |
 
@@ -436,9 +543,16 @@ is available, is reported to the user in a localized message box, and stops star
 
 #### ERR-2: A missing tray icon is shown to the user and stops ScreenNap
 
-When the tray icon cannot be created, ScreenNap logs the failure, reports it to the user
-in a localized message box, and shuts down normally, because without the tray icon the
-user has no way to open the menu or exit.
+When the tray icon cannot be created, or its normal or active image cannot be loaded at
+startup, ScreenNap logs the failure, reports it to the user in a localized message box,
+and shuts down normally, because without a visible tray icon the user has no way to open
+the menu or exit.
+
+#### ERR-12: Losing Windows' messages is shown to the user and stops ScreenNap
+
+When ScreenNap can no longer receive messages from Windows, it logs the failure, reports
+it to the user in a localized message box, and shuts down normally, because it can no
+longer react to the tray icon, the hotkeys, or the blackout windows.
 
 ### Failures of an operation that continue
 
@@ -468,10 +582,12 @@ tray notification names the monitor.
 When one or more hotkeys cannot be registered at startup, one localized tray notification
 lists the hotkeys that are unavailable.
 
-#### ERR-8: Overlays that cannot be created are reported
+#### ERR-8: Overlays that cannot show their number are reported
 
-When an identification overlay cannot be created for one or more monitors, a localized
-tray notification names the monitor numbers without an overlay.
+When an identification overlay cannot be created, or its number cannot be drawn as it
+appears, for one or more monitors, one localized tray notification names those monitor
+numbers. An overlay whose number cannot be drawn stays until the overlays close (IDN-3,
+IDN-4). A later redraw of an overlay that fails is logged only.
 
 ### Failures that are logged only
 
@@ -483,8 +599,9 @@ level, and unaffected operations continue.
 
 #### ERR-10: Maintenance and cleanup failures are logged without notification
 
-Identification-overlay timers, topmost maintenance, dismissal, and cleanup are
-best-effort operations: their failures are logged and do not notify the user.
+Identification-overlay timers, topmost maintenance, a later redraw of an overlay,
+dismissal, and cleanup are best-effort operations: their failures are logged and do not
+notify the user.
 
 #### ERR-11: Logging failures stay silent
 

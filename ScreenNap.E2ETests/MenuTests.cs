@@ -5,6 +5,9 @@ namespace ScreenNap.E2ETests;
 
 public sealed class MenuTests
 {
+    // The identifier ScreenNap registers Ctrl+Shift+Alt+1 under, which its WM_HOTKEY carries
+    private const nuint FirstMonitorHotkeyId = 3000;
+
     public MenuTests() => TestAssets.RequireNoRunningScreenNap();
 
     [Fact]
@@ -44,6 +47,34 @@ public sealed class MenuTests
     }
 
     [Fact]
+    [Trait("Requirement", "RUN-1")]
+    [Trait("Requirement", "MENU-6")]
+    internal void Events_OfDifferentKindsSentBackToBack_AreEachHandledInTheOrderSent()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        app.OpenMenu();
+
+        // One burst, posted without waiting for any of them to be handled
+        app.Post(Win32.WM_COMMAND, ScreenNapApp.MonitorCommandBase, 0);
+        app.Post(Win32.WM_HOTKEY, FirstMonitorHotkeyId, 0);
+        app.Post(Win32.WM_COMMAND, ScreenNapApp.MonitorCommandBase, 0);
+        app.Post(Win32.WM_COMMAND, ScreenNapApp.ReleaseAllCommand, 0);
+        app.Post(Win32.WM_HOTKEY, FirstMonitorHotkeyId, 0);
+
+        Wait.Until(() => BlackoutEvents(app).Count == 5, TimeSpan.FromSeconds(10), "ScreenNap handles the five events");
+        Assert.Equal(["on", "off", "on", "release", "on"], BlackoutEvents(app));
+        app.WaitForBlackoutCount(1);
+    }
+
+    private static List<string> BlackoutEvents(ScreenNapApp app)
+        => [.. app.LogLines()
+            .Select(line => line.Contains("Blackout toggled on", StringComparison.Ordinal) ? "on"
+                : line.Contains("Blackout toggled off", StringComparison.Ordinal) ? "off"
+                : line.Contains("Releasing all blackout windows", StringComparison.Ordinal) ? "release"
+                : null)
+            .OfType<string>()];
+
+    [Fact]
     [Trait("Requirement", "TRAY-4")]
     internal void Open_LeftButtonRelease_ShowsTheMenu()
     {
@@ -74,6 +105,7 @@ public sealed class MenuTests
     [Trait("Requirement", "MENU-2")]
     [Trait("Requirement", "MENU-5")]
     [Trait("Requirement", "MENU-7")]
+    [Trait("Requirement", "RUN-3")]
     internal void Open_WithABlackout_ChecksTheMonitorAndOffersReleaseAll()
     {
         using ScreenNapApp app = ScreenNapApp.Start();

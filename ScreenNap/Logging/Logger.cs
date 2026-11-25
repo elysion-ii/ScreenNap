@@ -9,57 +9,71 @@ internal static class Logger
     private const int RetentionDays = 7;
     private const string LogFilePrefix = "ScreenNap_";
     private const string LogFileExtension = ".log";
+    private const string InfoLevel = "INFO";
+    private const string WarnLevel = "WARN";
+    private const string ErrorLevel = "ERROR";
 
     private static readonly object s_lock = new();
     private static string? s_logDirectory;
 
-    internal static void Initialize()
+    internal static string DefaultDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ScreenNap", "Logs");
+
+    internal static void Initialize(string? configuredDirectory, string defaultDirectory)
     {
-        string defaultDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ScreenNap", "Logs");
-        string? configuredDirectory = Environment.GetEnvironmentVariable(DirectoryVariable);
-
-        string? rejectedDirectory = null;
-        if (!string.IsNullOrEmpty(configuredDirectory))
-        {
-            if (IsUsableDirectorySetting(configuredDirectory) && TryCreateDirectory(configuredDirectory))
-                s_logDirectory = configuredDirectory;
-            else
-                rejectedDirectory = configuredDirectory;
-        }
-
-        if (s_logDirectory is null && TryCreateDirectory(defaultDirectory))
-            s_logDirectory = defaultDirectory;
-
-        if (s_logDirectory is null)
-            return;
-
-        if (rejectedDirectory is not null)
-            Warn($"{DirectoryVariable} \"{rejectedDirectory}\" is not an absolute directory path that can be created; logging to {defaultDirectory}");
-
-        PurgeOldLogs();
+        s_logDirectory = Open(configuredDirectory, defaultDirectory, TryCreateDirectory);
+        if (s_logDirectory is not null)
+            PurgeOldLogs();
     }
 
-    internal static void Info(string message) => Write("INFO", message);
+    // Chooses the log directory and writes the notice about that choice into it
+    // (specification LOG-2, LOG-11); returns null when no directory can be used (LOG-9)
+    internal static string? Open(string? configuredDirectory, string defaultDirectory, Func<string, bool> tryCreate)
+    {
+        LogDirectoryChoice choice = ChooseDirectory(configuredDirectory, defaultDirectory, tryCreate);
+        if (choice is { Directory: { } directory, NoticeLevel: { } level, Notice: { } notice })
+            Write(directory, level, notice);
+        return choice.Directory;
+    }
 
-    internal static void Info(ref InvariantLogMessage message) => Write("INFO", message.ToStringAndClear());
+    internal static LogDirectoryChoice ChooseDirectory(string? configuredDirectory, string defaultDirectory, Func<string, bool> tryCreate)
+    {
+        ArgumentNullException.ThrowIfNull(tryCreate);
+        if (string.IsNullOrEmpty(configuredDirectory))
+        {
+            return tryCreate(defaultDirectory)
+                ? new LogDirectoryChoice(defaultDirectory, InfoLevel, $"{DirectoryVariable} is not set; logging to {defaultDirectory}")
+                : default;
+        }
 
-    internal static void Warn(string message) => Write("WARN", message);
+        if (IsUsableDirectorySetting(configuredDirectory) && tryCreate(configuredDirectory))
+            return new LogDirectoryChoice(configuredDirectory, null, null);
 
-    internal static void Warn(ref InvariantLogMessage message) => Write("WARN", message.ToStringAndClear());
+        return tryCreate(defaultDirectory)
+            ? new LogDirectoryChoice(defaultDirectory, WarnLevel, $"{DirectoryVariable} \"{configuredDirectory}\" is not an absolute directory path that can be created; logging to {defaultDirectory}")
+            : default;
+    }
 
-    internal static void Error(string message) => Write("ERROR", message);
+    internal static void Info(string message) => Write(InfoLevel, message);
 
-    internal static void Error(ref InvariantLogMessage message) => Write("ERROR", message.ToStringAndClear());
+    internal static void Info(ref InvariantLogMessage message) => Write(InfoLevel, message.ToStringAndClear());
 
-    internal static void Warn(string message, int win32Error) => Write("WARN", WithWin32Error(message, win32Error));
+    internal static void Warn(string message) => Write(WarnLevel, message);
 
-    internal static void Warn(ref InvariantLogMessage message, int win32Error) => Write("WARN", WithWin32Error(message.ToStringAndClear(), win32Error));
+    internal static void Warn(ref InvariantLogMessage message) => Write(WarnLevel, message.ToStringAndClear());
 
-    internal static void Error(string message, int win32Error) => Write("ERROR", WithWin32Error(message, win32Error));
+    internal static void Error(string message) => Write(ErrorLevel, message);
 
-    internal static void Error(ref InvariantLogMessage message, int win32Error) => Write("ERROR", WithWin32Error(message.ToStringAndClear(), win32Error));
+    internal static void Error(ref InvariantLogMessage message) => Write(ErrorLevel, message.ToStringAndClear());
+
+    internal static void Warn(string message, int win32Error) => Write(WarnLevel, WithWin32Error(message, win32Error));
+
+    internal static void Warn(ref InvariantLogMessage message, int win32Error) => Write(WarnLevel, WithWin32Error(message.ToStringAndClear(), win32Error));
+
+    internal static void Error(string message, int win32Error) => Write(ErrorLevel, WithWin32Error(message, win32Error));
+
+    internal static void Error(ref InvariantLogMessage message, int win32Error) => Write(ErrorLevel, WithWin32Error(message.ToStringAndClear(), win32Error));
 
     internal static string WithWin32Error(string message, int win32Error)
         => string.Create(CultureInfo.InvariantCulture, $"{message} (Win32 error: {win32Error})");
@@ -98,14 +112,22 @@ internal static class Logger
         }
     }
 
-    private static void Write(string level, string message)
+    private static void Write(string level, string message) => Write(s_logDirectory, level, message);
+
+    private static void Write(string? directory, string level, string message)
     {
-        if (s_logDirectory is null)
+        if (LogCapture.Current is { } capture)
+        {
+            capture.Add(new LogEntry(level, message));
+            return;
+        }
+
+        if (directory is null)
             return;
 
         DateTimeOffset now = DateTimeOffset.Now;
         string line = FormatLine(now, level, message);
-        string filePath = Path.Combine(s_logDirectory, FileNameFor(now));
+        string filePath = Path.Combine(directory, FileNameFor(now));
 
         try
         {

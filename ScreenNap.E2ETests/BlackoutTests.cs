@@ -103,14 +103,33 @@ public sealed class BlackoutTests
     }
 
     [Fact]
-    [Trait("Requirement", "WIN-5")]
     [Trait("Requirement", "WIN-3")]
-    internal void IdleCursor_OverTheBlackout_HidesAfterTenSecondsAndShowsOnMovement()
+    internal void TopmostPositionLost_LiveBlackout_IsRestoredWithoutMovingResizingOrActivating()
     {
         using ScreenNapApp app = ScreenNapApp.Start();
         RECT monitor = app.Monitors()[0];
         app.Select(ScreenNapApp.MonitorCommandBase);
         IntPtr blackout = app.WaitForBlackoutCovering(monitor);
+
+        // Another program taking the blackout out of the topmost band, as a topmost window
+        // shown later can push it under
+        if (!Win32.SetWindowPos(blackout, Win32.HWND_NOTOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE))
+            throw new InvalidOperationException($"SetWindowPos failed (Win32 error: {Marshal.GetLastWin32Error()})");
+        Assert.Equal(0, Desktop.ExtendedStyle(blackout) & Win32.WS_EX_TOPMOST);
+
+        Wait.Until(() => (Desktop.ExtendedStyle(blackout) & Win32.WS_EX_TOPMOST) != 0, s_paintTimeout, "ScreenNap restores the blackout's topmost position");
+        Assert.True(ScreenNapApp.SameRect(app.Measure(() => Desktop.Bounds(blackout)), monitor));
+        Assert.NotEqual(blackout, Win32.GetForegroundWindow());
+    }
+
+    [Fact]
+    [Trait("Requirement", "WIN-5")]
+    internal void IdleCursor_OverTheBlackout_HidesAfterTenSecondsAndShowsOnMovement()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT monitor = app.Monitors()[0];
+        app.Select(ScreenNapApp.MonitorCommandBase);
+        app.WaitForBlackoutCovering(monitor);
         int centerX = monitor.Left + monitor.Width / 2;
         int centerY = monitor.Top + monitor.Height / 2;
         app.Measure(() => Desktop.MoveCursor(centerX, centerY));
@@ -119,7 +138,5 @@ public sealed class BlackoutTests
         Wait.Until(Desktop.CursorIsHidden, TimeSpan.FromSeconds(15), "the cursor hides over the idle blackout");
         app.Measure(() => Desktop.MoveCursor(centerX + 10, centerY + 10));
         Wait.Until(() => !Desktop.CursorIsHidden(), TimeSpan.FromSeconds(5), "the cursor shows again after it moves");
-
-        Assert.NotEqual(0, Desktop.ExtendedStyle(blackout) & Win32.WS_EX_TOPMOST);
     }
 }

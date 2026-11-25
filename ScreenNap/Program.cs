@@ -1,176 +1,33 @@
 using System.Globalization;
-using System.Runtime.InteropServices;
-using ScreenNap.Blackout;
 using ScreenNap.Hotkeys;
 using ScreenNap.Identify;
+using ScreenNap.Lifetime;
 using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Native;
-using ScreenNap.Resources;
 using ScreenNap.Tray;
-using ScreenNap.Versioning;
 
 namespace ScreenNap;
 
 internal static class Program
 {
-    private const string MutexName = "ScreenNap_SingleInstance";
-    private const nuint DisplayChangeDebounceTimerId = 4;
-    private const uint DisplayChangeDebounceMs = 500;
-
-    // Pin delegate to prevent GC collection
-    private static readonly WNDPROC s_wndProc = MessageWndProc;
-    private static readonly WindowClass s_messageWindowClass = new("ScreenNap_MessageWindow", 0, s_wndProc);
-
-    private static TrayIcon? s_trayIcon;
-    private static BlackoutManager? s_blackoutManager;
-    private static ContextMenu? s_contextMenu;
-    private static HotkeyManager? s_hotkeyManager;
-    private static IntPtr s_messageWindow;
-
     [STAThread]
     private static void Main()
     {
-        Logger.Initialize();
+        Logger.Initialize(Environment.GetEnvironmentVariable(Logger.DirectoryVariable), Logger.DefaultDirectory);
 
         // The Windows UI language selects the localized text and stays fixed for the process
         CultureInfo culture = CultureInfo.CurrentUICulture;
+        var monitors = new MonitorEnumerator(new Win32MonitorApi());
 
-        using var mutex = new Mutex(true, MutexName, out bool createdNew);
-        if (!createdNew)
-        {
-            int messageResult = User32.MessageBoxW(
-                IntPtr.Zero,
-                Strings.NotifyAlreadyRunning(culture),
-                Strings.NotifyTitle(culture),
-                WindowStyles.MB_OK | WindowStyles.MB_ICONINFORMATION);
-            if (messageResult == 0)
-                Logger.Error("MessageBoxW failed for the single-instance notification");
-            return;
-        }
-
-        Logger.Info($"Application started (v{AppVersion.Current})");
-
-        IntPtr hInstance = Kernel32.GetModuleHandleW(null);
-        if (hInstance == IntPtr.Zero)
-        {
-            Logger.Error("GetModuleHandleW failed", Marshal.GetLastWin32Error());
-            ShowError(Strings.NotifyStartFailed(culture), culture);
-            return;
-        }
-
-        if (!s_messageWindowClass.Register(hInstance, IntPtr.Zero, IntPtr.Zero))
-        {
-            Logger.Error("RegisterClassExW failed for message window", Marshal.GetLastWin32Error());
-            ShowError(Strings.NotifyStartFailed(culture), culture);
-            return;
-        }
-
-        s_messageWindow = User32.CreateWindowExW(
-            0, s_messageWindowClass.Name, string.Empty, 0,
-            0, 0, 0, 0,
-            IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
-
-        if (s_messageWindow == IntPtr.Zero)
-        {
-            Logger.Error("CreateWindowExW failed for message window", Marshal.GetLastWin32Error());
-            if (!s_messageWindowClass.Unregister(hInstance))
-                Logger.Warn("UnregisterClassW failed after message window creation failure", Marshal.GetLastWin32Error());
-            ShowError(Strings.NotifyStartFailed(culture), culture);
-            return;
-        }
-
-        s_trayIcon = new TrayIcon(s_messageWindow, culture);
-        s_blackoutManager = new BlackoutManager(new BlackoutWindowFactory(), s_trayIcon, culture);
-        s_contextMenu = new ContextMenu(s_blackoutManager, culture);
-        var identifyOverlays = new IdentifyOverlay();
-        var monitorIdentifier = new MonitorIdentifier(identifyOverlays, s_trayIcon, MonitorEnumerator.EnumerateMonitors, culture);
-        s_hotkeyManager = new HotkeyManager(s_blackoutManager, monitorIdentifier, s_trayIcon, culture);
-
-        s_blackoutManager.ActiveCountChanged += () =>
-        {
-            s_trayIcon.UpdateState(s_blackoutManager.ActiveCount);
-        };
-
-        if (s_trayIcon.Create())
-        {
-            s_hotkeyManager.Register(s_messageWindow);
-
-            while (User32.GetMessageW(out MSG msg, IntPtr.Zero, 0, 0))
-            {
-                _ = User32.TranslateMessage(ref msg);
-                _ = User32.DispatchMessageW(ref msg);
-            }
-        }
-        else
-        {
-            ShowError(Strings.NotifyTrayFailed(culture), culture);
-        }
-
-        Logger.Info("Application exiting");
-        s_hotkeyManager.Unregister(s_messageWindow);
-        s_trayIcon.Remove();
-        s_blackoutManager.ReleaseAll();
-        identifyOverlays.DismissAll();
-        if (!User32.DestroyWindow(s_messageWindow))
-            Logger.Warn("DestroyWindow failed for message window", Marshal.GetLastWin32Error());
-        BlackoutWindow.UnregisterClass(hInstance);
-        IdentifyOverlay.UnregisterClass(hInstance);
-        if (!s_messageWindowClass.Unregister(hInstance))
-            Logger.Warn("UnregisterClassW failed for message window", Marshal.GetLastWin32Error());
-    }
-
-    private static void ShowError(string message, CultureInfo culture)
-    {
-        int result = User32.MessageBoxW(
-            IntPtr.Zero,
-            message,
-            Strings.NotifyTitle(culture),
-            WindowStyles.MB_OK | WindowStyles.MB_ICONERROR);
-        if (result == 0)
-            Logger.Error("MessageBoxW failed for a startup failure notification");
-    }
-
-    private static nint MessageWndProc(IntPtr hWnd, uint msg, nuint wParam, nint lParam)
-    {
-        switch (msg)
-        {
-            case WindowStyles.WM_TRAYICON:
-                uint eventMsg = (uint)(lParam & 0xFFFF);
-                if (eventMsg == WindowStyles.WM_LBUTTONUP || eventMsg == WindowStyles.WM_RBUTTONUP)
-                {
-                    s_contextMenu?.Show(hWnd);
-                }
-                return 0;
-
-            case WindowStyles.WM_COMMAND:
-                int commandId = (int)(wParam & 0xFFFF);
-                s_contextMenu?.HandleCommand(commandId);
-                return 0;
-
-            case WindowStyles.WM_HOTKEY:
-                s_hotkeyManager?.HandleHotkey((int)wParam);
-                return 0;
-
-            case WindowStyles.WM_DISPLAYCHANGE:
-                nuint timerId = User32.SetTimer(hWnd, DisplayChangeDebounceTimerId,
-                    DisplayChangeDebounceMs, IntPtr.Zero);
-                if (timerId == 0)
-                    Logger.Warn("SetTimer failed for display-change debounce", Marshal.GetLastWin32Error());
-                return 0;
-
-            case WindowStyles.WM_TIMER when wParam == DisplayChangeDebounceTimerId:
-                if (!User32.KillTimer(hWnd, DisplayChangeDebounceTimerId))
-                    Logger.Warn("KillTimer failed for display-change debounce", Marshal.GetLastWin32Error());
-                Logger.Info("Display configuration changed (debounced)");
-                s_blackoutManager?.Reconcile(MonitorEnumerator.EnumerateMonitors());
-                return 0;
-
-            case WindowStyles.WM_DESTROY:
-                User32.PostQuitMessage(0);
-                return 0;
-        }
-
-        return User32.DefWindowProcW(hWnd, msg, wParam, lParam);
+        new AppLifetime(
+            new Win32LifetimeApi(),
+            new Win32WindowApi(),
+            new Win32TrayIconApi(),
+            new Win32PopupMenuApi(),
+            new Win32HotkeyApi(),
+            new Win32OverlayPaintApi(),
+            monitors.EnumerateMonitors,
+            culture).Run();
     }
 }

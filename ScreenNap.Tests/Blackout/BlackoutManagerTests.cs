@@ -1,5 +1,6 @@
 using System.Globalization;
 using ScreenNap.Blackout;
+using ScreenNap.Logging;
 using ScreenNap.Monitors;
 using ScreenNap.Native;
 using ScreenNap.Tests.TestDoubles;
@@ -28,6 +29,34 @@ public sealed class BlackoutManagerTests
         Assert.Contains("DISPLAY1", manager.ActiveDevicePaths);
         Assert.Single(factory.Requests);
         Assert.Equal(1, changes);
+    }
+
+    [Fact]
+    [Trait("Requirement", "LIFE-3")]
+    [Trait("Requirement", "INV-5")]
+    internal void CloseAllAtExit_OneWindowCannotBeClosed_ClosesTheOthersClearsIntentAndLogsWithoutNotification()
+    {
+        var factory = new FakeBlackoutWindowFactory();
+        var notifier = new FakeUserNotifier();
+        var manager = new BlackoutManager(factory, notifier, s_english);
+        MonitorInfo first = Monitor("DISPLAY1", Identity(1));
+        MonitorInfo second = Monitor("DISPLAY2", Identity(2));
+        manager.Toggle(first);
+        manager.Toggle(second);
+        factory.Windows[0].DestroySucceeds = false;
+        using var log = new LogCapture();
+
+        manager.CloseAllAtExit();
+
+        Assert.Equal(["DISPLAY1"], manager.ActiveDevicePaths);
+        Assert.Equal(1, factory.Windows[1].DestroyCalls);
+        Assert.Empty(notifier.Messages);
+        LogAssert.Logged(log, "WARN", "1 blackout window(s) could not be closed at exit");
+
+        // Intent is gone: a reconciliation restores neither monitor once the window disappears
+        factory.Windows[0].IsAlive = false;
+        manager.Reconcile([first, second]);
+        Assert.Equal(2, factory.Requests.Count);
     }
 
     [Fact]
@@ -346,6 +375,7 @@ public sealed class BlackoutManagerTests
 
     [Fact]
     [Trait("Requirement", "DISP-4")]
+    [Trait("Requirement", "MON-6")]
     internal void Reconcile_DisconnectedDesiredMonitor_IsRestoredOnReconnection()
     {
         var factory = new FakeBlackoutWindowFactory();

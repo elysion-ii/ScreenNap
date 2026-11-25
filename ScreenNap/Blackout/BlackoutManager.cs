@@ -81,6 +81,24 @@ internal sealed class BlackoutManager
             _notifier.Notify(FailureNotices.ReleaseAllIncomplete(remaining, _culture));
     }
 
+    // At exit the tray icon is already gone and ScreenNap ends either way, so a blackout that
+    // cannot be closed is only logged; Windows removes the windows of the ended process
+    // (specification LIFE-3, INV-5)
+    internal void CloseAllAtExit()
+    {
+        _desired.Clear();
+
+        int remaining = 0;
+        foreach (IBlackoutWindow window in _windows.Values.ToList())
+        {
+            if (!window.Destroy())
+                remaining++;
+        }
+
+        if (remaining > 0)
+            Logger.Warn($"{remaining} blackout window(s) could not be closed at exit");
+    }
+
     internal void Reconcile(IReadOnlyList<MonitorInfo> currentMonitors)
     {
         List<string> staleKeys = _windows

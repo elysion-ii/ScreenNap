@@ -15,6 +15,7 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MENU-1")]
     [Trait("Requirement", "MENU-2")]
     [Trait("Requirement", "MENU-8")]
+    [Trait("Requirement", "MON-6")]
     internal void Build_NoMonitors_ContainsVersionSingleSeparatorAndExit()
     {
         IReadOnlyList<MenuItem> items = MenuModelBuilder.Build([], new HashSet<string>(), VersionText, s_english);
@@ -86,12 +87,26 @@ public sealed class MenuModelTests
     [Trait("Requirement", "MENU-7")]
     [Trait("Requirement", "MENU-8")]
     [Trait("Requirement", "VER-2")]
+    [Trait("Requirement", "MENU-9")]
     internal void Interpret_AnyCommandId_MapsToCommand(int id, int count, MenuCommandKind expectedKind, int expectedIndex)
     {
         MenuCommand command = MenuCommandInterpreter.Interpret(id, count);
 
         Assert.Equal(expectedKind, command.Kind);
         Assert.Equal(expectedIndex, command.MonitorIndex);
+    }
+
+    [Fact]
+    [Trait("Requirement", "MENU-9")]
+    internal void Build_TenMonitors_ListsEveryMonitorWithItsNumber()
+    {
+        MonitorInfo[] monitors = [.. Enumerable.Range(1, 10).Select(number => Monitor($"DISPLAY{number}"))];
+
+        IReadOnlyList<MenuItem> items = MenuModelBuilder.Build(monitors, new HashSet<string>(), VersionText, s_english);
+
+        Assert.Equal(
+            Enumerable.Range(1, 10).Select(number => $"&{number}  DISPLAY{number}  1920x1080"),
+            items.Where(item => item.CommandId >= MenuCommandIds.MonitorBase && item.CommandId < MenuCommandIds.ReleaseAll).Select(item => item.Text));
     }
 
     private static MonitorInfo Monitor(string path)

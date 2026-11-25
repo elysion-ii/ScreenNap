@@ -39,10 +39,10 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "PostQuitMessage")]
     internal static partial void PostQuitMessage(int nExitCode);
 
-    // Message loop
+    // Message loop. GetMessageW returns a BOOL that is -1 on failure, 0 for WM_QUIT, and
+    // positive otherwise, so it is read as an int
     [LibraryImport("user32.dll", EntryPoint = "GetMessageW", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool GetMessageW(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+    internal static partial int GetMessageW(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
     [LibraryImport("user32.dll", EntryPoint = "TranslateMessage")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -118,7 +118,22 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetAsyncKeyState")]
+    internal static partial short GetAsyncKeyState(int vKey);
+
+    // Registered messages
+    [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial uint RegisterWindowMessageW(string lpString);
+
+    // DPI
+    [LibraryImport("user32.dll", EntryPoint = "GetDpiForWindow")]
+    internal static partial uint GetDpiForWindow(IntPtr hwnd);
+
     // Paint
+    [LibraryImport("user32.dll", EntryPoint = "UpdateWindow")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UpdateWindow(IntPtr hWnd);
+
     [LibraryImport("user32.dll", EntryPoint = "BeginPaint")]
     internal static partial IntPtr BeginPaint(IntPtr hWnd, out PAINTSTRUCT lpPaint);
 

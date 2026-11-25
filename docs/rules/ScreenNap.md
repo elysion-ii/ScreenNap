@@ -17,12 +17,13 @@ directory. On conflict, this file wins.
 
 - ScreenNap must use raw Win32 API through P/Invoke; do not introduce WinForms, WPF, WinUI, or another UI framework
 - Runtime functionality must use the .NET BCL and Win32 APIs without external NuGet runtime packages; centrally managed build-time analyzers with `PrivateAssets="all"` are permitted
-- **Feature folders**: the source of `ScreenNap/` is grouped by feature, as `standard.md` Code Organization requires. The feature folders are `Tray/` (the tray icon, its tooltip, and the context menu), `Blackout/` (blackout windows and their restoration after a display change), `Hotkeys/` (the global hotkeys), and `Identify/` (the monitor-identification overlays). A type that one feature uses lives in that feature's folder
+- **Feature folders**: the source of `ScreenNap/` is grouped by feature, as `standard.md` Code Organization requires. The feature folders are `Lifetime/` (startup, the single instance, the hidden message window and the routing of its messages to the other features, and shutdown), `Tray/` (the tray icon, its tooltip, and the context menu), `Blackout/` (blackout windows and their restoration after a display change), `Hotkeys/` (the global hotkeys), and `Identify/` (the monitor-identification overlays). A type that one feature uses lives in that feature's folder. `Program.cs` only creates the Win32 implementations and starts `Lifetime/`
 - **Shared homes**: a type that two or more features use lives in a shared home, never in a feature folder. The shared homes are `Monitors/` (monitor enumeration, names, and identity), `Notifications/` (how a failure reaches the user, and its wording), `Versioning/` (the product version), `Logging/`, `Native/` (P/Invoke declarations, Win32 constants, and native structures), and `Resources/` (localized strings and icons). A type moves from a feature folder to a shared home in the change that gives it a second feature
 - **Dependency directions**: references between folders follow only these directions, so no feature depends on a feature that depends on it, and a shared home never depends on a feature:
 
 ```text
 Program.cs     → every folder
+Lifetime/      → Tray/, Blackout/, Hotkeys/, Identify/, Monitors/, Versioning/, Logging/, Native/, Resources/
 Tray/          → Blackout/, Monitors/, Notifications/, Versioning/, Logging/, Native/, Resources/
 Hotkeys/       → Blackout/, Identify/, Monitors/, Notifications/, Logging/, Native/
 Identify/      → Monitors/, Notifications/, Logging/, Native/
@@ -35,7 +36,7 @@ Resources/     → BCL only
 Native/        → no project dependencies
 ```
 
-- The named mutex in `Program.cs` is the only permitted single-instance mechanism
+- The named mutex in `Lifetime/` is the only permitted single-instance mechanism
 
 ## Win32 and P/Invoke
 
@@ -44,6 +45,7 @@ Native/        → no project dependencies
 - Use `IntPtr` for HWND, HMENU, HICON, and other Win32 handles
 - Native structures must use `[StructLayout(LayoutKind.Sequential)]` or `[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]`
 - Check every P/Invoke return value and use `Marshal.GetLastWin32Error()` when the function documents `SetLastError = true`
+- **Win32 behind an API interface**: code that decides an outcome the specification states for a failed Win32 call makes that call through the API interface of its feature (e.g., `Tray/ITrayIconApi`) or, for the window functions several features call, through `Native/IWindowApi` — never through the P/Invoke declarations directly — so a unit test can make the call fail and check that outcome (`testing.md` Requirement Coverage). The interface's Win32 implementation (e.g., `Tray/Win32TrayIconApi`) converts arguments and results (native structures, strings, embedded icon resources) and decides no such outcome
 - Place Win32 constants in `Native/WindowStyles.cs`
 - Display user-facing errors through a tray notification balloon or a Win32 `MessageBox`
 
@@ -54,10 +56,10 @@ Native/        → no project dependencies
 
 ## Window Procedures
 
-- Store WndProc delegates in static fields so garbage collection cannot reclaim them
+- Keep each WndProc delegate in a field of the `Native/WindowClass` that registers it, and keep that `WindowClass` in an object that lives until the class is unregistered at shutdown, so garbage collection cannot reclaim a delegate Windows can still call. The window procedure is an instance method of that object, so each window's state is found in the object rather than in static state
 - Call `DefWindowProc` for every message that is not handled explicitly
 - Do not use `async` or `await` inside a WndProc
-- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change `WM_TIMER`, and `WM_DESTROY`
+- The hidden message window handles `WM_TRAYICON`, `WM_COMMAND`, `WM_HOTKEY`, `WM_DISPLAYCHANGE`, the display-change `WM_TIMER`, the registered `TaskbarCreated` message, and `WM_DESTROY`
 - The blackout window handles `WM_TIMER`, `WM_MOUSEMOVE`, `WM_SETCURSOR`, `WM_LBUTTONDBLCLK`, `WM_RBUTTONUP`, and `WM_DESTROY`
 - The identify overlay handles `WM_PAINT`, `WM_TIMER`, and `WM_DESTROY`
 

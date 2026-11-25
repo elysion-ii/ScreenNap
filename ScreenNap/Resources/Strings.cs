@@ -31,6 +31,8 @@ internal static class Strings
 
     internal static string NotifyTrayFailed(CultureInfo culture) => Lookup(nameof(NotifyTrayFailed), culture);
 
+    internal static string NotifyStopped(CultureInfo culture) => Lookup(nameof(NotifyStopped), culture);
+
     internal static string NotifyBlackoutNotCreated(CultureInfo culture) => Lookup(nameof(NotifyBlackoutNotCreated), culture);
 
     internal static string NotifyBlackoutNotClosed(CultureInfo culture) => Lookup(nameof(NotifyBlackoutNotClosed), culture);

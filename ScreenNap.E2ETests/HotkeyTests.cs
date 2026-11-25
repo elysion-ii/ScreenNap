@@ -69,4 +69,50 @@ public sealed class HotkeyTests
 
         Assert.True(released, "The test could not release Ctrl+Shift+Alt+9");
     }
+
+    [Fact]
+    [Trait("Requirement", "HK-5")]
+    internal void Hotkeys_SecondDigitPressedWithTheFirst_OnlyTheFirstActs()
+    {
+        using ScreenNapApp app = ScreenNapApp.Start();
+        RECT first = app.Monitors()[0];
+
+        // 0 is pressed while 1 is still held, as a user pressing both together does
+        using (Keyboard.HoldHotkey(1))
+        {
+            app.WaitForBlackoutCovering(first);
+            Keyboard.TapDigit(0);
+            app.WaitForLog("ignored while another digit is held");
+        }
+
+        Assert.Empty(app.Overlays());
+    }
+
+    [Fact]
+    [Trait("Requirement", "RUN-2")]
+    internal void Start_HotkeyReleasedAfterStartup_StaysUnavailable()
+    {
+        const int HeldId = 0xB002;
+        if (!Win32.RegisterHotKey(IntPtr.Zero, HeldId, Keyboard.HotkeyModifiers, Win32.VK_0 + MaximumMonitorDigit))
+            throw new InvalidOperationException($"The test could not hold Ctrl+Shift+Alt+9 (Win32 error: {Marshal.GetLastWin32Error()})");
+        bool released = false;
+        try
+        {
+            using ScreenNapApp app = ScreenNapApp.Start();
+            app.WaitForLog("Failed to register hotkey Ctrl+Shift+Alt+9");
+            released = Win32.UnregisterHotKey(IntPtr.Zero, HeldId);
+            Assert.True(released, "The test could not release Ctrl+Shift+Alt+9");
+
+            // A settled display change shows ScreenNap has handled events since the release
+            app.Post(Win32.WM_DISPLAYCHANGE, 0, 0);
+            app.WaitForLog("Display configuration changed (debounced)");
+
+            Assert.False(Keyboard.HotkeyIsHeldElsewhere(MaximumMonitorDigit), "ScreenNap registered Ctrl+Shift+Alt+9 after startup");
+        }
+        finally
+        {
+            if (!released)
+                _ = Win32.UnregisterHotKey(IntPtr.Zero, HeldId);
+        }
+    }
 }

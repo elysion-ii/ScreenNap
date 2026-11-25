@@ -5,7 +5,6 @@ namespace ScreenNap.Versioning;
 internal static class AppVersion
 {
     internal const string ProductName = "ScreenNap";
-    internal const string Unknown = "unknown";
     private const char MetadataSeparator = '+';
 
     internal static string Current { get; } = Normalize(
@@ -18,16 +17,14 @@ internal static class AppVersion
     // stripping it here keeps the displayed version at X.Y.Z even in a build that lost that setting
     internal static string Normalize(string? informationalVersion)
     {
-        if (string.IsNullOrWhiteSpace(informationalVersion))
-            return Unknown;
+        string value = informationalVersion ?? string.Empty;
+        int metadataStart = value.IndexOf(MetadataSeparator, StringComparison.Ordinal);
+        string version = (metadataStart >= 0 ? value[..metadataStart] : value).Trim();
 
-        int metadataStart = informationalVersion.IndexOf(MetadataSeparator, StringComparison.Ordinal);
-        string version = metadataStart >= 0
-            ? informationalVersion[..metadataStart]
-            : informationalVersion;
-
-        version = version.Trim();
-        return version.Length > 0 ? version : Unknown;
+        // The build fails without a <Version>, so an executable without one is a defective build
+        if (version.Length == 0)
+            throw new InvalidOperationException("The executable carries no product version: Directory.Build.props must define <Version> (docs/rules/dotnet.md, VERSION).");
+        return version;
     }
 
     internal static string Format(string version) => $"{ProductName} {version}";

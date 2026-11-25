@@ -38,6 +38,7 @@ public sealed class TrayStateTests
     }
 
     [Theory]
+    [Trait("Requirement", "TRAY-6")]
     [InlineData(0, 0)]
     [InlineData(254, 254)]
     [InlineData(255, 255)]
@@ -50,6 +51,7 @@ public sealed class TrayStateTests
     }
 
     [Theory]
+    [Trait("Requirement", "TRAY-6")]
     [InlineData(0, 0)]
     [InlineData(62, 62)]
     [InlineData(63, 63)]

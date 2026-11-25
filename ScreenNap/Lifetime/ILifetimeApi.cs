@@ -1,0 +1,24 @@
+namespace ScreenNap.Lifetime;
+
+// The process-level functions startup and shutdown call, behind one interface so a unit test
+// can make any of them fail (docs/rules/ScreenNap.md, Win32 and P/Invoke)
+internal interface ILifetimeApi
+{
+    // The Win32 error code the most recent call left
+    int LastError { get; }
+
+    // Holds the single-instance mutex until disposed; null while another ScreenNap holds it
+    IDisposable? AcquireSingleInstance();
+
+    // False when the message box cannot be shown
+    bool ShowMessage(string text, string caption, uint type);
+
+    // Zero when the message cannot be registered
+    uint RegisterWindowMessage(string name);
+
+    // Dispatches the thread's messages until the quit message arrives; false when Windows
+    // can no longer deliver messages
+    bool RunMessageLoop();
+
+    void PostQuit();
+}

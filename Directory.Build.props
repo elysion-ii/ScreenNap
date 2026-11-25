@@ -5,7 +5,7 @@
     <!-- Single source of truth for the app version. Do not define <Version>
          anywhere else: every artifact and every displayed version derives from
          this value (see docs/rules/dotnet.md, VERSION). -->
-    <Version>1.7.1</Version>
+    <Version>1.8.0</Version>
 
     <!-- The SDK supplies 1.0.0 for a missing <Version>, so the guard below compares what
          this file declared, captured before the SDK's default applies. -->
